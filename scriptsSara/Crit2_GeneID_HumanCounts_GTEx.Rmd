@@ -1,0 +1,1749 @@
+---
+title: "Human RNAseq exploratory analysis - brain, liver and testis"
+author: "sararaz"
+date: "2024-02-26"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+  pdf_document:
+    fig_caption: true
+    latex_engine: pdflatex
+    number_sections: true
+    toc: true
+  word_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#install.packages("ggVennDiagram")
+library(dplyr)
+library(limma)
+library(edgeR)
+library(ggplot2)
+library(tidyr)
+#library(ggVennDiagram)
+library(RColorBrewer)
+library(grid)
+# library(Cairo)
+#install.packages("ggvenn")
+library(ggvenn)
+library(viridis)
+#install.packages("hrbrthemes")
+# library(hrbrthemes)
+library(ggridges)
+#install.packages("devtools")
+library(devtools)
+#devtools::install_github('Mikata-Project/ggthemr')
+library(stringr)
+library(readxl)
+#BiocManager::install("org.Hs.eg.db")
+library(org.Hs.eg.db)
+#BiocManager::install("clusterProfiler")
+library(clusterProfiler)
+library(enrichplot)
+library(pheatmap)
+library(limma)
+library(edgeR)
+library(viridis)
+library(readr)
+library(ggpubr)
+library(gridExtra)
+```
+
+## Load input data
+
+The data is loaded by the feature counts table:
+* In this case: "/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt"
+
+
+```{r datasets, echo=FALSE}
+#Load counts data
+raw_counts<-read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
+#Order all the table by the GeneID
+raw_counts <- raw_counts[order(raw_counts$Geneid, decreasing=F),]
+```
+
+```{r, echo=FALSE}
+# The names of the samples are simplified
+coln<-colnames(raw_counts)
+newNames<-gsub(".*X.users.genomics.saraa.projectTestis.STAR.(.*)_r1Aligned.sortedByCoord.out.bam","\\1", coln)
+colnames(raw_counts)<-newNames
+```
+
+The raw table contains 60.708 genes, without duplicates
+```{r}
+dim(raw_counts)
+```
+```{r, echo=FALSE}
+#We see if there are any duplicates 
+sum(duplicated(raw_counts$Geneid))
+```
+We load the Geneid, Gene.type, Gene.name annotation data:
+* In this case: "/users/genomics/saraa/projectTestis/1transcript_1gene.txt"
+
+```{r, echo=FALSE}
+#Load geneSymbols data
+geneSymbols<-read.table("/users/genomics/saraa/projectTestis/1transcript_1gene.txt",sep=",", header=F)
+#Ordeno los transcriptIDs
+geneSymbols <- geneSymbols[order(geneSymbols$V1, decreasing=F),]
+#Rename the names
+geneSymbols<- geneSymbols %>% rename(Geneid=V1)
+geneSymbols<- geneSymbols %>% rename(Gene.type=V2)
+geneSymbols<- geneSymbols %>% rename(Gene.name=V3)
+```
+
+```{r}
+head(geneSymbols)
+```
+ 
+```{r}
+dim(geneSymbols)
+```
+
+```{r, echo=FALSE}
+sum(duplicated(geneSymbols$Geneid))
+```
+
+## Merge the counts and symbol data by "Geneid"
+
+```{r}
+counts_and_geneSymbols<-merge(raw_counts,geneSymbols, by="Geneid", all.x=T)
+```
+
+```{r}
+dim(counts_and_geneSymbols)
+```
+```{r, echo=FALSE}
+sum(duplicated(counts_and_geneSymbols$Geneid))
+```
+## Analysis of raw counts data
+
+The raw counts data plot is presented in the following plot:
+
+```{r, echo=FALSE}
+counts_work<-counts_and_geneSymbols[,c(1,6:ncol(counts_and_geneSymbols))]
+geneLengths<-counts_work$Length
+```
+
+```{r, echo=FALSE}
+#Transform the dataset for ggplot2
+vals<-(counts_work[,3:11])
+samples<-colnames(vals)
+vals<-as.data.frame(vals)
+
+#Make the plot
+vals<-gather(vals, key="samples", value="val")
+raw_counts<-ggplot(vals, aes(x=val, y=samples)) +
+ geom_boxplot(color = "black") +
+ xlab("Gene expression in counts") +
+ ylab("Samples") +
+ theme(axis.text.x = element_text(angle = 45, hjust = 1))
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/raw_counts.png", plot = raw_counts, width = 10, height = 6, units = "in", dpi = 300)
+raw_counts
+```
+
+
+## TPM normalization of raw counts
+
+The expression counts data is normalized in transcript per million (TPM).
+
+```{r}
+#Calculation of rpk (geneLength normalized values)
+rpk<-apply(counts_work[,3:11],2, function(x) x/(geneLengths/10^3))
+rownames(rpk)<-counts_work$Geneid
+#normalize by the sample using rpk values
+TPM<-apply(rpk,2,function(x) x/sum(as.numeric(x), na.rm=TRUE)*10^6)
+```
+
+```{r}
+#CheckPoint. the sum of each column after rpm normalization equals to 10^6
+colSums(TPM, na.rm=TRUE)
+```
+
+```{r}
+# We obtain a matrix with the normalized counts but also with the info 
+counts_work_norm<-counts_work
+rpk<-apply(counts_work[,3:11],2, function(x) x/(geneLengths/10^3))
+counts_work_norm[,3:11]<-apply(rpk,2,function(x) x/sum(as.numeric(x), na.rm=TRUE)*10^6)
+```
+
+```{r echo=FALSE}
+sum(duplicated(counts_work_norm$Geneid))
+```
+```{r}
+#Exploratory analysis
+#compute the variance of each gene across samples
+V <- apply(TPM, 1, var)
+#sort the results by variance in decreasing order 
+#and select the top 100 genes 
+selectedGenes <- names(V[order(V, decreasing = T)][1:100])
+library(pheatmap)
+pheatmap(TPM[selectedGenes,], scale = 'row', show_rownames = FALSE)
+```
+```{r}
+# library(stats)
+# library(ggplot2)
+# install.packages("ggfortify")
+# library(ggfortify)
+# #transpose the matrix 
+# M <- t(TPM[selectedGenes,])
+# # transform the counts to log2 scale 
+# M <- log2(M + 1)
+# #compute PCA 
+# pcaResults <- prcomp(M, scale=T)
+# 
+# pcaResults$samples<-rownames(M)
+# #plot PCA results making use of ggplot2's autoplot function
+# #ggfortify is needed to let ggplot2 know about PCA data structure.
+# ggplot(data.frame(PC1=pcaResults$x[,1], PC2=pcaResults$x[,2]), aes(x=PC1, y=PC2, fill=sample))+ geom_point()
+```
+```{r}
+# library(stats)
+# PCA(pcaResults)
+```
+
+The log10(normalized expression in TPM) distribution for each sample, is shown in the following plot. Notice that the gene expression mean in TPM is similar in all the samples. 
+
+```{r, echo=FALSE}
+samples<-colnames(TPM)
+datos<-as.data.frame(log10(TPM))
+datos<-gather(datos, key="Samples", value="LogTPM")
+
+boxplot_norm<- ggplot(data=datos)+geom_boxplot(mapping=aes(x=Samples,y=LogTPM, fill=Samples))+ 
+  theme(legend.position = "none")+scale_fill_viridis(discrete = TRUE, alpha=0.6)+
+  theme(axis.text.x = element_text(angle=45, hjust=1))+xlab("")
+boxplot_norm
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_norm.png", plot = boxplot_norm, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+Now, the normalized gene expression in each sample per gene.type is shown. 
+
+```{r, fig.width=10, echo=FALSE}
+counts_norm_types <- counts_work_norm[counts_work_norm$Gene.type %in% 
+                                        c("protein_coding", "processed_pseudogene", "lncRNA"), ]
+
+samples<-colnames(counts_norm_types[,c(3:11)])
+datos1<-as.data.frame(log10(counts_norm_types[,c(3:11)]))
+datos1$gene.type <- counts_norm_types[, 12]
+datos1 <- gather(datos1, key = "samples", value = "LogNormTPM", -gene.type)
+
+
+boxplot_normalizado<-ggplot(data=datos1)+geom_boxplot(mapping=aes(x=samples,y=LogNormTPM, fill=gene.type))+ 
+  theme_minimal()+theme(axis.text.x = element_text(angle=45, hjust=1))+
+  scale_fill_viridis(discrete = TRUE, alpha=0.4, option="D")+ labs(y="log10(TPM)", fill= "Gene type")
+boxplot_normalizado
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_normalizado.png", plot = boxplot_normalizado, width = 10, height = 6, units = "in", dpi = 300)
+
+```
+
+
+## Data subsets - Determine tissue specific genes
+
+In this case, we want to determine testis specific genes. For that matter, the following criteria was applied:
+
+* CRITERIA 2: TPM > 1 in at least 1 testis sample and TPM < 0.5 in all other tissues 
+
+The same is performed for the rest tissues. 
+
+
+### Subset of specific protein_coding genes for each tissue
+```{r}
+protein_coding_crit2<-counts_work_norm[counts_work_norm$Gene.type=="protein_coding",]
+```
+
+```{r}
+rownames(protein_coding_crit2)<-protein_coding_crit2$Geneid
+
+genes_protein_coding_brain_crit2<- protein_coding_crit2[rowSums(protein_coding_crit2[, c(3:5)] > 1) > 1 & rowSums(protein_coding_crit2[, c(6:11)] < 0.5) == 6, ]
+
+genes_protein_coding_liver_crit2<- protein_coding_crit2[rowSums(protein_coding_crit2[, c(6:8)] > 1) > 1 & rowSums(protein_coding_crit2[, c(3:5,9:11)] < 0.5) == 6, ]
+
+genes_protein_coding_testis_crit2<- protein_coding_crit2[rowSums(protein_coding_crit2[, c(9:11)] > 1) > 1 & rowSums(protein_coding_crit2[, c(3:8)] < 0.5) == 6, ]
+
+```
+
+For protein coding genes, testis contain the higher number of specific protein coding genes (1.191), followed by brain (203) and by liver (116). 
+
+```{r}
+dim(genes_protein_coding_brain_crit2)
+dim(genes_protein_coding_liver_crit2)
+dim(genes_protein_coding_testis_crit2)
+```
+```{r, echo=FALSE}
+genes_Crit2<-genes_protein_coding_testis_crit2$Gene.name
+# write(genes_Crit2, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/testis_specific_genes_Crit2.txt")
+```
+
+
+### Subset of specific lncRNA genes for each tissue
+
+```{r}
+lncRNAs_crit2<-counts_work_norm[counts_work_norm$Gene.type=="lncRNA",]
+```
+
+```{r}
+rownames(lncRNAs_crit2)<-lncRNAs_crit2$Geneid
+
+genes_lncRNAs_brain_crit2<- lncRNAs_crit2[rowSums(lncRNAs_crit2[, c(3:5)] > 1) > 1 & rowSums(lncRNAs_crit2[, c(6:11)] < 0.5) == 6, ]
+
+genes_lncRNAs_liver_crit2<- lncRNAs_crit2[rowSums(lncRNAs_crit2[, c(6:8)] > 1) > 1 & rowSums(lncRNAs_crit2[, c(3:5,9:11)] < 0.5) == 6, ]
+
+genes_lncRNAs_testis_crit2<- lncRNAs_crit2[rowSums(lncRNAs_crit2[, c(9:11)] > 1) > 1 & rowSums(lncRNAs_crit2[, c(3:8)] < 0.5) == 6, ]
+```
+
+For long non-coding RNA genes, testis present the higher number of specific protein coding genes (2.911), followed by brain (425) and by liver (88). 
+
+```{r}
+dim(genes_lncRNAs_brain_crit2)
+dim(genes_lncRNAs_liver_crit2)
+dim(genes_lncRNAs_testis_crit2)
+```
+
+```{r, echo=FALSE}
+# write_lines(genes_lncRNAs_testis_crit2$Gene.name, "/home/saraa/Downloads/2911_testisS_lncrnas.txt", sep=",")
+```
+
+
+### Subset of specific processed_pseudogenes for each tissue
+
+```{r}
+processed_pseudogenes_crit2<-counts_work_norm[counts_work_norm$Gene.type=="processed_pseudogene",]
+```
+
+```{r}
+rownames(processed_pseudogenes_crit2)<-processed_pseudogenes_crit2$Geneid
+
+genes_processed_pseudogenes_brain_crit2<- processed_pseudogenes_crit2[rowSums(processed_pseudogenes_crit2[, c(3:5)] > 1) > 1 & rowSums(processed_pseudogenes_crit2[, c(6:11)] < 0.5) == 6, ]
+
+genes_processed_pseudogenes_liver_crit2<- processed_pseudogenes_crit2[rowSums(processed_pseudogenes_crit2[, c(6:8)] > 1) > 1 & rowSums(processed_pseudogenes_crit2[, c(3:5,9:11)] < 0.5) == 6, ]
+
+genes_processed_pseudogenes_testis_crit2<- processed_pseudogenes_crit2[rowSums(processed_pseudogenes_crit2[, c(9:11)] > 1) > 1 & rowSums(processed_pseudogenes_crit2[, c(3:8)] < 0.5) == 6, ]
+
+```
+
+For long non-coding RNA genes, testis contain the higher number of specific protein-coding genes (311), followed by brain (110) and by liver (9). 
+
+```{r}
+dim(genes_processed_pseudogenes_brain_crit2)
+dim(genes_processed_pseudogenes_liver_crit2)
+dim(genes_processed_pseudogenes_testis_crit2)
+```
+
+With these results we can observe how the lncRNAs are more tissue-specific than protein-coding genes and also processed pseudogenes. 
+
+
+## Testis-specific genes | Some plots
+
+
+### lncRNAs 
+
+Testis specific lncRNAs, with their normalized expression and annotations are visible in the next table.
+
+```{r, echo=FALSE}
+genes_lncRNAs_testis_crit2$Log_Media_testis_TPM <-log10(rowMeans(genes_lncRNAs_testis_crit2[, c("human_testis_rna_1", "human_testis_rna_2", "human_testis_rna_3")]))
+```
+```{r, echo=FALSE}
+datos3<-genes_lncRNAs_testis_crit2[, c(2,12,14)]
+datos3 <- gather(datos3, key = "samples", value = "Log_Media_testis_TPM", -Gene.type, -Length)
+```
+
+
+### Protein_coding genes
+
+```{r, echo=FALSE}
+genes_protein_coding_testis_crit2$Log_Media_testis_TPM <- log10(rowMeans(genes_protein_coding_testis_crit2[, c("human_testis_rna_1", "human_testis_rna_2", "human_testis_rna_3")]))
+```
+
+```{r, echo=FALSE}
+datos4<-as.data.frame(genes_protein_coding_testis_crit2[,c(2,12,14)])
+datos4 <- gather(datos4, key = "samples", value = "Log_Media_testis_TPM", -Gene.type, -Length)
+```
+
+### Processed pseudogenes
+
+```{r, echo=FALSE}
+genes_processed_pseudogenes_testis_crit2$Log_Media_testis_TPM <-log10(rowMeans(genes_processed_pseudogenes_testis_crit2[, c("human_testis_rna_1", "human_testis_rna_2", "human_testis_rna_3")]))
+datos5<-as.data.frame(genes_processed_pseudogenes_testis_crit2[,c(2,12,14)])
+datos5 <- gather(datos5, key = "samples", value = "Log_Media_testis_TPM", -Gene.type, -Length)
+```
+
+Both gene.type's distributions are shown in the next plot:
+
+```{r, echo=FALSE}
+tabla_combinada <- rbind(datos3, datos4)
+tabla_combinada<-rbind(tabla_combinada, datos5)
+
+distr<-ggplot(data=tabla_combinada, aes(x=Log_Media_testis_TPM, group=Gene.type, fill=Gene.type))+
+      geom_density(adjust=1.5, alpha=.4)+ theme_minimal()+geom_vline(xintercept = 1, color = "black", size = 0.5)+scale_x_continuous(breaks = seq(0, 10, 1))+labs(title = 'Testis specific lncRNAs and protein_coding mean gene expression distribution.')+ labs(x="log10(TPM)", fill="Gene type")
+# ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/distr_lncrna_pcgs.png", plot = distr, width = 10, height = 6, units = "in", dpi = 300)
+distr
+```
+
+
+
+```{r, warning=F, fig.width=10}
+my_comparisons <- list( c("protein_coding", "lncRNA"), c("protein_coding","processed_pseudogene"), c("lncRNA","processed_pseudogene") )
+distr_boxplot<-ggboxplot(tabla_combinada, x = "Gene.type", y = "Log_Media_testis_TPM",
+          fill = "Gene.type", palette = "Pastel2")+ 
+  stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 10)+labs(y="log10(TPM)", x=NULL, fill=NULL)+theme(legend.position = NULL)     # Add global p-value
+# distr_boxplot
+# ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/distr_boxplot.png", plot = distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+```{r, warning=F, fig.width=10}
+my_comparisons <- list( c("protein_coding", "lncRNA"), c("protein_coding","processed_pseudogene"), c("lncRNA","processed_pseudogene") )
+distr_violinplot<-ggviolin(tabla_combinada, x = "Gene.type", y = "Log_Media_testis_TPM",
+          fill = "Gene.type", palette = "Pastel2")+ 
+  stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
+  stat_compare_means(label.y = 10)+labs(y="log10(TPM)", fill="Gene type", x=NULL)+theme(legend.position = NULL)     # Add global p-value
+distr_violinplot
+# ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/distr_violinplot.png", plot = distr_violinplot, width = 10, height = 6, units = "in", dpi = 300)
+```
+### Classification in Expressed in 3 samples - Expressed in 2 samples
+
+
+A new classification category is made for grouping genes according to:
+* **Highly expressed** : >1TPM in the 3 samples
+* **Expressed in 2 samples** : >1TPM in at least 2 samples
+
+This criteria is now applied for the 3 gene types. Here, testis specific lncRNAs expression classification is presented:
+
+```{r}
+genes_lncRNAs_testis_crit2 <- genes_lncRNAs_testis_crit2 %>%
+  mutate(Expression_Classification = case_when(
+    human_testis_rna_1 > 1 & human_testis_rna_2 > 1 & human_testis_rna_3 > 1 ~ "Expressed in 3 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 > 1) |
+    (human_testis_rna_1 > 1 & human_testis_rna_3 > 1) |
+    (human_testis_rna_2 > 1 & human_testis_rna_3 > 1) ~ "Expressed in 2 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 > 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 > 1) ~ "Expressed in 1 sample",
+    TRUE ~ "Not expressed"
+  ))
+
+```
+
+```{r, echo=FALSE}
+genes_protein_coding_testis_crit2 <- genes_protein_coding_testis_crit2 %>%
+  mutate(Expression_Classification = case_when(
+    human_testis_rna_1 > 1 & human_testis_rna_2 > 1 & human_testis_rna_3 > 1 ~ "Expressed in 3 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 > 1) |
+    (human_testis_rna_1 > 1 & human_testis_rna_3 > 1) |
+    (human_testis_rna_2 > 1 & human_testis_rna_3 > 1) ~ "Expressed in 2 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 > 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 > 1) ~ "Expressed in 1 sample",
+    TRUE ~ "Not expressed"
+  ))
+
+```
+
+```{r, echo=FALSE}
+genes_processed_pseudogenes_testis_crit2 <- genes_processed_pseudogenes_testis_crit2 %>%
+  mutate(Expression_Classification = case_when(
+    human_testis_rna_1 > 1 & human_testis_rna_2 > 1 & human_testis_rna_3 > 1 ~ "Expressed in 3 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 > 1) |
+    (human_testis_rna_1 > 1 & human_testis_rna_3 > 1) |
+    (human_testis_rna_2 > 1 & human_testis_rna_3 > 1) ~ "Expressed in 2 samples",
+    (human_testis_rna_1 > 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 > 1 & human_testis_rna_3 <= 1) |
+    (human_testis_rna_1 <= 1 & human_testis_rna_2 <= 1 & human_testis_rna_3 > 1) ~ "Expressed in 1 sample",
+    TRUE ~ "Not expressed"
+  ))
+
+```
+
+
+Testis specific lncRNAs expression classification counts:
+
+```{r, echo=FALSE}
+ts_lncRNA_distr<-ggplot(data=genes_lncRNAs_testis_crit2,aes(x=Expression_Classification, fill=Expression_Classification))+geom_bar(alpha=1)+theme_minimal()+ylim(0,3000)+ labs(title = 'Testis specific LncRNAs classification', x=NULL, fill=NULL)+
+  scale_fill_brewer(palette = "GnBu", labels=c("Expressed in 3 samples", "Expressed in 2 samples"))
+ts_lncRNA_distr
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr.png", plot = ts_lncRNA_distr, width = 10, height = 6, units = "in", dpi = 300)
+
+```
+
+Now, the Distribution of log10(TPM) gene expression in each  expression classification group is shown:
+
+```{r, echo=FALSE}
+
+ts_lncRNA_distr_boxplot<-ggplot(data=genes_lncRNAs_testis_crit2,aes(x=Expression_Classification,y=Log_Media_testis_TPM, fill=Expression_Classification))+geom_boxplot(alpha=1)+theme(axis.text.x = element_text(angle=45, hjust=1))+ scale_fill_brewer(palette = "GnBu", labels=c("Expressed in 3 samples", "Expressed in 2 samples")) +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +theme_minimal()+ 
+  labs(title = 'Distribution of log10(TPM) expression in each Expression_clasification group ', y="log10(TPM)", x= NULL, fill=NULL)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot.png", plot = ts_lncRNA_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+ts_lncRNA_distr_boxplot
+```
+
+```{r, warning=FALSE}
+my_comparisons <- list( c("Expressed in 3 samples", "Expressed in 2 samples") )
+ts_lncRNA_distr_boxplot2<-ggboxplot(genes_lncRNAs_testis_crit2, x = "Expression_Classification", y = "Log_Media_testis_TPM",
+          fill = "Expression_Classification", palette = "GnBu")+ 
+  stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
+  labs(y="log10(TPM)", x=NULL, fill=NULL)+theme(legend.position = NULL) +geom_jitter(color="black", size=0.4, alpha=0.9)
+# Add global p-value
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot2.png", plot = ts_lncRNA_distr_boxplot2, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+
+## Subset of Tissue-specific genes
+
+We create a following table with tissue-specific genes and their annotation, in order to use this file in further analysis. 
+
+### Testis
+
+```{r, echo=FALSE}
+testis_specific<-rbind(genes_lncRNAs_testis_crit2[,c(1:2,9:13,15)], genes_protein_coding_testis_crit2[,c(1:2,9:13,15)]) 
+testis_specific<-rbind(testis_specific,genes_processed_pseudogenes_testis_crit2[,c(1:2,9:13,15)])
+```
+
+```{r}
+dim(testis_specific)
+```
+```{r}
+table(testis_specific$Gene.type)
+```
+
+```{r, echo=FALSE}
+testis_specific$Log_Media_testis_TPM <- log10(rowMeans(testis_specific[, c("human_testis_rna_1", "human_testis_rna_2", "human_testis_rna_3")]))
+```
+
+
+```{r, echo=FALSE}
+countsGenes_testis<-as.data.frame(prop.table(table(testis_specific$Gene.type)))
+counts_testis<-c(countsGenes_testis$Freq)
+gene_types_testis<- c(countsGenes_testis$Var1)
+```
+
+
+### Brain
+
+```{r, echo=FALSE}
+brain_specific<-rbind(genes_lncRNAs_brain_crit2[,c(1:2,3:5, 12:13)], genes_protein_coding_brain_crit2[,c(1:2,3:5, 12:13)]) 
+brain_specific<-rbind(brain_specific,genes_processed_pseudogenes_brain_crit2[,c(1:2,3:5, 12:13)])
+```
+
+```{r}
+dim(brain_specific)
+```
+```{r, echo=FALSE}
+countsGenes_brain<-as.data.frame(prop.table(table(brain_specific$Gene.type)))
+counts_brain<-c(countsGenes_brain$Freq)
+gene_types_brain<- c(countsGenes_brain$Var1)
+```
+
+
+
+### Liver
+
+```{r, echo=FALSE}
+liver_specific<-rbind(genes_lncRNAs_liver_crit2[,c(1:2,6:8,12:13)], genes_protein_coding_liver_crit2[,c(1:2,6:8,12:13)]) 
+liver_specific<-rbind(liver_specific,genes_processed_pseudogenes_liver_crit2[,c(1:2,6:8,12:13)])
+
+```
+
+```{r}
+dim(liver_specific)
+```
+```{r, echo=FALSE}
+countsGenes_liver<-as.data.frame(prop.table(table(liver_specific$Gene.type)))
+counts_liver<-c(countsGenes_liver$Freq)
+gene_types_liver<- c(countsGenes_liver$Var1)
+```
+
+
+### Tissue specific genes' piechart
+
+
+```{r, fig.width= 10, echo=FALSE}
+testis_piechart<-pie(counts_testis , labels = gene_types_testis, border="white", col=adjustcolor(c("brown1", "aquamarine", "cyan1"), alpha=0.4))+title("Testis")
+brain_piechart<-pie(counts_brain , labels = gene_types_brain, border="white", col=adjustcolor(c("brown1", "aquamarine", "cyan1"), alpha=0.4))+title("Brain")
+liver_piechart<-pie(counts_liver , labels = gene_types_liver, border="white", col=adjustcolor(c("brown1", "aquamarine", "cyan1"), alpha=0.4))+title("Liver")
+
+testis_piechart
+brain_piechart
+liver_piechart
+
+```
+
+
+## Liver-specific genes | Some plots
+
+```{r, echo=FALSE}
+head(liver_specific)
+```
+ 
+```{r, echo=FALSE}
+liver_specific$Log_Media_liver_TPM <- log10(rowMeans(liver_specific[, c("human_liver_rna_1", "human_liver_rna_2", "human_liver_rna_3")]))
+```
+
+```{r, echo=FALSE}
+liver_specific <- liver_specific %>%
+  mutate(Expression_Classification = case_when(
+    human_liver_rna_1 > 1 & human_liver_rna_2 > 1 & human_liver_rna_3 > 1 ~ "Expressed in 3 samples",
+    (human_liver_rna_1 > 1 & human_liver_rna_2 > 1) |
+    (human_liver_rna_1 > 1 & human_liver_rna_3 > 1) |
+    (human_liver_rna_2 > 1 & human_liver_rna_3 > 1) ~ "Expressed in 2 samples",
+    (human_liver_rna_1 > 1 & human_liver_rna_2 <= 1 & human_liver_rna_3 <= 1) |
+    (human_liver_rna_1 <= 1 & human_liver_rna_2 > 1 & human_liver_rna_3 <= 1) |
+    (human_liver_rna_1 <= 1 & human_liver_rna_2 <= 1 & human_liver_rna_3 > 1) ~ "Expressed in 1 sample",
+    TRUE ~ "Not expressed"
+  ))
+
+```
+
+```{r}
+table(liver_specific$Expression_Classification)
+```
+
+
+```{r, echo=FALSE}
+liver_lncRNA_distr_boxplot<-ggplot(data=liver_specific,aes(x=Expression_Classification,y=Log_Media_liver_TPM, fill=Expression_Classification))+geom_boxplot(alpha=0.6)+theme(axis.text.x = element_text(angle=45, hjust=1))+ scale_fill_brewer(palette = "Set1") +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +theme_minimal()+ 
+  labs(title = 'Distribution of log10(TPM) expression in each Expression_clasification group | Liver ', y="log10(TPM)", x= NULL)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/liver_lncRNA_distr_boxplot.png", plot = liver_lncRNA_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+liver_lncRNA_distr_boxplot
+```
+
+```{r, echo=FALSE}
+liver_distr_boxplot<-ggplot(data=liver_specific, aes(y=Log_Media_liver_TPM, group=Gene.type, fill=Gene.type))+
+    geom_boxplot(adjust=1.5, alpha=.4)+ theme_minimal()+ labs(y="log10(TPM)", fill="Gene type")
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/liver_distr_boxplot.png", plot = liver_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+liver_distr_boxplot
+```
+
+```{r, echo=FALSE}
+liver_distr<-ggplot(data=liver_specific, aes(x=Log_Media_liver_TPM, group=Gene.type, fill=Gene.type))+
+      geom_density(adjust=1.5, alpha=.4)+ theme_minimal()+geom_vline(xintercept = 1, color = "black", size = 0.5)+scale_x_continuous(breaks = seq(0, 20, 1))+labs(title = 'Mean gene expression distribution per Gene Type | Liver ')+ labs(x="log10(TPM)", fill="Gene type")
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/liver_distr.png", plot = liver_distr, width = 10, height = 6, units = "in", dpi = 300)
+liver_distr
+```
+
+
+## Brain-specific genes | Some plots
+
+```{r, echo=FALSE}
+head(brain_specific)
+```
+
+```{r, echo=FALSE}
+brain_specific$Log_Media_brain_TPM <- log10(rowMeans(brain_specific[, c("human_brain_rna_1", "human_brain_rna_2", "human_brain_rna_3")]))
+```
+
+```{r, echo=FALSE}
+brain_specific <- brain_specific %>%
+  mutate(Expression_Classification = case_when(
+    human_brain_rna_1 > 1 & human_brain_rna_2 > 1 & human_brain_rna_3 > 1 ~ "Expressed in 3 samples",
+    (human_brain_rna_1 > 1 & human_brain_rna_2 > 1) |
+    (human_brain_rna_1 > 1 & human_brain_rna_3 > 1) |
+    (human_brain_rna_2 > 1 & human_brain_rna_3 > 1) ~ "Expressed in 2 samples",
+    (human_brain_rna_1 > 1 & human_brain_rna_2 <= 1 & human_brain_rna_3 <= 1) |
+    (human_brain_rna_1 <= 1 & human_brain_rna_2 > 1 & human_brain_rna_3 <= 1) |
+    (human_brain_rna_1 <= 1 & human_brain_rna_2 <= 1 & human_brain_rna_3 > 1) ~ "Expressed in 1 sample",
+    TRUE ~ "Not expressed"
+  ))
+
+```
+
+
+
+```{r, echo=FALSE}
+brain_lncRNA_distr_boxplot<-ggplot(data=brain_specific,aes(x=Expression_Classification,y=Log_Media_brain_TPM, fill=Expression_Classification))+geom_boxplot(alpha=0.6)+theme(axis.text.x = element_text(angle=45, hjust=1))+ scale_fill_brewer(palette = "Set1") +
+    geom_jitter(color="black", size=0.4, alpha=0.9) +theme_minimal()+ 
+  labs(title = 'Distribution of log10(TPM) expression in each Expression_clasification group | Brain ', y="log10(TPM)", x= NULL)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/brain_lncRNA_distr_boxplot.png", plot = brain_lncRNA_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+brain_lncRNA_distr_boxplot
+```
+
+
+```{r, echo=FALSE}
+brain_distr_boxplot<-ggplot(data=brain_specific, aes(y=Log_Media_brain_TPM, group=Gene.type, fill=Gene.type))+
+    geom_boxplot(adjust=1.5, alpha=.4)+ theme_minimal()+ labs(y="log10(TPM)", fill="Gene type")
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/brain_distr_boxplot.png", plot = brain_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+brain_distr_boxplot
+```
+
+```{r, echo=FALSE}
+brain_distr<-ggplot(data=brain_specific, aes(x=Log_Media_brain_TPM, group=Gene.type, fill=Gene.type))+
+      geom_density(adjust=1.5, alpha=.4)+ theme_minimal()+geom_vline(xintercept = 1, color = "black", size = 0.5)+scale_x_continuous(breaks = seq(0, 10, 1))+labs(title = 'Mean gene expression distribution per Gene Type | Brain ')+ labs(x="log10(TPM)", fill="Gene type")
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/brain_distr.png", plot = brain_distr, width = 10, height = 6, units = "in", dpi = 300)
+brain_distr
+```
+
+We store the tissue-specific genes in particular files:
+```{r}
+write.csv(testis_specific, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/testis_specific_genes.txt", row.names = FALSE)
+write.csv(brain_specific, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/brain_specific_genes.txt", row.names = FALSE)
+write.csv(liver_specific, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/liver_specific_genes.txt", row.names = FALSE)
+```
+
+
+
+## More plots.
+
+```{r, echo=FALSE}
+# #quiero tener una tabla solo con posiciones, genetype y gene.name
+# #descargo la info fe counts_gene_symbols. filtro por gene.type
+# chr_type_name<-counts_and_geneSymbols[counts_and_geneSymbols$Gene.type %in%c("protein_coding", "lncRNA", "processed_pseudogene"),]
+# chr_type_name<-counts_and_geneSymbols[,c("Chr","Gene.type","Gene.name")]
+# #simplifico la columna chr
+# chr_type_name$Chr <- sub(";.*", "", chr_type_name$Chr)
+# 
+# #añadir estas columnas a la tabla testis_specific.
+# testis_specific<-merge(testis_specific, chr_type_name[,c("Chr","Gene.name")], by="Gene.name", all.x=T)
+# #head(testis_specific)
+```
+
+```{r, echo=FALSE}
+#cargo el fichero con los datos de longitud de los cromosomas
+# chrmLength<-read_excel("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/chrmLength.xlsx", col_names = FALSE)
+# chrmLength<- chrmLength %>% rename(Chr_num=...1)
+# chrmLength<-  chrmLength %>% rename(Len=...2)
+# chrmLength$Chr<- paste0("chr", chrmLength$Chr_num)
+
+```
+
+```{r, echo=F}
+# #conteo gene.type
+# filtered_counts <- testis_specific %>%
+#   filter(str_starts(Chr, "chr"))
+# 
+# filtered_counts$Chr <- factor(filtered_counts$Chr, levels = c(paste0("chr", 1:22), "chrX", "chrY"))
+```
+
+
+```{r, echo=FALSE}
+# #conteo gene.type
+# count_gene_type_cromo<-table((filtered_counts$Chr), filtered_counts$Gene.type)
+# count_gene_type_cromo<-as.data.frame(count_gene_type_cromo)
+# #Rename the names
+# count_gene_type_cromo<- count_gene_type_cromo %>% rename(Chr=Var1)
+# count_gene_type_cromo<- count_gene_type_cromo %>% rename(Gene.type=Var2)
+# head(count_gene_type_cromo)
+# dim(count_gene_type_cromo)
+```
+
+```{r, echo=FALSE}
+# count_gene_type_cromo<-merge(count_gene_type_cromo, chrmLength, by="Chr", all.x=T)
+# head(count_gene_type_cromo)
+# dim(count_gene_type_cromo)
+```
+
+```{r, echo=FALSE}
+# #normalizar. Cada count o Freq/su chr len.
+# count_gene_type_cromo[, "Freq"] <- count_gene_type_cromo[, "Freq"]/(count_gene_type_cromo$Len)*10^7
+# head(count_gene_type_cromo)
+```
+
+
+```{r, echo=FALSE}
+# ggplot(data = filas_con_chr_ordenadas, aes(y = (Chr), fill = Gene.type)) +
+#   geom_bar(stat="count", position="fill")+theme(axis.text.x = element_text(angle=45, hjust=1))+
+#   scale_fill_viridis(discrete = T)+labs(title="Testis-specific Gene Type Counts per Chromosome", fill= "Gene type")
+```
+
+
+```{r, echo=FALSE}
+# ggplot(data = count_gene_type_cromo, aes(x = Chr, y = Freq, fill = Gene.type)) +
+#   geom_bar(stat = "identity")+theme(axis.text.x = element_text(angle=45, hjust=1))+
+#   scale_fill_viridis(discrete = TRUE)+labs(title="Testis Specific Gene Type Counts per Chromosome", subtitle = "Normalized per Chromosome Length")
+```
+
+
+## Testis-specific lncRNA enrichment analysis 
+
+### LncRNAs
+
+```{r, warning=FALSE,echo=FALSE}
+lncRNAs_testis_names <- rownames(genes_lncRNAs_testis_crit2)
+lncRNAs_testis_names <- sub("\\..*", "", lncRNAs_testis_names)
+
+head(lncRNAs_testis_names)
+```
+```{r, echo=FALSE}
+prueba<-c(genes_lncRNAs_testis_crit2$Gene.name)
+writeLines(prueba, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/enrichment/lncRNAs4kegg.txt", sep=",")
+```
+
+```{r, echo=FALSE}
+lncRNAs_testis_names <- unlist(mget(lncRNAs_testis_names, envir=org.Hs.egENSEMBL2EG,
+                       ifnotfound = NA))
+```
+
+```{r,echo=FALSE}
+head(lncRNAs_testis_names)
+```
+
+
+```{r,echo=FALSE}
+ans.go <- enrichGO(gene = lncRNAs_testis_names, ont = "BP",
+                   OrgDb ="org.Hs.eg.db",
+                   readable=TRUE,
+                   pvalueCutoff = 0.05)
+tab.go <- as.data.frame(ans.go)
+#tab.go<- subset(tab.go, Count>1)
+tab.go[1:5, 1:6]
+```
+```{r,echo=FALSE}
+p00 <- barplot(ans.go, showCategory=10)
+p00
+```
+
+![NcPath for KEGG enrichment]("/users/genomics/saraa/projectTestis/RNAseq_files/testis_lncRNAs_kegg.png")
+```{r,echo=FALSE}
+#head(lncRNAs_testis_names)
+#ans.kegg <- enrichKEGG(gene = lncRNAs_testis_names,
+                       #organism = 'hsa',
+                       #pvalueCutoff = 0.05)
+#tab.kegg <- as.data.frame(ans.kegg)
+#tab.kegg<- subset(tab.kegg, Count>1)
+#tab.kegg[1:5, 1:6]
+```
+```{r, echo=FALSE}
+gda <- read.delim("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/enrichment/curated_gene_disease_associations.tsv")
+disease2gene <- gda[, c("diseaseId", "geneId")]
+disease2name <- gda[, c("diseaseId", "diseaseName")]
+```
+
+
+```{r,echo=FALSE}
+ans.dis <- enricher(lncRNAs_testis_names, TERM2GENE=disease2gene,
+                    TERM2NAME=disease2name)
+tab.dis <- as.data.frame(ans.dis)
+if (is.null(ans.dis)==FALSE){
+ # tab.dis<- subset(tab.dis, Count>5)
+  tab.dis[,1:6]
+  }
+```
+
+```{r,echo=FALSE}
+p1 <- barplot(ans.dis, showCategory=10)
+p1
+```
+
+
+```{r, echo=FALSE}
+#c3.tf <- read.gmt("C:/Users/sarar/Desktop/UAB BIOINF MASTER/MODULE 3/RNA-seq/RNA/c3.tft.v6.2.entrez.gmt")
+ 
+# ans.tf <- enricher(lncRNAs_testis_names, TERM2GENE=c3.tf)
+# tab.tf <- as.data.frame(ans.tf)
+# if (is.null(ans.dis)==FALSE){
+#   #tab.tf<- subset(tab.tf, Count>5)
+#   tab.tf[1:5,1:5]
+#   }
+
+```
+
+### Protein_coding 
+```{r,echo=FALSE}
+
+protC_testis_names <- rownames(genes_protein_coding_testis_crit2)
+protC_testis_names <- sub("\\..*", "", protC_testis_names)
+
+head(protC_testis_names)
+
+```
+
+
+```{r,echo=FALSE}
+#library(org.Hs.eg.db)
+protC_testis_names <- unlist(mget(protC_testis_names, envir=org.Hs.egENSEMBL2EG,
+                       ifnotfound = NA))
+head(protC_testis_names)
+```
+
+```{r,echo=FALSE}
+protC.go <- enrichGO(gene = protC_testis_names, ont = "BP",
+                   OrgDb ="org.Hs.eg.db",
+                   readable=TRUE,
+                   pvalueCutoff = 0.05)
+tabC.go <- as.data.frame(protC.go)
+tabC.go<- subset(tabC.go, Count>5)
+tabC.go[1:5, 1:6]
+```
+```{r,echo=FALSE}
+p00 <- barplot(protC.go, showCategory=10)
+p00
+```
+
+```{r,echo=FALSE}
+protC.kegg <- enrichKEGG(gene = protC_testis_names,
+                       organism = 'hsa',
+                       pvalueCutoff = 0.05)
+tabC.kegg <- as.data.frame(protC.kegg)
+#tabC.kegg<- subset(tabC.kegg, Count>5)
+#tabC.kegg[1:5, 1:6]
+```
+
+
+```{r,echo=FALSE}
+#p01 <- barplot(protC.kegg, showCategory=10)
+#p01
+```
+
+
+```{r,echo=FALSE}
+gda <- read.delim("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/enrichment/curated_gene_disease_associations.tsv")
+disease2gene <- gda[, c("diseaseId", "geneId")]
+disease2name <- gda[, c("diseaseId", "diseaseName")]
+```
+
+
+```{r,echo=FALSE}
+protC.dis <- enricher(protC_testis_names, TERM2GENE=disease2gene,
+                    TERM2NAME=disease2name)
+tabC.dis <- as.data.frame(protC.dis)
+if (is.null(protC.dis)==FALSE){
+  tabC.dis<- subset(tabC.dis, Count>5)
+  tabC.dis[,1:6]
+  }
+```
+
+```{r,echo=FALSE}
+p1 <- barplot(protC.dis, showCategory=10)
+p1
+```
+
+
+```{r,echo=FALSE}
+library(cowplot)
+#p2 <- dotplot(protC.kegg, showCategory=20) + ggtitle("KEGG")
+#plot_grid(p2, nrow=1)
+p3 <- dotplot(protC.dis, showCategory=20) + ggtitle("Disease")
+plot_grid(p3, nrow=1)
+```
+
+
+
+## PheatMap | GTEX tissuee
+
+Filter GTEx dataset with our tissue-specific genes
+
+```{r}
+transltable<-read.table("/users/genomics/saraa/projectTestis/Rstudio/human/GTEx/sub_4413testis_specific_genes_transl_notransl.txt", sep=",")
+raw_gtex<- read.table("/users/genomics/saraa/projectTestis/Rstudio/human/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+```
+
+```{r}
+dim(transltable)
+dim(raw_gtex)
+```
+
+
+
+```{r, echo=FALSE}
+library(dplyr)
+colnames(raw_gtex)
+# PROCESO EL RAW GTEx
+#raw_gtex<- raw_gtex %>% rename(Geneid=Name)
+raw_gtex$Geneid<-raw_gtex$Name
+raw_gtex<-subset(raw_gtex, select=-Name)
+raw_gtex$Geneid<-gsub("\\.","", raw_gtex$Geneid)
+
+```
+
+```{r, echo=FALSE}
+# Proceso translated table
+colnames(transltable)<-transltable[4414,]
+transltable<-transltable[c(1:4413),]
+head(transltable)
+#quitamos versión a translated . añadimos así la translated info
+transltable$Geneid<-gsub("\\..*","", transltable$Geneid)
+```
+
+
+```{r, echo=FALSE}
+# Hago el merge
+gtex2<-merge(raw_gtex, transltable, by="Geneid", all.y=T ) # en esta tabla los NA son los que perdemos
+gtex2_noNA<-na.omit(gtex2)
+```
+
+```{r, echo=FALSE}
+#los que hemos perdido: 
+gtex2_Nas<-gtex2[!complete.cases(gtex2),]
+head(gtex2_Nas)
+```
+
+
+```{r, echo=FALSE}
+#quitamos las versiones del geneID en la tabla de anotación de Genesymbols. Para cruzarlo con gtex table que no tiene versión. Así añadimos datos de gene.type y gene.name.  
+geneSymbols$Geneid<-gsub("\\..*","",geneSymbols$Geneid)
+gtex2_noNA_symbols<-merge(gtex2_noNA,geneSymbols, by="Geneid", all.x=T)
+head(gtex2_noNA_symbols[, c(1,6, 15, 28)])
+```
+
+```{r}
+write.csv(gtex2_noNA_symbols, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/filtered_GTEx_testis_specific_final.txt", row.names = TRUE)
+```
+
+
+
+```{r, echo=FALSE}
+rownames(gtex2_noNA_symbols)<-gtex2_noNA_symbols$Gene.name.x
+gtex2_noNA_symbols <- gtex2_noNA_symbols[order(gtex2_noNA_symbols$Gene.type),]
+
+#hacemos un subset ya que necesitamos una matriz numérica. 
+sub_gtex2<-gtex2_noNA_symbols[,c(2:32)]
+sub_gtex2<-as.matrix(sub_gtex2)
+```
+
+```{r}
+# write.csv(sub_gtex2, "/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/sub_filtered_GTEx_testis_specific_final.txt", row.names = TRUE)
+```
+
+
+
+## Testis GTEx criteria. 
+
+**Input**: filtered GTEx table - GTEx data of our RNASeq testis-specific genes obtained in the RNAseq analysis. 
+
+* **4.413 testis-specific genes (RNAseq results)**: according to our available data (brain, liver, testis from 3 human samples), they are genes that had expression > 1TPM in at least 2 testis samples,  and <0,5 TPM expression in brain and liver. 
+
+* Our data was crossed with GTEx data, and **3.919 testis-specific genes presented data in GTEx** and the remaining 494 did not. 
+
+
+```{r, echo=FALSE}
+#OUTPUT CRIT2 GENEID HUMAN COUNTS
+gtex_table<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/filtered_GTEx_testis_specific_final.txt", header=TRUE)
+#gtex_table<-read.csv("/home/sararaz/TFM/filtered_GTEx_testis_specific_final.txt", header=TRUE)
+
+rownames(gtex_table)<-gtex_table$Gene.name.x
+```
+
+```{r, echo=FALSE}
+dim(gtex_table)
+sub_gtex_table<-gtex_table[,c(3:33)]
+```
+
+
+### GTEx Heatmap1 | testis-specific genes | RNAseq criteria
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors_2=data.frame(geneType=gtex_table$Gene.type)
+#col_colors_2$translated<-gtex_table$translated
+rownames(col_colors_2)<-gtex_table$Gene.name.x
+breaks <- seq(0, 100, by = 5)
+```
+
+```{r, fig.height=10, fig.width=11, warning=FALSE, echo=FALSE}
+selectedGenes_2 <-c(gtex_table$Gene.name.x)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+gtex<-pheatmap(sub_gtex_table[selectedGenes_2,], scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors_2, width = 20,  height = 15, show_rownames = TRUE,  fontsize_row = 1, fontsize_col = 8, breaks=breaks, color=colores_escala)
+gtex<-ggplotify::as.ggplot(gtex)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/gtex.png", plot = gtex, width = 11, height = 10, units = "in", dpi = 300)
+
+
+```
+It can be appreciated how the genes which we assumed that were testis-specific, are not. This is due to the fact that we worked with only 3 individual and 3 tissue samples, whereas GTEx contains data from 54 tissue sites across ~ 1000 individuals. 
+
+
+Process input data. 
+
+We want to obtain the testis-specific genes applying the GTEx data. We will remove those genes that are expressed > 0,5 TPM in any other tissue that is not testis nor ovary. 
+
+Next steps:
+
+* We remove the testis and ovary column. 
+* We find the max expression value across all the tissues for each gene. If the maximum expression > 0,5 TPM, they won't be testis specific. 
+
+
+We remove unwanted columns:
+```{r, echo=FALSE}
+tissues<-colnames(gtex_table)
+tissues<-tissues[-c(1,2,21,29,34,35,36,37)]
+sub_gtex_table<-gtex_table[,tissues]
+```
+
+We add the max column:
+```{r, echo=FALSE}
+sub_gtex_table$max_expression<-apply(sub_gtex_table,1,max)
+head (sub_gtex_table[c(26:30)])
+```
+
+We remove the genes with max_expression > 0,5 TPM in any tissue that are not Testis nor Ovary. 
+
+```{r}
+sub_expression_gtex_table<-subset(sub_gtex_table, max_expression<0.5)
+dim(sub_expression_gtex_table)
+```
+
+**We obtain 2.376 genes that are testis-specific genes according to rnaseq + GTEx. **
+
+```{r, echo=FALSE}
+head(sub_expression_gtex_table)
+genes_gtex_Tspecific<-rownames(sub_expression_gtex_table)
+```
+
+
+```{r, echo=FALSE}
+filtered_Tspecific_sub_gtex_table<-gtex_table[c(genes_gtex_Tspecific),]
+dim(filtered_Tspecific_sub_gtex_table)
+```
+
+```{r}
+filtered_Tspecific_sub_gtex_table<-subset(filtered_Tspecific_sub_gtex_table, Testis>0.5)
+dim(filtered_Tspecific_sub_gtex_table)
+```
+
+```{r, echo=FALSE}
+sub_filtered_Tspecific_sub_gtex_table<-filtered_Tspecific_sub_gtex_table[,c(3:33)]
+dim(sub_filtered_Tspecific_sub_gtex_table)
+```
+
+### GTEx Heatmap2 | Testis-specific genes | RNAseq criteria + GTEx 
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors=data.frame(geneType=filtered_Tspecific_sub_gtex_table$Gene.type)
+#col_colors$translated<-filtered_Tspecific_sub_gtex_table$translated
+rownames(col_colors)<-filtered_Tspecific_sub_gtex_table$Gene.name.x
+```
+
+
+```{r, fig.height=10, fig.width=11, warning=FALSE, echo=FALSE}
+selectedGenes <-c(filtered_Tspecific_sub_gtex_table$Gene.name.x)
+breaks <- seq(0, 100, by = 5)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+gtex_filtered<-pheatmap(sub_filtered_Tspecific_sub_gtex_table[selectedGenes,], scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors, width = 20,  height = 15, show_rownames = TRUE,  fontsize_row = 1, fontsize_col = 8, color=colores_escala, breaks=breaks)
+gtex_filtered<-ggplotify::as.ggplot(gtex_filtered)
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/gtex_filtered.png", plot = gtex_filtered, width = 11, height = 10, units = "in", dpi = 300)
+
+
+```
+
+Therefore, this data follows the next criteria: 
+* 3.919 testis-specific genes (RNAseq results and available GTEx data).
+* < 0.5 TPM expression in any tissue which are not testis nor ovary according to GTEx data.
+* > 0.5 TPM expression in testis or ovary according to GTEx data. 
+
+
+```{r}
+#OUTPUT QUE SE UTILIZA AL PRINCIPIO DE RIBONOVEL
+#write.table(filtered_Tspecific_sub_gtex_table_2$Geneid, "/home/sararaz/TFM/GTEx/testis_specific_genes_gtex_criteria.txt")
+# write.table(filtered_Tspecific_sub_gtex_table$Geneid, "/users/genomics/saraa/projectTestis/Rstudio/human/GTEx/sub_gtexC_rnaseq_human_testis_final_table.csv")
+```
+
+
+## Brain and Liver | Process the data | GTEx Criteria
+
+Cargo los datos de gtex
+```{r, echo=FALSE}
+#OUTPUT CRIT2 GENEID HUMAN COUNTS
+all_gtex_table<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/GTEx_maintissue_gene_median_tpm.csv", header=TRUE)
+all_gtex_table<- all_gtex_table %>% rename(Geneid=Name)
+all_gtex_table$Geneid<-gsub("\\.","", all_gtex_table$Geneid)
+```
+
+Cargo los datos de brain
+```{r, echo=FALSE}
+brain_specific_gtex<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/brain_specific_genes.txt", header=TRUE)
+brain_specific_gtex$Geneid<-gsub("\\..*","", brain_specific_gtex$Geneid)
+```
+
+Cargo los datos de liver
+
+```{r, echo=FALSE}
+liver_specific_gtex<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/liver_specific_genes.txt", header=TRUE)
+liver_specific_gtex$Geneid<-gsub("\\..*","", liver_specific_gtex$Geneid)
+```
+
+
+
+Hago el merge para conseguir el gtex filtrado
+
+```{r, echo=FALSE}
+brain_gtex_table<-merge(brain_specific_gtex, all_gtex_table, by="Geneid", all.x=T)
+liver_gtex_table<- merge(liver_specific_gtex, all_gtex_table, by = "Geneid",all.x=T)
+```
+
+Vemos que Geneids no se encuentran en la tabla de GTEx
+En brain perdemos: 
+```{r, echo=FALSE}
+dim(brain_gtex_table)
+brain_gtex_table_uniq<-na.omit(brain_gtex_table)
+dim(brain_gtex_table_uniq)
+```
+En liver perdemos 8
+```{r, echo=FALSE}
+dim(liver_gtex_table)
+liver_gtex_table_uniq<-na.omit(liver_gtex_table)
+dim(liver_gtex_table_uniq)
+```
+
+
+Pongo los Geneid como rownames
+```{r, echo=FALSE}
+rownames(brain_gtex_table_uniq)<-brain_gtex_table_uniq$Gene.name
+rownames(liver_gtex_table_uniq)<-liver_gtex_table_uniq$Gene.name
+```
+
+
+Hago un sub solo con la info de gtex de los diferentes tissues
+
+```{r, echo=FALSE}
+sub_brain_gtex_table_uniq<-brain_gtex_table_uniq[,c(10:40)]
+sub_liver_gtex_table_uniq<-liver_gtex_table_uniq[,c(10:40)]
+```
+
+## GTEX BRAIN | Inicial RNAseq brain specific genes
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors_2=data.frame(geneType=brain_gtex_table_uniq$Gene.type)
+#col_colors_2$translated<-gtex_table$translated
+rownames(col_colors_2)<-brain_gtex_table_uniq$Gene.name
+breaks <- seq(0, 100, by = 5)
+```
+
+```{r, fig.height=10, fig.width=11, warning=FALSE, echo=FALSE}
+selectedGenes_2 <-c(brain_gtex_table_uniq$Gene.name)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+gtex<-pheatmap(sub_brain_gtex_table_uniq[selectedGenes_2,], scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors_2, width = 20,  height = 15, show_rownames = TRUE,  fontsize_row = 1, fontsize_col = 8, breaks=breaks, color=colores_escala)
+
+gtex<-ggplotify::as.ggplot(gtex)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/gtex_brain.png", plot = gtex, width = 11, height = 10, units = "in", dpi = 300)
+```
+
+
+
+
+It can be appreciated how the genes which we assumed that were brain-specific, are not. This is due to the fact that we worked with only 3 individual and 3 tissue samples, whereas GTEx contains data from 54 tissue sites across ~ 1000 individuals. 
+
+
+## Process input data. 
+
+We want to obtain the brain-specific genes applying the GTEx data. We will remove those genes that are expressed > 0,5 TPM in any other tissue that is not brain. 
+
+Next steps:
+
+* We remove the brain column. 
+* We find the max expression value across all the tissues for each gene. If the maximum expression > 0,5 TPM, they won't be brain specific. 
+
+
+We remove unwanted columns:
+```{r, echo=FALSE}
+tissues<-colnames(sub_brain_gtex_table_uniq)
+tissues<-tissues[-c(5)]
+sub_no_brain_gtex_table_uniq<-sub_brain_gtex_table_uniq[,tissues]
+```
+
+We add the max column:
+```{r, echo=FALSE}
+sub_no_brain_gtex_table_uniq$max_expression<-apply(sub_no_brain_gtex_table_uniq,1,max)
+head (sub_no_brain_gtex_table_uniq[c(26:30)])
+```
+
+We remove the genes with max_expression > 0,5 TPM in any tissue that is not Brain. 
+
+```{r, echo=FALSE}
+sub_05_brain_gtex_table_uniq<-subset(sub_no_brain_gtex_table_uniq, max_expression<0.5)
+dim(sub_05_brain_gtex_table_uniq)
+```
+
+**We obtain 222 genes that are brain-specific genes according to rnaseq + GTEx. **
+
+
+Ahora obtenemos los nombres de estos 222 genes para conseguir una tbala completa de los genes (con la columna brain añadida)
+```{r, echo=FALSE}
+head(sub_05_brain_gtex_table_uniq)
+gene_names_sub_05_brain<-rownames(sub_05_brain_gtex_table_uniq)
+```
+
+
+```{r, echo=FALSE}
+all_05_brain_gtex_table_uniq<-brain_gtex_table_uniq[c(gene_names_sub_05_brain),]
+dim(all_05_brain_gtex_table_uniq)
+```
+
+```{r}
+all_05_brain_gtex_table_uniq<-subset(all_05_brain_gtex_table_uniq, Brain>0.5)
+dim(all_05_brain_gtex_table_uniq)
+```
+
+```{r, echo=FALSE}
+sub_05_brain_gtex_table_uniq<-all_05_brain_gtex_table_uniq[,c(10:40)]
+dim(sub_05_brain_gtex_table_uniq)
+```
+
+```{r}
+table(all_05_brain_gtex_table_uniq$Gene.type)
+```
+
+
+
+## GTEx Heatmap2 brain-specific genes - RNAseq criteria + GTEx 
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors=data.frame(geneType=all_05_brain_gtex_table_uniq$Gene.type)
+rownames(col_colors)<-all_05_brain_gtex_table_uniq$Gene.name
+```
+
+
+```{r, fig.height=20, fig.width=11, echo=FALSE}
+selectedGenes <-c(all_05_brain_gtex_table_uniq$Gene.name)
+breaks <- seq(0, 100, by = 5)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+brain_gtex_filtered<-pheatmap(sub_05_brain_gtex_table_uniq[selectedGenes,], scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors, width = 20,  height = 15, show_rownames = TRUE,  fontsize_row = 4, fontsize_col = 8, color=colores_escala, breaks=breaks)
+brain_gtex_filtered<-ggplotify::as.ggplot(brain_gtex_filtered)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/brain_gtex_filtered.png", plot = brain_gtex_filtered, width = 11, height = 10, units = "in", dpi = 300)
+
+```
+
+
+
+## GTEX LIVER | Inicial RNAseq liver specific genes
+
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors_2=data.frame(geneType=liver_gtex_table_uniq$Gene.type)
+#col_colors_2$translated<-gtex_table$translated
+rownames(col_colors_2)<-liver_gtex_table_uniq$Gene.name
+breaks <- seq(0, 100, by = 5)
+```
+
+```{r, fig.height=10, fig.width=11, warning=FALSE, echo=FALSE}
+selectedGenes_2 <-c(liver_gtex_table_uniq$Gene.name)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+gtex<-pheatmap(as.matrix(sub_liver_gtex_table_uniq[selectedGenes_2,]), scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors_2, width = 20,  height = 15, show_rownames = TRUE,  fontsize_row = 3, fontsize_col = 8, breaks=breaks, color=colores_escala)
+
+gtex<-ggplotify::as.ggplot(gtex)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/gtex_liver.png", plot = gtex, width = 11, height = 10, units = "in", dpi = 300)
+```
+
+
+
+It can be appreciated how the genes which we assumed that were liver-specific, are not. This is due to the fact that we worked with only 3 individual and 3 tissue samples, whereas GTEx contains data from 54 tissue sites across ~ 1000 individuals. 
+
+
+
+
+## Process input data. 
+
+We want to obtain the liver-specific genes applying the GTEx data. We will remove those genes that are expressed > 0,5 TPM in any other tissue that is not liver. 
+
+Next steps:
+
+* We remove the liver column. 
+* We find the max expression value across all the tissues for each gene. If the maximum expression > 0,5 TPM, they won't be liver specific. 
+
+
+We remove unwanted columns:
+```{r, echo=FALSE}
+tissues<-colnames(sub_liver_gtex_table_uniq)
+tissues<-tissues[-c(14)]
+sub_no_liver_gtex_table_uniq<-sub_liver_gtex_table_uniq[,tissues]
+```
+
+We add the max column:
+```{r, echo=FALSE}
+sub_no_liver_gtex_table_uniq$max_expression<-apply(sub_no_liver_gtex_table_uniq,1,max)
+head (sub_no_liver_gtex_table_uniq[c(26:30)])
+```
+
+We remove the genes with max_expression > 0,5 TPM in any tissue that is not Liver. 
+
+```{r, echo=FALSE}
+sub_05_liver_gtex_table_uniq<-subset(sub_no_liver_gtex_table_uniq, max_expression<0.5)
+dim(sub_05_liver_gtex_table_uniq)
+```
+
+**We obtain 40 genes that are liver-specific genes according to rnaseq + GTEx. **
+
+
+Ahora obtenemos los nombres de estos 40 genes para conseguir una tabla completa de los genes (con la columna liver añadida)
+```{r, echo=FALSE}
+head(sub_05_liver_gtex_table_uniq)
+gene_names_sub_05_liver<-rownames(sub_05_liver_gtex_table_uniq)
+```
+
+
+```{r, echo=FALSE}
+all_05_liver_gtex_table_uniq<-liver_gtex_table_uniq[c(gene_names_sub_05_liver),]
+dim(all_05_liver_gtex_table_uniq)
+```
+
+```{r}
+all_05_liver_gtex_table_uniq<-subset(all_05_liver_gtex_table_uniq, Liver>0.5)
+dim(all_05_liver_gtex_table_uniq)
+```
+
+```{r, echo=FALSE}
+sub_05_liver_gtex_table_uniq<-all_05_liver_gtex_table_uniq[,c(10:40)]
+dim(sub_05_liver_gtex_table_uniq)
+```
+```{r}
+table(all_05_liver_gtex_table_uniq$Gene.type)
+```
+
+## GTEx Heatmap2 liver-specific genes - RNAseq criteria + GTEx 
+
+```{r, echo=FALSE}
+#creamos los grupos - colores
+col_colors=data.frame(geneType=all_05_liver_gtex_table_uniq$Gene.type)
+rownames(col_colors)<-all_05_liver_gtex_table_uniq$Gene.name
+```
+
+
+```{r, fig.height=10, , echo=FALSE, fig.width=11}
+selectedGenes <-c(all_05_liver_gtex_table_uniq$Gene.name)
+breaks <- seq(0, 100, by = 5)
+colores_escala <- colorRampPalette((brewer.pal(9, "Reds")))(length(breaks)-1)
+liver_gtex_filtered<-pheatmap(sub_05_liver_gtex_table_uniq[selectedGenes,], scale="none", cluster_rows = F,  cluster_cols = F, annotation_row = col_colors, width = 8,  height = 5, show_rownames = TRUE,  fontsize_row = 8, fontsize_col = 8, color=colores_escala, breaks=breaks)
+liver_gtex_filtered<-ggplotify::as.ggplot(liver_gtex_filtered)
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/liver_gtex_filtered.png", plot = liver_gtex_filtered, width = 11, height = 10, units = "in", dpi = 300)
+
+```
+
+
+Therefore, this data follows the next criteria: 
+* Our tissue-specific genes (RNAseq results and available GTEx data).
+* < 0.5 TPM expression in any tissue which are not the tissue of interest according to GTEx data.
+* > 0.5 TPM expression in the tissue of our interest according to GTEx data. 
+
+
+```{r}
+#OUTPUT QUE SE UTILIZA AL PRINCIPIO DE RIBONOVEL
+#write.table(filtered_Tspecific_sub_gtex_table_2$Geneid, "/home/sararaz/TFM/GTEx/testis_specific_genes_gtex_criteria.txt")
+# write.table(all_05_liver_gtex_table_uniq$Geneid, "/users/genomics/saraa/projectTestis/Rstudio/human/GTEx/sub_gtexC_rnaseq_human_liver_final_table.csv")
+
+# write.table(all_05_brain_gtex_table_uniq$Geneid, "/users/genomics/saraa/projectTestis/Rstudio/human/GTEx/sub_gtexC_rnaseq_human_brain_final_table.csv")
+```
+
+
+
+
+
+### Final (RNAseq Crit2 + GTEx criteria) tissue-specific genes' piechart
+
+
+```{r}
+dim(counts_work_norm)
+```
+
+This are the genes expressed in each tissue:
+* Criteria: > 1TPM in at least 1 sample 
+
+
+```{r}
+expression_in_testis_genes <- counts_work_norm[c(counts_work_norm$human_testis_rna_1 > 1 | counts_work_norm$human_testis_rna_2 > 1 | counts_work_norm$human_testis_rna_3 > 1),]
+
+expression_in_brain_genes <- counts_work_norm[c(counts_work_norm$human_brain_rna_1 > 1 | counts_work_norm$human_brain_rna_2 > 1 | counts_work_norm$human_brain_rna_3 > 1),]
+
+expression_in_liver_genes <- counts_work_norm[c(counts_work_norm$human_liver_rna_1 > 1 | counts_work_norm$human_liver_rna_2 > 1 | counts_work_norm$human_liver_rna_3 > 1),]
+```
+
+This are the genes expressed in each tissue:
+* Criteria: > 1TPM in at least 2 samples
+
+
+
+```{r}
+expression_in_testis_genes_2 <- counts_work_norm[c((counts_work_norm$human_testis_rna_1 > 1 & counts_work_norm$human_testis_rna_2 > 1) | (counts_work_norm$human_testis_rna_1 > 1 & counts_work_norm$human_testis_rna_3 > 1) | (counts_work_norm$human_testis_rna_3 > 1 & counts_work_norm$human_testis_rna_2 > 1)),]
+
+expression_in_brain_genes_2 <- counts_work_norm[c((counts_work_norm$human_brain_rna_1 > 1 & counts_work_norm$human_brain_rna_2 > 1) | (counts_work_norm$human_brain_rna_1 > 1 & counts_work_norm$human_brain_rna_3 > 1) | (counts_work_norm$human_brain_rna_3 > 1 & counts_work_norm$human_brain_rna_2 > 1)),]
+
+expression_in_liver_genes_2 <- counts_work_norm[c((counts_work_norm$human_liver_rna_1 > 1 & counts_work_norm$human_liver_rna_2 > 1) | (counts_work_norm$human_liver_rna_1 > 1 & counts_work_norm$human_liver_rna_3 > 1) | (counts_work_norm$human_liver_rna_3 > 1 & counts_work_norm$human_liver_rna_2 > 1)),]
+```
+
+
+
+
+These are genes expressed in each tissue
+```{r}
+dim(expression_in_testis_genes)
+t_length<-length(expression_in_testis_genes$Geneid)
+dim(expression_in_brain_genes)
+b_length<-length(expression_in_brain_genes$Geneid)
+dim(expression_in_liver_genes)
+l_length<-length(expression_in_liver_genes$Geneid)
+```
+
+
+```{r}
+dim(expression_in_testis_genes_2)
+dim(expression_in_brain_genes_2)
+dim(expression_in_liver_genes_2)
+```
+
+
+
+These are genes expressed in each tissue SPECIFICALLY
+
+```{r}
+dim(filtered_Tspecific_sub_gtex_table)
+ts_length<-length(filtered_Tspecific_sub_gtex_table$Geneid)
+dim(all_05_brain_gtex_table_uniq)
+bs_length<-length(all_05_brain_gtex_table_uniq$Geneid)
+dim(all_05_liver_gtex_table_uniq)
+ls_length<-length(all_05_liver_gtex_table_uniq$Geneid)
+```
+
+Testis
+```{r}
+library(RColorBrewer)
+# Create Data
+testis_tissue <- data.frame(
+  group=c(t_length, ts_length),
+  value=c(length(expression_in_testis_genes$Geneid), length(filtered_Tspecific_sub_gtex_table$Geneid))
+)
+
+# Compute the position of labels
+testis_tissue <- testis_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(testis_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+testis_tissue$group<-as.character(testis_tissue$group)
+# Basic piechart
+testis_piechart<-ggplot(testis_tissue, aes(x="", y=prop, fill=group)) +
+  geom_bar(stat="identity", width=1, alpha=1) +
+  coord_polar("y", start=0) +
+  theme_void() + 
+    scale_fill_brewer(palette="PuRd", labels=c("Testis-specific genes","Testis genes"))+
+  labs(fill=c("Expressed genes in the Testis"))+
+  geom_text(aes(y = ypos, label = as.character(group)), color = "black", size=4)
+```
+
+```{r}
+#zoom pie-chart
+pcgs_ts_length<-length(filtered_Tspecific_sub_gtex_table[filtered_Tspecific_sub_gtex_table$Gene.type=="protein_coding",]$Geneid)
+lncRNAs_ts_length<-length(filtered_Tspecific_sub_gtex_table[filtered_Tspecific_sub_gtex_table$Gene.type=="lncRNA",]$Geneid)
+pp_ts_length<-length(filtered_Tspecific_sub_gtex_table[filtered_Tspecific_sub_gtex_table$Gene.type=="processed_pseudogene",]$Geneid)
+zoom_testis_tissue <- data.frame(
+  value=c(pp_ts_length, lncRNAs_ts_length,pcgs_ts_length ),
+  group=c("processed_pseudogene","lncRNA","protein_coding"))
+zoom_testis_tissue <- zoom_testis_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(zoom_testis_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+zoom_testis_tissue$group<-as.character(zoom_testis_tissue$group)
+
+zoom_testis_pie_chart <- ggplot(zoom_testis_tissue, aes(x = "", y = prop, fill = group)) +
+  geom_bar(stat = "identity", width = 1, alpha = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  scale_fill_brewer(palette = "Pastel2", labels = c("LncRNA", "Processed pseudogene", "Protein-coding")) +
+  labs(fill = "Gene type") +
+  geom_text(aes(y = ypos, label = value), color = "black", size = 4)
+
+zoom_testis_pie_chart <- zoom_testis_pie_chart + theme(
+  plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm")
+)
+```
+
+```{r}
+# Superponer los gráficos
+final_plot <- testis_piechart +
+  annotation_custom(
+    ggplotGrob(zoom_testis_pie_chart), 
+    xmin = 0.4, xmax = 0.6, ymin = 0.4, ymax = 0.6
+  )
+
+# Combinar los gráficos
+testis_final_plot <- grid.arrange(testis_piechart, zoom_testis_pie_chart, ncol = 2)
+
+testis_final_plot
+
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_piechart_f.png", plot = testis_final_plot, width = 10, height = 6, units = "in", dpi = 300)
+```
+Brain
+```{r}
+# Create Data
+brain_tissue <- data.frame(
+  group=c(b_length, bs_length),
+  value=c(length(expression_in_brain_genes$Geneid), length(all_05_brain_gtex_table_uniq$Geneid))
+)
+
+# Compute the position of labels
+brain_tissue <- brain_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(brain_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+brain_tissue$group<-as.character(brain_tissue$group)
+# Basic piechart
+brain_piechart<-ggplot(brain_tissue, aes(x="", y=prop, fill=group)) +
+  geom_bar(stat="identity", width=1, alpha=1) +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  scale_fill_brewer(palette="YlOrRd", labels=c("Brain-specific genes","Brain genes"))+
+  labs(fill=c("Expressed genes in the Brain"))+
+  geom_text(aes(y = ypos, label = group), color = "black", size=4)
+```
+
+
+
+```{r}
+#zoom pie-chart
+pcgs_bs_length<-length(all_05_brain_gtex_table_uniq[all_05_brain_gtex_table_uniq$Gene.type=="protein_coding",]$Geneid)
+lncRNAs_bs_length<-length(all_05_brain_gtex_table_uniq[all_05_brain_gtex_table_uniq$Gene.type=="lncRNA",]$Geneid)
+pp_bs_length<-length(all_05_brain_gtex_table_uniq[all_05_brain_gtex_table_uniq$Gene.type=="processed_pseudogene",]$Geneid)
+zoom_brain_tissue <- data.frame(
+  value=c(pcgs_bs_length, lncRNAs_bs_length, pp_bs_length),
+  group=c("protein_coding","lncRNA","processed_pseudogene"))
+zoom_brain_tissue <- zoom_brain_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(zoom_brain_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+zoom_brain_tissue$group<-as.character(zoom_brain_tissue$group)
+
+zoom_brain_pie_chart <- ggplot(zoom_brain_tissue, aes(x = "", y = prop, fill = group)) +
+  geom_bar(stat = "identity", width = 1, alpha = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  scale_fill_brewer(palette = "Set3", labels = c("LncRNA", "Processed pseudogene", "Protein-coding")) +
+  labs(fill = "Gene type") +
+  geom_text(aes(y = ypos, label = value), color = "black", size = 4)
+
+zoom_brain_pie_chart <- zoom_brain_pie_chart + theme(
+  plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm")
+)
+```
+
+```{r}
+# Superponer los gráficos
+final_plot <- brain_piechart +
+  annotation_custom(
+    ggplotGrob(zoom_brain_pie_chart), 
+    xmin = 0.4, xmax = 0.6, ymin = 0.4, ymax = 0.6
+  )
+
+# Combinar los gráficos
+brain_final_plot <- grid.arrange(brain_piechart, zoom_brain_pie_chart, ncol = 2)
+
+brain_final_plot
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/brain_piechart_f.png", plot = brain_final_plot, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Liver
+```{r}
+# Create Data
+liver_tissue <- data.frame(
+  group=c(l_length, ls_length),
+  value=c(length(expression_in_liver_genes$Geneid), length(all_05_liver_gtex_table_uniq$Geneid))
+)
+
+# Compute the position of labels
+liver_tissue <- liver_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(liver_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+liver_tissue$group<-as.character(liver_tissue$group)
+
+# Basic piechart
+liver_piechart<-ggplot(liver_tissue, aes(x="", y=prop, fill=group)) +
+  geom_bar(stat="identity", width=1, alpha=1) +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  scale_fill_brewer(palette="PiYG", labels=c("Liver-specific genes","Liver genes"))+
+  labs(fill=c("Expressed genes in the Liver"))+
+  geom_text(aes(y = ypos, label = group), color = "black", size=4)
+```
+
+
+```{r}
+#zoom pie-chart
+pcgs_ls_length<-length(all_05_liver_gtex_table_uniq[all_05_liver_gtex_table_uniq$Gene.type=="protein_coding",]$Geneid)
+lncRNAs_ls_length<-length(all_05_liver_gtex_table_uniq[all_05_liver_gtex_table_uniq$Gene.type=="lncRNA",]$Geneid)
+pp_ls_length<-length(all_05_liver_gtex_table_uniq[all_05_liver_gtex_table_uniq$Gene.type=="processed_pseudogene",]$Geneid)
+zoom_liver_tissue <- data.frame(
+  value=c(pcgs_ls_length, lncRNAs_ls_length, pp_ls_length),
+  group=c("protein_coding","lncRNA","processed_pseudogene"))
+zoom_liver_tissue <- zoom_liver_tissue %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(zoom_liver_tissue$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+zoom_liver_tissue$group<-as.character(zoom_liver_tissue$group)
+
+zoom_liver_pie_chart <- ggplot(zoom_liver_tissue, aes(x = "", y = prop, fill = group)) +
+  geom_bar(stat = "identity", width = 1, alpha = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  scale_fill_brewer(palette = "Set3", labels = c("LncRNA", "Processed pseudogene", "Protein-coding")) +
+  labs(fill = "Gene type") +
+  geom_text(aes(y = ypos, label = value), color = "black", size = 4)
+
+zoom_liver_pie_chart <- zoom_liver_pie_chart + theme(
+  plot.margin = margin(0.1, 0.1, 0.1, 0.1, "cm")
+)
+```
+
+```{r}
+# Superponer los gráficos
+final_plot <- liver_piechart +
+  annotation_custom(
+    ggplotGrob(zoom_liver_pie_chart), 
+    xmin = 0.4, xmax = 0.6, ymin = 0.4, ymax = 0.6
+  )
+
+# Combinar los gráficos
+liver_final_plot <- grid.arrange(liver_piechart, zoom_liver_pie_chart, ncol = 2)
+
+liver_final_plot
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/liver_piechart_f.png", plot = liver_final_plot, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+
+```{r, echo=FALSE}
+countsGenes_liver<-as.data.frame(prop.table(table(all_05_liver_gtex_table_uniq$Gene.type)))
+counts_liver<-c(countsGenes_liver$Freq)
+gene_types_liver<- c(countsGenes_liver$Var1)
+```
+
+
+```{r}
+liver_piechart<-pie(counts_liver , labels = gene_types_liver, border="white")+scale_fill_brewer(palette="Set3")+title("Liver")
+```
+
+```{r, echo=FALSE}
+countsGenes_brain<-as.data.frame(prop.table(table(all_05_brain_gtex_table_uniq$Gene.type)))
+counts_brain<-c(countsGenes_brain$Freq)
+gene_types_brain<- c(countsGenes_brain$Var1)
+```
+
+```{r, fig.width= 10, echo=FALSE}
+brain_piechart<-pie(counts_brain , labels = gene_types_brain, border="white", col=adjustcolor(c("brown1", "aquamarine", "cyan1"), alpha=0.4))+title("Brain")
+liver_piechart<-pie(counts_liver , labels = gene_types_liver, border="white", col=adjustcolor(c("brown1", "aquamarine", "cyan1"), alpha=0.4))+title("Liver")
+
+testis_piechart
+brain_piechart
+liver_piechart
+```

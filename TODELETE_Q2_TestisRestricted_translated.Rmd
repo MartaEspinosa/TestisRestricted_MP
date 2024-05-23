@@ -1,0 +1,308 @@
+---
+title: "Q1. ncORFs in testis"
+author: "Marta Espinosa"
+date: "2024-05-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+library(ggthemr)
+library(ggbeeswarm)
+
+gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=F)
+names(gene_transcript) = c("gene_id","gene_type","gene_name")
+gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA"
+```
+
+```{r annotation, echo=F}
+annot<-read.table("/users/genomics/saraa/projectTestis/RiboNovel/Correct_format_files/riboNovel_gencode.v38.primary_assembly.annotation.sorted.1transcript.gtf", header=TRUE)
+
+annot$transcript_id<-gsub("\\..*","", annot$transcript_id)
+annot$gene_id<-gsub("\\..*","", annot$gene_id)
+
+# head(anot)
+
+
+# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid", all.x=T))
+# head(t_e_g)
+# t_e_g <- subset(t_e_g, !grepl("ENST00000654848", transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000609202", transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000669393", transcriptID)) 
+# t_e_g <- subset(t_e_g, !grepl("ENST00000512989", transcriptID))
+# dim(t_e_g)
+```
+
+
+## Evidence of translation in testis according to the Ribo-Seq data in Wang et al. (2020) 
+
+Questions: 
+
+- Which proportion of the ncORFs/canonical ORFs that are expressed (>1TPM) in testis are only **expressed** in testis? 
+
+- Do they show any differences in composition (AT/CG content) /translation level? 
+
+```{r input_data, echo=F}
+testisExpressed = read.csv(file.path(save_wd, "testisExpressed.csv"))
+testisRestricted = read.csv(file.path(save_wd, "testisRestricted.csv"))
+testisRestricted_GTEx = read.csv(file.path(save_wd, "testisRestricted_GTEx.csv"))
+
+ribORF_humanTestis_in2_fastas = read.csv(file.path(save_wd, "ribORF_humanTestis_in2.csv"))
+```
+
+```{r expr_restr, echo=F}
+nrow(testisExpressed)
+
+testisExpressed = testisExpressed %>% mutate("testisRestricted" = case_when(gene_id %in% testisRestricted$gene_id ~ "yes", TRUE ~ "no"))
+
+expressed_restricted = as.data.frame(table(testisExpressed$gene_type, testisExpressed$testisRestricted))
+names(expressed_restricted) = c("gene_type","testisRestricted","n")
+expressed_restricted = expressed_restricted %>% 
+  group_by(gene_type) %>% 
+  mutate(perc = round((n/sum(n)*100),2))
+
+ggplot(expressed_restricted, aes(x=gene_type, y=n, fill=testisRestricted)) +
+  geom_bar(stat="identity", position="fill") +
+  geom_text(aes(label=perc), position=position_fill(vjust=0.5)) +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x="Biotype",
+        y="Number of genes",
+        title="How many of the testisExpressed genes\nare testisRestricted?") +
+  theme_classic() +
+  theme(legend.position="top")
+
+ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted.png"), height=5.69, width=4.72)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted.pdf"), height=5.69, width=4.72)
+```
+
+```{r expr_restr_translation, echo=F}
+nrow(testisExpressed)
+testisExpressed_Restricted_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type"))
+nrow(testisExpressed_Restricted_Translated)
+table(testisExpressed_Restricted_Translated$testisRestricted, testisExpressed_Restricted_Translated$gene_type)
+testisExpressed_Restricted_Translated = testisExpressed_Restricted_Translated %>% select(-ORFseq)
+```
+
+```{r differences, echo=F}
+#### should I do it vs all or vs the non-testisRestricted?
+##---------- length differences ----------##
+ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=length_aa, fill=testisRestricted)) +
+  geom_boxplot() +
+  stat_compare_means() +
+  scale_y_continuous(trans="log10") +
+    scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA.pdf"), height=4.69, width=5.4)
+
+##---------- length differences | gene_type ----------##
+ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=length_aa, fill=testisRestricted)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA_genetype.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA_genetype.pdf"), height=4.69, width=5.4)
+##---------- composition differences ----------##
+## log2ratio to see if ncORFs are relatively enriched in any aminoacid
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+
+## select ncORFs - no testisRestricted
+ncORFs_no_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(testisRestricted == "no")
+ncORFs_no_seqs = as.character(ncORFs_no_seqs$ORFpep)
+## select ncORFs - testisRestricted
+ncORFs_yes_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(testisRestricted == "yes")
+ncORFs_yes_seqs = as.character(ncORFs_yes_seqs$ORFpep)
+
+## select ORFs - no testisRestricted
+ORFs_no_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(testisRestricted == "no")
+ORFs_no_seqs = as.character(ORFs_no_seqs$ORFpep)
+## select ORFs - testisRestricted
+ORFs_yes_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(testisRestricted == "yes")
+ORFs_yes_seqs = as.character(ORFs_yes_seqs$ORFpep)
+
+## compute log2ratio per letter - testisRestricted
+log2ratios_yes = calculate_log2ratio_df(ncORFs_yes_seqs, ORFs_yes_seqs)
+print(log2ratios_yes)
+names(log2ratios_yes)[2] = "log2ratio_yes_ncORFs_vs_ORFs"
+log2ratios_yes = log2ratios_yes %>% subset(log2ratio_yes_ncORFs_vs_ORFs != 0)
+
+## compute log2ratio per letter - no testisRestricted
+log2ratios_no = calculate_log2ratio_df(ncORFs_no_seqs, ORFs_no_seqs)
+names(log2ratios_no)[2] = "log2ratio_no_ncORFs_vs_ORFs"
+log2ratios_no = log2ratios_no %>% subset(log2ratio_no_ncORFs_vs_ORFs != 0)
+
+## compute log2ratio per letter - yes vs no testisRestricted independently of genetype
+log2ratios_yes_vs_no = calculate_log2ratio_df(paste(ncORFs_no_seqs, ORFs_no_seqs), paste(ncORFs_yes_seqs, ORFs_yes_seqs))
+names(log2ratios_yes_vs_no)[2] = "log2ratio_yes_vs_no"
+print(log2ratios_yes_vs_no)
+log2ratios_yes_vs_no = log2ratios_yes_vs_no %>% subset(log2ratio_yes_vs_no != 0)
+
+
+
+hph=c("A","V","L","I","M","F","Y","W")
+polar=c("S","T","N","Q")
+positively_charged=c("R","H","K")
+negatively_charged=c("D","E")
+special_cases=c("C","G","P")
+
+
+log2ratios = list(log2ratios_yes, log2ratios_no, log2ratios_yes_vs_no) %>% reduce(full_join, by='Aminoacid')
+log2ratios = log2ratios %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% 
+  drop_na()
+
+log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no","log2ratio_no_ncORFs_vs_ORFs","log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type", values_to = "log2ratio")
+
+ggthemr("dust")
+ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in ncORFs",
+       fill="Aminoacid type") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  facet_grid(type ~ aa_type, scales="free_x", space="free_x")
+ggsave(file.path(plots_wd,"PNG/log2ratio_severalconditions.png"), height=7.05, width=8.46)
+ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, width=8.46)
+
+
+##---------- translation efficiency ----------##
+mean_testis_TE = read.csv(file.path(save_wd, "mean_translationEfficiency_testis.csv"))
+names(mean_testis_TE)[5] = "orfType"
+testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID","gene_id", "gene_type", "gene_name", "orfType"))
+
+ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=mean_TE, fill=testisRestricted)) +
+  geom_boxplot() +
+  stat_compare_means() +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(trans="log10") +
+  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_TE.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE.pdf"), height=4.69, width=5.4)
+
+##---------- translation efficiency | gene_type ----------##
+ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=mean_TE, fill=testisRestricted)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(trans="log10") +
+  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_TE_genetype.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_genetype.pdf"), height=4.69, width=5.4)  
+```
+## Testis-Specific TRANSLATED ORFs (translation unchecked in the other tissues)
+
+```{r testisRestricted_translated, echo=F}
+ribORF_humanTestis_in2_fastas_GTEx = ribORF_humanTestis_in2_fastas %>% subset(gene_id %in% testisRestricted_GTEx$gene_id)
+table(ribORF_humanTestis_in2_fastas_GTEx$gene_type)
+```
+
+
+## Testis-Specific TRANSLATED ORFs only in testis (RiboSeq)
+
+Based on RiboSeq only, which genes are TRANSLATED only in testis and not translated in liver or brain according to the data of Wang et al. (2020) 
+
+- Which proportion of the ncORFs/canonical ORFs that are translated in at least 2 testis samples are only **translated** in testis? 
+
+```{r testisTranslated_in_tissues, echo=F}
+## ---------- LIVER -----------##
+ribORF_humanLiver_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_humanLiver_translated.csv"))
+ribORF_humanLiver_simplified = ribORF_humanLiver_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
+  group_by(orfID, gene_type, gene_id) %>% count()
+names(ribORF_humanLiver_simplified)[4] = "num_samples"
+ribORF_humanLiver_simplified$tissue = "brain"
+
+## ---------- BRAIN -----------##
+ribORF_humanBrain_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_humanBrain_translated.csv"))
+ribORF_humanBrain_simplified = ribORF_humanBrain_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
+  group_by(orfID, gene_type, gene_id) %>% count()
+names(ribORF_humanBrain_simplified)[4] = "num_samples"
+ribORF_humanBrain_simplified$tissue = "liver"
+
+ggvenn(list("brain"=ribORF_humanBrain_simplified$orfID,
+                 "liver"=ribORF_humanLiver_simplified$orfID,
+                 "testis"=ribORF_humanTestis_in2_fastas$orfID),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3) +
+  ggtitle("Testis Translated ORFs in other tissues")
+ggsave(file.path(plots_wd,"PNG/testisExpressed_translated_tissues.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_translated_tissues.pdf"), height=4.69, width=5.4)
+
+ribORF_humanTestis_in2_fastas = ribORF_humanTestis_in2_fastas %>% mutate("TranslatedLiver" = case_when(orfID %in% ribORF_humanLiver_simplified$orfID ~ "yes",TRUE ~ "no")) %>% mutate("TranslatedBrain" = case_when(orfID %in% ribORF_humanBrain_simplified$orfID ~ "yes",TRUE ~ "no"))
+
+## select those only TRANSLATED in testis (in at least 2 samples) and no in any sample from brain or liver 
+ribORF_humanTestis_in2_fastas_onlyTestis = ribORF_humanTestis_in2_fastas %>% subset(TranslatedLiver == "no" & TranslatedBrain == "no")
+table(ribORF_humanTestis_in2_fastas_onlyTestis$gene_type)
+
+to_plot_translatedOnlyTestis = ribORF_humanTestis_in2_fastas_onlyTestis %>% group_by(gene_type) %>% count()
+to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)
+
+###### ggpie
+labs <- paste0(to_plot_translatedOnlyTestis$gene_type, " (", to_plot_translatedOnlyTestis$n, ")")
+ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "in", palette=c("protein_coding"="#849DB1",
+                         "lncRNA" = "#B66353",
+                         "processed_pseudogene" = "#FBB04E")) +
+  ggtitle("ORFs from testis-expressed genes only translated in testis (2 samples at least)")
+ggsave(file.path(plots_wd,"PNG/testisExpressed_ORFs_onlyTestis.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisExpressed_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  
+```
+
+Of these (exclusively translated in testis), how many are only expressed in testis according to GTEx as well?
+
+```{r testisTranslated_specific_GTEx, echo=F}
+ribORF_humanTestis_in2_fastas_onlyTestis_GTEx = ribORF_humanTestis_in2_fastas_onlyTestis %>% subset(gene_id %in% testisRestricted_GTEx$gene_id)
+table(ribORF_humanTestis_in2_fastas_onlyTestis_GTEx$gene_type)
+
+to_plot_translatedOnlyTestisGTEx = ribORF_humanTestis_in2_fastas_onlyTestis_GTEx %>% group_by(gene_type) %>% count()
+to_plot_translatedOnlyTestisGTEx = as.data.frame(to_plot_translatedOnlyTestisGTEx)
+###### ggpie
+labs <- paste0(to_plot_translatedOnlyTestisGTEx$gene_type, " (", to_plot_translatedOnlyTestisGTEx$n, ")")
+ggpie(to_plot_translatedOnlyTestisGTEx, "n", label="n", fill="gene_type", lab.pos = "in", palette=c("protein_coding"="#849DB1",
+                         "lncRNA" = "#B66353",
+                         "processed_pseudogene" = "#FBB04E")) +
+  ggtitle("ORFs from testis-restricted genes (GTEx included) only translated in testis (2 samples at least)")
+ggsave(file.path(plots_wd,"PNG/testisRestrictedGTEx_ORFs_onlyTestis.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  
+```
+
