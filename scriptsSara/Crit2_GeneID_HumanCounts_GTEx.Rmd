@@ -140,7 +140,7 @@ raw_counts<-ggplot(vals, aes(x=val, y=samples)) +
  xlab("Gene expression in counts") +
  ylab("Samples") +
  theme(axis.text.x = element_text(angle = 45, hjust = 1))
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/raw_counts.png", plot = raw_counts, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/raw_counts.png", plot = raw_counts, width = 10, height = 6, units = "in", dpi = 300)
 raw_counts
 ```
 
@@ -215,7 +215,7 @@ boxplot_norm<- ggplot(data=datos)+geom_boxplot(mapping=aes(x=Samples,y=LogTPM, f
   theme(legend.position = "none")+scale_fill_viridis(discrete = TRUE, alpha=0.6)+
   theme(axis.text.x = element_text(angle=45, hjust=1))+xlab("")
 boxplot_norm
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_norm.png", plot = boxplot_norm, width = 10, height = 6, units = "in", dpi = 300)
+# ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_norm.png", plot = boxplot_norm, width = 10, height = 6, units = "in", dpi = 300)
 ```
 
 Now, the normalized gene expression in each sample per gene.type is shown. 
@@ -235,7 +235,7 @@ boxplot_normalizado<-ggplot(data=datos1)+geom_boxplot(mapping=aes(x=samples,y=Lo
   scale_fill_viridis(discrete = TRUE, alpha=0.4, option="D")+ labs(y="log10(TPM)", fill= "Gene type")
 boxplot_normalizado
 
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_normalizado.png", plot = boxplot_normalizado, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/boxplot_normalizado.png", plot = boxplot_normalizado, width = 10, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -464,7 +464,7 @@ Testis specific lncRNAs expression classification counts:
 ts_lncRNA_distr<-ggplot(data=genes_lncRNAs_testis_crit2,aes(x=Expression_Classification, fill=Expression_Classification))+geom_bar(alpha=1)+theme_minimal()+ylim(0,3000)+ labs(title = 'Testis specific LncRNAs classification', x=NULL, fill=NULL)+
   scale_fill_brewer(palette = "GnBu", labels=c("Expressed in 3 samples", "Expressed in 2 samples"))
 ts_lncRNA_distr
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr.png", plot = ts_lncRNA_distr, width = 10, height = 6, units = "in", dpi = 300)
+# ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr.png", plot = ts_lncRNA_distr, width = 10, height = 6, units = "in", dpi = 300)
 
 ```
 
@@ -475,7 +475,7 @@ Now, the Distribution of log10(TPM) gene expression in each  expression classifi
 ts_lncRNA_distr_boxplot<-ggplot(data=genes_lncRNAs_testis_crit2,aes(x=Expression_Classification,y=Log_Media_testis_TPM, fill=Expression_Classification))+geom_boxplot(alpha=1)+theme(axis.text.x = element_text(angle=45, hjust=1))+ scale_fill_brewer(palette = "GnBu", labels=c("Expressed in 3 samples", "Expressed in 2 samples")) +
     geom_jitter(color="black", size=0.4, alpha=0.9) +theme_minimal()+ 
   labs(title = 'Distribution of log10(TPM) expression in each Expression_clasification group ', y="log10(TPM)", x= NULL, fill=NULL)
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot.png", plot = ts_lncRNA_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot.png", plot = ts_lncRNA_distr_boxplot, width = 10, height = 6, units = "in", dpi = 300)
 ts_lncRNA_distr_boxplot
 ```
 
@@ -486,7 +486,7 @@ ts_lncRNA_distr_boxplot2<-ggboxplot(genes_lncRNAs_testis_crit2, x = "Expression_
   stat_compare_means(comparisons = my_comparisons)+ # Add pairwise comparisons p-value
   labs(y="log10(TPM)", x=NULL, fill=NULL)+theme(legend.position = NULL) +geom_jitter(color="black", size=0.4, alpha=0.9)
 # Add global p-value
-ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot2.png", plot = ts_lncRNA_distr_boxplot2, width = 10, height = 6, units = "in", dpi = 300)
+#ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ts_lncRNA_distr_boxplot2.png", plot = ts_lncRNA_distr_boxplot2, width = 10, height = 6, units = "in", dpi = 300)
 ```
 
 
@@ -943,7 +943,8 @@ colnames(raw_gtex)
 #raw_gtex<- raw_gtex %>% rename(Geneid=Name)
 raw_gtex$Geneid<-raw_gtex$Name
 raw_gtex<-subset(raw_gtex, select=-Name)
-raw_gtex$Geneid<-gsub("\\.","", raw_gtex$Geneid)
+raw_gtex$Geneid<-gsub("\\..","", raw_gtex$Geneid)
+dim(raw_gtex)
 
 ```
 
@@ -954,13 +955,17 @@ transltable<-transltable[c(1:4413),]
 head(transltable)
 #quitamos versión a translated . añadimos así la translated info
 transltable$Geneid<-gsub("\\..*","", transltable$Geneid)
+dim(transltable)
+
 ```
 
 
 ```{r, echo=FALSE}
 # Hago el merge
-gtex2<-merge(raw_gtex, transltable, by="Geneid", all.y=T ) # en esta tabla los NA son los que perdemos
+gtex2<-merge(raw_gtex, transltable, by="Geneid", all.y=T) # en esta tabla los NA son los que perdemos !!!!!!!! all.y=T !!!
 gtex2_noNA<-na.omit(gtex2)
+dim(gtex2)
+dim(gtex2_noNA)
 ```
 
 ```{r, echo=FALSE}
@@ -1009,15 +1014,15 @@ sub_gtex2<-as.matrix(sub_gtex2)
 
 ```{r, echo=FALSE}
 #OUTPUT CRIT2 GENEID HUMAN COUNTS
-gtex_table<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/filtered_GTEx_testis_specific_final.txt", header=TRUE)
+#gtex_table<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/GTEx/filtered_GTEx_testis_specific_final.txt", header=TRUE)
 #gtex_table<-read.csv("/home/sararaz/TFM/filtered_GTEx_testis_specific_final.txt", header=TRUE)
 
-rownames(gtex_table)<-gtex_table$Gene.name.x
+gtex_table = gtex2_noNA_symbols
 ```
 
 ```{r, echo=FALSE}
 dim(gtex_table)
-sub_gtex_table<-gtex_table[,c(3:33)]
+sub_gtex_table<-gtex_table[,c(2:32)]
 ```
 
 

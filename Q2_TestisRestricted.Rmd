@@ -233,14 +233,19 @@ In cases where several "sub-tissues" are available, we kept the highest value.
 ```{r, reading_GTEx, echo=F}
 gtex = read.table("/genomics/users/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
 names(gtex)[1] = "gene_id"
+nrow(gtex)
+gtex$gene_id = gsub("\\..*","",gtex$gene_id)
 ```
 
 ```{r testis_GTEx, echo=F}
+nrow(testisspecific_full)
 testis_gtex = gtex %>% subset(gene_id %in% testisspecific_full$gene_id)
+# merged_testis_gtex = merge(gtex, testisspecific_full, by="gene_id")
+dim(testis_gtex)
 
 ## germline 
 germline = testis_gtex %>% select(gene_id, Testis, Ovary) 
-germline_05 = germline %>% mutate(GTEx_testis = case_when(Testis > 0.5~ "> 0.5", Testis <= 0.5 ~ "<= 0.5"))
+germline_05 = germline %>% mutate(GTEx_testis = case_when(Testis > 0.5~ "> 0.5", Testis < 0.5 ~ "< 0.5"))
 dim(germline_05)
 ## non-reproductive tissues
 NOgermline = testis_gtex %>% select(-c(Testis, Ovary))
@@ -250,7 +255,7 @@ dim(NOgermline)
 
 ## get maximum value
 NOgermline$max <- apply(NOgermline, 1, max, na.rm=TRUE)
-NOgermline_05 = NOgermline %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max <= 0.5 ~ "<= 0.5"))
+NOgermline_05 = NOgermline %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
 NOgermline_05$gene_id = rownames(NOgermline_05)
 dim(NOgermline_05)
 ## join both criteria
@@ -262,7 +267,7 @@ subset_testis_full_GTEx = merge(testisspecific_full, GTEX_criteria, by="gene_id"
 dim(subset_testis_full_GTEx)
 # length(unique(subset_testis_full_GTEx$gene_id))
 
-subset_testis_GTEx = subset_testis_full_GTEx %>% subset(GTEx_healthy == "<= 0.5" & GTEx_testis == "> 0.5")
+subset_testis_GTEx = subset_testis_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_testis == "> 0.5")
 dim(subset_testis_GTEx)
 write.csv(subset_testis_GTEx, file.path(save_wd,"testisRestricted_GTEx.csv"), row.names = F)
 nrow(subset_testis_GTEx)
@@ -329,7 +334,7 @@ liver_gtex = gtex %>% subset(gene_id %in% liverspecific$gene_id)
 
 ## liver 
 liver = liver_gtex %>% select(gene_id, Liver) 
-liver_05 = liver %>% mutate(GTEx_liver = case_when(Liver >= 0.5~ ">= 0.5", Liver < 0.5 ~ "< 0.5"))
+liver_05 = liver %>% mutate(GTEx_liver = case_when(Liver > 0.5~ "> 0.5", Liver < 0.5 ~ "< 0.5"))
 
 ## all other tissues
 all_others = liver_gtex %>% select(-c(Liver))
@@ -337,7 +342,7 @@ rownames(all_others) = all_others$gene_id
 all_others$gene_id = NULL
 ## get maximum value
 all_others$max <- apply(all_others, 1, max, na.rm=TRUE)
-all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max >= 0.5~ ">= 0.5", max < 0.5 ~ "< 0.5"))
+all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
 all_others_05$gene_id = rownames(all_others_05)
 
 ## join both criteria
@@ -348,7 +353,7 @@ GTEX_criteria = merge(all_others_05 %>% select(gene_id, GTEx_healthy), liver_05 
 subset_liver_full_GTEx = merge(liverspecific, GTEX_criteria, by="gene_id")
 # length(unique(subset_liver_full_GTEx$gene_id))
 
-subset_liver_full_GTEx = subset_liver_full_GTEx %>% subset(GTEx_healthy == "< 0.5") %>% subset(GTEx_liver == ">= 0.5")
+subset_liver_full_GTEx = subset_liver_full_GTEx %>% subset(GTEx_healthy == "< 0.5") %>% subset(GTEx_liver == "> 0.5")
 write.csv(subset_liver_full_GTEx, file.path(save_wd,"liverRestricted_GTEx.csv"), row.names = F)
 nrow(subset_liver_full_GTEx)
 tmp = subset_liver_full_GTEx %>% select(gene_id, gene_type) %>% unique()
@@ -362,7 +367,7 @@ brain_gtex = gtex %>% subset(gene_id %in% brainspecific$gene_id)
 
 ## brain 
 brain = brain_gtex %>% select(gene_id, Brain) 
-brain_05 = brain %>% mutate(GTEx_brain = case_when(Brain >= 0.5~ ">= 0.5", Brain < 0.5 ~ "< 0.5"))
+brain_05 = brain %>% mutate(GTEx_brain = case_when(Brain > 0.5~ "> 0.5", Brain < 0.5 ~ "< 0.5"))
 
 ## all other tissues
 all_others = brain_gtex %>% select(-c(Brain))
@@ -370,7 +375,7 @@ rownames(all_others) = all_others$gene_id
 all_others$gene_id = NULL
 ## get maximum value
 all_others$max <- apply(all_others, 1, max, na.rm=TRUE)
-all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max >= 0.5~ ">= 0.5", max < 0.5 ~ "< 0.5"))
+all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
 all_others_05$gene_id = rownames(all_others_05)
 
 ## join both criteria
@@ -381,7 +386,7 @@ GTEX_criteria = merge(all_others_05 %>% select(gene_id, GTEx_healthy), brain_05 
 subset_brain_full_GTEx = merge(brainspecific, GTEX_criteria, by="gene_id")
 # length(unique(subset_liver_full_GTEx$gene_id))
 
-subset_brain_GTEx = subset_brain_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_brain == ">= 0.5")
+subset_brain_GTEx = subset_brain_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_brain == "> 0.5")
 write.csv(subset_brain_GTEx, file.path(save_wd,"brainRestricted_GTEx.csv"), row.names = F)
 nrow(subset_brain_GTEx)
 tmp = subset_brain_GTEx %>% select(gene_id, gene_type) %>% unique()
@@ -397,6 +402,7 @@ table(tmp$gene_type)
 ribORF_humanTestis_in2_fastas = read.csv(file.path(save_wd, "ribORF_humanTestis_in2.csv"))
 
 nrow(testisExpressed)
+## how many of the testis expressed are translated?
 testisExpressed_Restricted_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type"))
 nrow(testisExpressed_Restricted_Translated)
 table(testisExpressed_Restricted_Translated$testisRestricted, testisExpressed_Restricted_Translated$gene_type)
@@ -553,12 +559,13 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_genetype.pdf"
 #### Testis-Specific with RiboSeq
 
 ```{r translation_testisRestricted,echo=F}
-testisRestrictedGTEx_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted_GTEx), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type"))
+testisRestrictedGTEx_Translated = merge(subset_testis_GTEx %>% select(gene_id, gene_type, gene_name), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type")) 
+## how many testis REstricted GTEx are translated?
 nrow(testisRestrictedGTEx_Translated)
-table(testisRestrictedGTEx_Translated$testisRestricted, testisRestrictedGTEx_Translated$gene_type)
+table(testisRestrictedGTEx_Translated$gene_type)
 testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% select(-ORFseq)
-testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% subset(testisRestricted_GTEx == "yes")
 
+dim(testisRestrictedGTEx_Translated)
 to_plot = testisRestrictedGTEx_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
 ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "in", 
