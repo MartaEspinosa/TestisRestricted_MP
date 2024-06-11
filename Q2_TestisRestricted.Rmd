@@ -19,21 +19,35 @@ library(bioseq)
 library(ggthemr)
 library(ggbeeswarm)
 
-gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=F)
+gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=T)
 names(gene_transcript) = c("gene_id","gene_type","gene_name")
 gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
 
-plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/plots"
-save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA"
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
 ```
 
 ```{r annotation, echo=F}
-annot<-read.table("/users/genomics/saraa/projectTestis/RiboNovel/Correct_format_files/riboNovel_gencode.v38.primary_assembly.annotation.sorted.1transcript.gtf", header=TRUE)
+annot<-read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", header=F, sep=",")
+annot<- annot %>% mutate(gene_type = case_when(grepl("STRG",V3) ~ "novel",
+                                               TRUE ~ V3))
+## novels
+novels = annot %>% subset(gene_type == "novel")
+novels$gene_id = novels$V2
+novels$transcript_id = novels$V1
+novels = novels %>% select(-c(V1,V2,V3))
+novels$gene_name = novels$gene_id
 
-annot$transcript_id<-gsub("\\..*","", annot$transcript_id)
-annot$gene_id<-gsub("\\..*","", annot$gene_id)
+## annotated
+annotated = annot %>% subset(gene_type != "novel")
+annotated$transcript_id = gsub("\\..*","", annotated$V2)
+annotated$gene_id = gsub("\\..*","", annotated$V1)
+annotated = annotated %>% select(-c(V1,V2,V3))
+annotated = merge(annotated, gene_transcript, by=c("gene_id","gene_type"))
 
-# head(anot)
+annotation = rbind(annotated, novels)
+write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F)
+head(annotation)
 
 
 # t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid", all.x=T))
@@ -53,16 +67,18 @@ Obtained using STAR to align and featureCounts to quantify.
 
 ```{r input, echo=FALSE}
 ## Load counts data
-raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
-## The names of the samples are simplified
-names(raw_counts) = sub(".*X.users.genomics.saraa.projectTestis.STAR.(.*)_r1Aligned.sortedByCoord.out.bam","\\1", names(raw_counts))
-names(raw_counts)[1] = "gene_id"
-raw_counts$gene_id = gsub("\\..*","",raw_counts$gene_id)
-dim(raw_counts)
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
+toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs.csv", header=TRUE)
 
-## Add gene_name and gene_type
-raw_counts_Symb = merge(raw_counts, gene_transcript, by="gene_id")
-dim(raw_counts_Symb)
+# ## The names of the samples are simplified
+# names(raw_counts) = sub(".*X.users.genomics.saraa.projectTestis.STAR.(.*)_r1Aligned.sortedByCoord.out.bam","\\1", names(raw_counts))
+# names(raw_counts)[1] = "gene_id"
+# raw_counts$gene_id = gsub("\\..*","",raw_counts$gene_id)
+# dim(raw_counts)
+# 
+# ## Add gene_name and gene_type
+# raw_counts_Symb = merge(raw_counts, gene_transcript, by="gene_id")
+dim(toc_TPMs)
 ```
 
 ### TPM normalization of raw counts
@@ -70,24 +86,29 @@ dim(raw_counts_Symb)
 The expression counts data is normalized in transcript per million (TPM).
 
 ```{r TPM, echo=F}
-counts = raw_counts_Symb[,c(1,6:ncol(raw_counts_Symb))]
-toc_TPMs = counts
-geneLengths = counts$Length
-
-rpk = apply(counts[,3:11],2, function(x) x/(geneLengths/10^3))
-
-## normalize by the sample using rpk values
-toc_TPMs[,3:11] = apply(rpk,2,function(x) x/sum(as.numeric(x), na.rm=TRUE)*10^6)
-write.csv(toc_TPMs, file.path(save_wd,"TPMs_complete.csv"), row.names = F)
+# counts = raw_counts_Symb[,c(1,6:ncol(raw_counts_Symb))]
+# toc_TPMs = counts
+# geneLengths = counts$Length
+# 
+# rpk = apply(counts[,3:11],2, function(x) x/(geneLengths/10^3))
+# 
+# ## normalize by the sample using rpk values
+# toc_TPMs[,3:11] = apply(rpk,2,function(x) x/sum(as.numeric(x), na.rm=TRUE)*10^6)
+# write.csv(toc_TPMs, file.path(save_wd,"TPMs_complete.csv"), row.names = F)
 ## CheckPoint. the sum of each column after rpm normalization equals to 10^6
 # colSums(toc_TPMs[,3:11], na.rm=TRUE)
 # dim(toc_TPMs[,3:11])
 ```
 
 ```{r TPM_distribution, echo=F}
-toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample", values_to = "TPM")
+# toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample", values_to = "TPM")
 ## get patient number
-toc_TPMs_long$patient = str_sub(toc_TPMs_long$sample, start= -1)
+names(toc_TPMs)[1] = "transcript_id"
+toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
+toc_TPMs = toc_TPMs %>% unique()
+toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type), names_to = "sample", values_to = "TPM")
+
+toc_TPMs_long$patient = str_sub(toc_TPMs_long$sample, start= -4, end=-4)
 toc_TPMs_long$patient = paste0("Patient",toc_TPMs_long$patient)
 ## get tissue data
 toc_TPMs_long$tissue = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[2])
