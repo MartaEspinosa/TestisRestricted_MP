@@ -2,9 +2,14 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
+# wd="/users/genomics/marta/TestisProject_SaraRazquin"
+wd="~/Downloads/IMIM"
 
-biomart = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
-TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs.csv")
+biomart = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/newReference_Resconstructed/transcript_gene.csv"))
+biomart$gene_id = gsub("\\..*","",biomart$gene_id)
+biomart$transcript_id = gsub("\\..*","",biomart$transcript_id)
+
+TPMs = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs.csv"))
 names(TPMs)[1] = "transcript_id"
 
 TPMs_complete = merge(TPMs, biomart, by="transcript_id")
@@ -17,8 +22,8 @@ ggplot(TPMs_complete %>% subset(gene_type == "lncRNA" | gene_type == "processed_
   theme_classic() +
   theme(legend.position = "top") +
   facet_wrap(~ sample, ncol=3)
-# ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/TPM_density.png", width=6.64, height=8.78)
-# ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/TPM_density.pdf", width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_density.png"), width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/TPM_density.pdf"), width=6.64, height=8.78)
 
 ggplot(TPMs_complete %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "novel" | gene_type == "protein_coding"), aes(x=gene_type, y=logTPM, fill=gene_type)) +
   geom_boxplot() +
@@ -27,11 +32,11 @@ ggplot(TPMs_complete %>% subset(gene_type == "lncRNA" | gene_type == "processed_
   theme(legend.position = "top",
         axis.text.x = element_text(angle=45, vjust=.75)) +
   facet_wrap(~ sample, ncol=3)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.png", width=6.64, height=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/TPM_boxplot.pdf", width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.png"), width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/TPM_boxplot.pdf"), width=6.64, height=8.78)
 
 ## length distribution
-toc = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/gffcompare_stranded_featureCounts.txt", sep="\t", skip = 1)
+toc = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/featureCounts_gffcompare/gffcompare_stranded_featureCounts.txt"), sep="\t", skip = 1)
 names(toc)[1] = "transcript_id"
 toc$transcript_id = gsub("\\..*","",toc$transcript_id)
 toc = toc %>% select(transcript_id, Chr, Length)
@@ -46,8 +51,8 @@ ggplot(TPMs_length %>% subset(gene_type == "lncRNA" | gene_type == "processed_ps
   theme_classic() +
   theme(legend.position = "top") +
   facet_wrap(~ sample, ncol=3)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/length_tableofcounts_density.png", height=6.64, width=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/length_tableofcounts_density.pdf", height=6.64, width=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/length_tableofcounts_density.png"), height=6.64, width=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/length_tableofcounts_density.pdf"), height=6.64, width=8.78)
 
 TPMs_length_300 = TPMs_length %>%
   filter(!(gene_type == "novel" & Length < 300))
@@ -59,8 +64,8 @@ ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processe
   theme_classic() +
   theme(legend.position = "top") +
   facet_wrap(~ sample, ncol=3)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/length_tableofcounts_density.300.png", height=6.64, width=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/length_tableofcounts_density.300.pdf", height=6.64, width=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/length_tableofcounts_density.300.png"), height=6.64, width=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/length_tableofcounts_density.300.pdf"), height=6.64, width=8.78)
 
 ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "novel" | gene_type == "protein_coding"), aes(x=logTPM, fill=gene_type)) +
   geom_density(alpha=.5) +
@@ -68,8 +73,8 @@ ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processe
   theme_classic() +
   theme(legend.position = "top") +
   facet_wrap(~ sample, ncol=3)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/TPM_density.300.png", width=6.64, height=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/TPM_density.300.pdf", width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_density.300.png"), width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/TPM_density.300.pdf"), width=6.64, height=8.78)
 
 ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "novel" | gene_type == "protein_coding"), aes(x=gene_type, y=logTPM, fill=gene_type)) +
   geom_boxplot() +
@@ -78,8 +83,8 @@ ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processe
   theme(legend.position = "top",
         axis.text.x = element_text(angle=45, vjust=.75)) +
   facet_wrap(~ sample, ncol=3)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.300.png", width=6.64, height=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/TPM_boxplot.300.pdf", width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.300.png"), width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/TPM_boxplot.300.pdf"), width=6.64, height=8.78)
 
 ### shared?
 shared = TPMs_length_300 %>% 
@@ -96,8 +101,8 @@ ggplot(shared_n, aes(x=num_patients, y=num_genes, color=gene_type)) +
   scale_y_continuous(trans="log10") +
   ggtitle("Shared genes, all samples | > 300 pb & > 1 TPM") +
   theme_classic()
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PNG/shared_genes.300.png", width=6.64, height=8.78)
-ggsave("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/plots/PDF/shared_genes.300.pdf", width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/shared_genes.300.png"), width=6.64, height=8.78)
+ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/shared_genes.300.pdf"), width=6.64, height=8.78)
 
 ### shared - tissue
 shared_tissue = TPMs_length_300  
