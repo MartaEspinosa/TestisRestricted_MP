@@ -1,0 +1,1116 @@
+---
+title: "cancer/testis pancancer"
+author: "sararaz"
+date: "2024-04-10"
+output:
+  html_document:
+    toc: true
+    df_print: paged
+  pdf_document:
+    fig_caption: true
+    latex_engine: pdflatex
+    number_sections: true
+    toc: true
+  word_document:
+    toc: true
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyr)
+library(ggplot2)
+library(ggridges)
+library(cowplot)
+library(dplyr)
+library(viridis)
+library(ggvenn)
+library(RColorBrewer)
+library(tidyverse)
+library(UpSetR)
+library(grid)
+library(gridExtra)
+library(ComplexHeatmap)
+#install.packages("UpSetR")
+#install.packages("ComplexUpset")
+library(UpSetR)
+library(vcd)
+library(descr)
+#remotes::install_github("const-ae/ggupset")
+library(ggupset)
+#BiocManager::install("ComplexHeatmap")
+#install.packages("descr")
+library(purrr)
+```
+
+
+# CANCER / testis ANTIGENS
+
+## We load the input data
+
+
+```{r}
+#rna_ribonovel_results_gtex<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/riboNovel_results/rnaseq_and_ribonovel_human_testis_GTEx_final_table.csv")
+rna_ribonovel_results_gtex<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RiboSeq/results/rnaseq_and_ribonovel_human_testis_GTEx_final_table.csv")
+
+rna_ribonovel_results_gtex<-rna_ribonovel_results_gtex[!(rna_ribonovel_results_gtex$classif %in% c("protC_not_Canonical")),]
+rna_ribonovel_results_gtex
+```
+
+```{r, echo= FALSE}
+# Process input data
+rna_ribonovel_results_gtex_testis_specific<-subset(rna_ribonovel_results_gtex, select=-X)
+rna_ribonovel_results_gtex_testis_specific<-subset(rna_ribonovel_results_gtex, select=-classif)
+
+rna_ribonovel_results_gtex_testis_specific<- rna_ribonovel_results_gtex_testis_specific %>% rename(transcript_id=transcriptID)
+rna_ribonovel_results_gtex_testis_specific<- subset(rna_ribonovel_results_gtex_testis_specific, select=-c(Geneid))
+```
+
+```{r, echo=FALSE}
+# Control 
+dim(rna_ribonovel_results_gtex_testis_specific)
+length(unique(rna_ribonovel_results_gtex_testis_specific$transcript_id))
+```
+
+```{r, echo=FALSE}
+# Number of human testis-specific TRANSCRIPTS translated
+length(unique(rna_ribonovel_results_gtex_testis_specific[c(rna_ribonovel_results_gtex_testis_specific$translated == "YES"),]$transcript_id))
+```
+```{r, echo=FALSE}
+# Number of human testis-specific TRANSCRIPTS NOT translated 
+length(unique(rna_ribonovel_results_gtex_testis_specific[c(rna_ribonovel_results_gtex_testis_specific$translated == "NO"),]$transcript_id))
+```
+
+
+```{r, echo=FALSE}
+# Human testis-specific ORFs
+length(na.omit(unique(rna_ribonovel_results_gtex_testis_specific$orfID)))
+```
+
+
+
+## Tumor Associated Antigens (TAA)
+
+```{r}
+# Process dataset to obtain table wit a unique transcriptID
+testis_specific_uniq_trx<-unique(subset(rna_ribonovel_results_gtex_testis_specific, select= -orfID))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -orf_length))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -fasta))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -Translation_Classification))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -translated_sample))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -prot))
+testis_specific_uniq_trx<-unique(subset(testis_specific_uniq_trx, select= -X))
+
+#Control 
+dim(testis_specific_uniq_trx)
+length(unique(rna_ribonovel_results_gtex_testis_specific$transcript_id))
+head(testis_specific_uniq_trx)
+```
+
+```{r}
+# We load all cancer data 
+KIRP<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/KIRP_tumor_1TPM_n_TOLERABILITY5.csv")
+LUSC<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/LUSC_tumor_1TPM_n_TOLERABILITY5.csv")
+PRAD<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/PRAD_tumor_1TPM_n_TOLERABILITY5.csv")
+LIHC<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/LIHC_tumor_1TPM_n_TOLERABILITY5.csv")
+#BLCA<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/BLCA_tumor_1TPM_n_TOLERABILITY5.csv")
+KIRC<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/KIRC_tumor_1TPM_n_TOLERABILITY5.csv")
+BRCA<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/BRCA_tumor_1TPM_n_TOLERABILITY5.csv")
+LUAD<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/TAA_TCGA_1TPM/TAA_TCGA_1TPM_files/LUAD_tumor_1TPM_n_TOLERABILITY5.csv")
+```
+
+```{r}
+# We process input datasets
+KIRP$KIRP_n<- KIRP$n
+KIRP<-subset(KIRP, select=c(transcript_id, KIRP_n))
+LUSC$LUSC_n<- LUSC$n
+LUSC<-subset(LUSC, select=c(transcript_id, LUSC_n))
+PRAD$PRAD_n<- PRAD$n
+PRAD<-subset(PRAD, select=c(transcript_id, PRAD_n))
+LIHC$LIHC_n<- LIHC$n
+LIHC<-subset(LIHC, select=c(transcript_id, LIHC_n))
+#BLCA$BLCA_n<- BLCA$n
+#BLCA<-subset(BLCA, select=c(transcript_id, BLCA_n))
+KIRC$KIRC_n<- KIRC$n
+KIRC<-subset(KIRC, select=c(transcript_id, KIRC_n))
+BRCA$BRCA_n<- BRCA$n
+BRCA<-subset(BRCA, select=c(transcript_id, BRCA_n))
+LUAD$LUAD_n<- LUAD$n
+LUAD<-subset(LUAD, select=c(transcript_id, LUAD_n))
+```
+
+We merge all cancer datsets in one dataframe
+```{r}
+# We merge all cancer datsets in one dataframe
+cancerAssociated_datasets_list<-list(BRCA, KIRC, KIRP, LIHC, LUAD, LUSC, PRAD)
+cancerAssociated_datasets<-cancerAssociated_datasets_list %>% reduce(full_join, by='transcript_id')
+head(cancerAssociated_datasets)
+# Control
+length(unique(cancerAssociated_datasets$transcript_id))
+```
+
+
+```{r}
+#We add info of gene type to the transcripts 
+annot<-read.table("/users/genomics/saraa/projectTestis/RiboNovel/Correct_format_files/riboNovel_gencode.v38.primary_assembly.annotation.sorted.1transcript.gtf", header=TRUE)
+annot$transcript_id<-gsub("\\..*","", annot$transcript_id)
+
+# We merge both cancer associated genes and annotation table 
+cancerAssociated_datasets<-(merge(cancerAssociated_datasets, annot, by="transcript_id", all.x=T))
+dim(cancerAssociated_datasets)
+```
+
+
+```{r}
+# We merge the testis_specific genes with cancer_datasets
+testis_cancerAssociated_merged<- merge(testis_specific_uniq_trx, cancerAssociated_datasets, by="transcript_id")
+testis_cancerAssociated_merged<-unique(testis_cancerAssociated_merged)
+head(testis_cancerAssociated_merged)
+
+# Control: 
+length(unique(testis_cancerAssociated_merged$transcript_id)) #el número de transcripts que se comparten entre testis - specific y cancer associated
+dim(testis_cancerAssociated_merged)
+```
+
+```{r}
+# PLOTS
+testis_cancerAssociated_merged$Gene.type <- factor(testis_cancerAssociated_merged$Gene.type, levels = c("lncRNA", "protein_coding", "processed_pseudogene"))
+bar_taa_testis<-ggplot(data=testis_cancerAssociated_merged, aes(x=Gene.type, fill=Gene.type))+geom_bar(stat="count")+ theme(legend.position = "none")+ theme_bw()+ labs(x=NULL, fill= "Gene type")+scale_fill_brewer(palette = "Pastel2")+theme(
+    axis.title.x = element_text(size = 15),   # Tamaño del título del eje x
+    axis.title.y = element_text(size = 15),   # Tamaño del título del eje y
+    axis.text.x = element_text(size = 12),    # Tamaño de los números del eje x
+    axis.text.y = element_text(size = 12),
+    legend.text = element_text(size = 12)# Tamaño de los números del eje y
+  )
+bar_taa_testis
+```
+```{r}
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/bar_taa_testis.png", plot = bar_taa_testis, width = 10, height = 6, units = "in", dpi = 300)
+
+```
+
+### TAA Venn-Diagram
+
+```{r}
+#hacemos pie chart de lo que tenemos hasta ahora
+taa_lncRNAs<- c(cancerAssociated_datasets[cancerAssociated_datasets$gene_type=="lncRNA", ]$transcript_id)
+taa_PCs<- c(cancerAssociated_datasets[cancerAssociated_datasets$gene_type=="protein_coding", ]$transcript_id)
+taa_PPs<- c(cancerAssociated_datasets[cancerAssociated_datasets$gene_type=="processed_pseudogene", ]$transcript_id)
+```
+
+```{r}
+testis_lncRNAs_TAA<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="lncRNA", ]$transcript_id))
+testis_PCs_TAA<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="protein_coding", ]$transcript_id))
+testis_PPs_TAA<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="processed_pseudogene", ]$transcript_id))
+```
+
+```{r}
+rna_lncrna_taa_testis<-list("Tumor-associated"=taa_lncRNAs,"testis-restricted"=testis_lncRNAs_TAA)
+rna_lncrna_taa_testis_vennD<-ggvenn(rna_lncrna_taa_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("LncRNA")
+
+
+
+rna_pcgs_taa_testis<-list("Tumor-associated"=taa_PCs,"testis-restricted"=testis_PCs_TAA)
+rna_pcgs_taa_testis_vennD<-ggvenn(rna_pcgs_taa_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("Protein Coding Genes")
+
+
+rna_pp_taa_testis<-list("Tumor-associated"=taa_PPs,"testis-restricted"=testis_PPs_TAA)
+rna_pp_taa_testis_vennD<-ggvenn(rna_pp_taa_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("Processed Pseudogenes")
+
+```
+
+
+
+```{r, fig.height=8}
+taa_genes<-cowplot::plot_grid(rna_lncrna_taa_testis_vennD,rna_pcgs_taa_testis_vennD, rna_pp_taa_testis_vennD, ncol=3)
+taa_genes
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_taa_genes.png", plot = taa_genes, width = 13, height = 6, units = "in", dpi = 300)
+```
+
+### De ellos cuantos translated. piechart  shared taa - testis trx gene type translated 
+
+
+
+```{r, echo=FALSE}
+table_trans_genetype_taa<-as.data.frame(table(testis_cancerAssociated_merged$translated, testis_cancerAssociated_merged$Gene.type))
+table_trans_genetype_taa
+```
+```{r, echo=FALSE}
+lncrna_taa<-as.data.frame(table_trans_genetype_taa[table_trans_genetype_taa$Var2 == "lncRNA", ])
+prop_lncrna_taa<-as.data.frame(prop.table(lncrna_taa$Freq))
+colnames(prop_lncrna_taa)<-"freq"
+table_prop_lncrna_taa<-cbind(lncrna_taa, prop_lncrna_taa)
+table_prop_lncrna_taa<-table_prop_lncrna_taa %>% rename(translated=Var1)
+```
+
+
+```{r, echo=FALSE}
+lncRNA_piechart_taa<-ggplot(table_prop_lncrna_taa, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis-specific lncRNAs associated to cancer")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "GnBu")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+```
+
+```{r, echo=FALSE}
+protC_taa<-as.data.frame(table_trans_genetype_taa[table_trans_genetype_taa$Var2 == "protein_coding", ])
+prop_protC_taa<-as.data.frame(prop.table(protC_taa$Freq))
+colnames(prop_protC_taa)<-"freq"
+table_prop_protC_taa<-cbind(protC_taa, prop_protC_taa)
+table_prop_protC_taa<-table_prop_protC_taa %>% rename(translated=Var1)
+
+```
+```{r, echo=FALSE}
+protC_piechart_taa<-ggplot(table_prop_protC_taa, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis-specific protein-coding genes associated to cancer")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "OrRd")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+```
+
+```{r, echo=FALSE}
+pp_taa<-as.data.frame(table_trans_genetype_taa[table_trans_genetype_taa$Var2 == "processed_pseudogene", ])
+prop_pp_taa<-as.data.frame(prop.table(pp_taa$Freq))
+colnames(prop_pp_taa)<-"freq"
+
+table_prop_pp_taa<-cbind(pp_taa, prop_pp_taa)
+table_prop_pp_taa<-table_prop_pp_taa %>% rename(translated=Var1)
+```
+
+
+```{r, echo=FALSE}
+pp_piechart_taa<-ggplot(table_prop_pp_taa, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis-specific pseudogenes associated to cancer")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6) +scale_fill_brewer(palette = "PuRd")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+
+```
+
+```{r, fig.height=6}
+library(gridExtra)
+grid.arrange(lncRNA_piechart_taa, protC_piechart_taa, pp_piechart_taa)
+
+taa_gentype_transl<-cowplot::plot_grid(lncRNA_piechart_taa,protC_piechart_taa, pp_piechart_taa, nrow=3)
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_taa_gentype_transl.png", plot = taa_gentype_transl, width = 6, height = 11, units = "in", dpi = 300)
+```
+
+
+
+###Un único pie chart
+
+```{r}
+tabla_trxtype_tetis_TAA<-as.data.frame(table(testis_cancerAssociated_merged$Gene.type))
+prop_tabla_trxtype_tetis_TAA<-as.data.frame(prop.table(tabla_trxtype_tetis_TAA$Freq))
+colnames(prop_tabla_trxtype_tetis_TAA)<-"freq"
+table_prop_tabla_trxtype_tetis_TAA<-cbind(tabla_trxtype_tetis_TAA, prop_tabla_trxtype_tetis_TAA)
+table_prop_tabla_trxtype_tetis_TAA$Var1 <- factor(table_prop_tabla_trxtype_tetis_TAA$Var1, levels = c("lncRNA", "protein_coding", "processed_pseudogene"))
+```
+
+
+```{r}
+testis_TAA_piechart<-ggplot(table_prop_tabla_trxtype_tetis_TAA, aes(x="", y=freq, fill=Var1))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis-specific genes associated to cancer", fill="Gene type")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "Pastel2")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+testis_TAA_piechart
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_taa_piechart.png", plot = testis_TAA_piechart, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+
+
+
+
+```{r}
+sub_testis_cancerAssociated_merged<- gather(testis_cancerAssociated_merged, key="cancer_types", value="num_patients", -transcript_id, -Gene.name, -Length, -human_testis_rna_1, -human_testis_rna_2, -human_testis_rna_3, -Gene.type, -Log_Media_testis_TPM, -Expression_Classification, -Geneid_1, -translated, -gene_id, -gene_name, -gene_type) #-testis en testis_file
+sub_testis_cancerAssociated_merged<-unique(sub_testis_cancerAssociated_merged)
+```
+
+
+```{r}
+head(sub_testis_cancerAssociated_merged)
+```
+```{r}
+dim(sub_testis_cancerAssociated_merged)
+```
+```{r}
+length(unique(sub_testis_cancerAssociated_merged$Geneid))
+```
+
+
+```{r}
+table((na.omit(sub_testis_cancerAssociated_merged))$cancer_types)
+```
+
+
+El  número de transcripts testis-specific que se encuentran también en diferentes tumores.
+```{r}
+sub_testis_cancerAssociated_merged$Gene.type <- factor(sub_testis_cancerAssociated_merged$Gene.type, levels = c("lncRNA", "protein_coding", "processed_pseudogene"))
+num_cancer_trax<-ggplot(data=na.omit(sub_testis_cancerAssociated_merged), aes(y=cancer_types, fill=Gene.type))+geom_bar( stat="count", alpha=1)+ theme(legend.position = "right")+ labs(y="Cancer types", fill ="Gene type")+ scale_fill_brewer(palette = "Pastel2") + theme_bw()
+num_cancer_trax
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_num_cancer_trax.png", plot = num_cancer_trax, width = 10, height = 6, units = "in", dpi = 300)
+
+# sub_testis_cancerAssociated_merged %>% group_by(cancer_types, Gene.type) %>% count() %>% ggplot(aes(x=n, y=cancer_types, fill=Gene.type))+geom_bar(stat="identity")+ theme(legend.position = "none")
+
+```
+
+
+translateeeeeeeeeeeeeeeeeed
+
+```{r}
+translated_sub_testis_cancerAssociated_merged<-na.omit(sub_testis_cancerAssociated_merged[sub_testis_cancerAssociated_merged$translated=="YES",])
+translated_sub_testis_cancerAssociated_merged$Gene.type<-factor(translated_sub_testis_cancerAssociated_merged$Gene.type, levels = c("lncRNA", "protein_coding", "processed_pseudogene"))
+
+num_cancer_trax_transl<-ggplot(data=translated_sub_testis_cancerAssociated_merged, aes(y=cancer_types, fill=Gene.type))+geom_bar(stat="count")+ theme(legend.position = "none")+ theme_bw()+ labs(title="translated")+labs(y="Cancer types", fill ="Gene type")+scale_fill_brewer(palette = "Pastel2")
+num_cancer_trax_transl
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_num_cancer_trax_transl.png", plot = num_cancer_trax_transl, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+#### UpSet Graph:
+
+```{r}
+testis_cancerAssociated_merged<-subset(testis_cancerAssociated_merged, select=- c(gene_type, gene_name, gene_id))
+head(testis_cancerAssociated_merged)
+```
+
+Creo un data.frame que contiene una matriz de 0s y 1s. 
+
+```{r}
+upset_testis_cancerAssociated<- testis_cancerAssociated_merged[,c(1, 12:18)] # esta tabla tiene columna de transcruiptID, columna de diferentes tumores, 
+#               cancer 1        cancer 2
+# esnt00023496   90pacientes     NA
+#  eesnt23756    NA              2
+#
+ups0<-as.data.frame(upset_testis_cancerAssociated[, 1]) # solo transcriptsIDs
+ups<-upset_testis_cancerAssociated[,-1] #solo diferrentes tumores
+ups1<-as.data.frame(lapply(ups, function(x) ifelse(is.na(x), 0,1))) # ups1 es ya una matriz de 1os y 0s.
+
+upset_testis_cancerAssociated<-cbind(ups0, ups1)
+upset_testis_cancerAssociated<-unique(upset_testis_cancerAssociated)
+rownames(upset_testis_cancerAssociated)<-upset_testis_cancerAssociated$`upset_testis_cancerAssociated[, 1]`
+upset_testis_cancerAssociated<-subset(upset_testis_cancerAssociated, select=-`upset_testis_cancerAssociated[, 1]`)
+upset_testis_cancerAssociated$translated<-testis_cancerAssociated_merged$translated
+upset_testis_cancerAssociated$Gene.type<-testis_cancerAssociated_merged$Gene.type
+```
+
+
+```{r, fig.width=9, fig.height=6}
+slam_colours = c("#3B8CC8", "#C05830", "#5A3E87", "#F2CE46", "#B79F00","#00BA38","#00BFC4") %>% ## slam colours (too cute, I know)
+  rev()
+tumors= c("KIRC_n","PRAD_n", "LIHC_n","KIRP_n", "LUSC_n", "LUAD_n","BRCA_n") %>% ## crucial order
+  rev()
+taa_upset_transl<-UpSetR::upset(upset_testis_cancerAssociated,
+      sets.bar.color = slam_colours,
+      sets=tumors,
+      nintersects=NA, 
+      keep.order = TRUE,
+      text.scale = c(1.3, 1.3, 1.3, 1, 1.5, 1),
+      mainbar.y.label = "Number of transcripts",
+      sets.x.label = "Total transcripts",
+      query.legend = "bottom",
+      queries = list(
+      list(
+        query = elements,
+        params = list("translated", "YES"),
+        active = T,
+        query.name = "Translated"
+    )
+  )
+)
+
+taa_upset_transl
+
+
+```
+
+translateeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeed
+```{r}
+transl_cancesTAAS_testis<-testis_cancerAssociated_merged[testis_cancerAssociated_merged$translated=="YES",]
+```
+
+
+```{r}
+t_upset_testis_cancerAssociated<- transl_cancesTAAS_testis[,c(1, 12:18)]
+t_ups0<-as.data.frame(t_upset_testis_cancerAssociated[, 1])
+t_ups<-t_upset_testis_cancerAssociated[,-1]
+t_ups1<-as.data.frame(lapply(t_ups, function(x) ifelse(is.na(x), 0,1)))
+
+t_upset_testis_cancerAssociated<-cbind(t_ups0, t_ups1)
+rownames(t_upset_testis_cancerAssociated)<-t_upset_testis_cancerAssociated$`t_upset_testis_cancerAssociated[, 1]`
+t_upset_testis_cancerAssociated<-subset(t_upset_testis_cancerAssociated, select=-`t_upset_testis_cancerAssociated[, 1]`)
+t_upset_testis_cancerAssociated$translated<-transl_cancesTAAS_testis$translated
+t_upset_testis_cancerAssociated$Gene.type<-transl_cancesTAAS_testis$Gene.type
+```
+
+```{r}
+table(t_upset_testis_cancerAssociated$Gene.type)
+```
+
+```{r}
+t_upset_testis_cancerAssociated$Gene.type<-factor(t_upset_testis_cancerAssociated$Gene.type)
+```
+
+
+```{r, fig.width=9, fig.height=6, warning=F}
+
+slam_colours = c("#3B8CC8", "#C05830", "#5A3E87", "#F2CE46", "#B79F00","#00BA38","#00BFC4") %>% ## slam colours (too cute, I know)
+  rev()
+tumors= c("KIRC_n","PRAD_n", "LIHC_n","KIRP_n", "LUSC_n", "LUAD_n","BRCA_n") %>% ## crucial order
+  rev()
+
+taa_upset_transl_lncrna<-UpSetR::upset(t_upset_testis_cancerAssociated,
+      sets.bar.color = slam_colours,
+      sets = tumors,
+      nintersects=NA,
+      keep.order = TRUE,
+      text.scale = c(1.3, 1.3, 1.3, 1, 1.5, 2),
+      mainbar.y.label = "Number of translated transcripts",
+      sets.x.label = "Total transcripts", 
+      query.legend = "bottom",
+     queries = list(
+     list(
+       query = elements,
+        params = list("Gene.type", c("protein_coding", "lncRNA", "processed_pseudogene")),  color="#FF9966",active = T,
+        query.name = "protein-coding"),
+      list(
+         query = elements,
+        params = list("Gene.type", c("lncRNA", "processed_pseudogene")),
+         color="#9999CC",
+        active = T, query.name = "processed_pseudogene"),
+     list(
+      query = elements,
+      params = list("Gene.type", "lncRNA"),
+      active = T,
+      color = "#66CC99", query.name = "lncRNA"
+     )))
+##LO QUE PASA ES QUE NO CONSIDERA EL HISTOGRAMA COMO UN BARPLOT- (IDENTITY). SI EN EL PRIMER PICO, HAY 27 LNCRNA, 15 PROTC Y 9 PP, (POR EJEMPLO) SOLO VA COLOREANDO DE 0 AL NUMERO QUE TIENEN. NO HACE UN "STAT=IDENTITY". DEL 0-9 ESTÁN LOS TRES COLORES, DEL 9-15 DOS Y DE 15-27 SOLO UNO. POR ESO LO DE ARRIBA SALE NEGRO-
+
+
+taa_upset_transl_lncrna
+taa_upset_transl_lncrna_gg<-ggplotify::as.ggplot(taa_upset_transl_lncrna)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/taa_upset_transl_lncrna_gg.png", plot = taa_upset_transl_lncrna_gg, width = 15, height = 6, units = "in", dpi = 300)
+```
+
+
+```{r}
+testis_cancerAssociated_merged
+```
+
+```{r}
+sub_rionovel_results<-rna_ribonovel_results_gtex_testis_specific[,c(2,13:16,18)]
+tabla_peptides_taa_testis_lncRNA<-merge(testis_cancerAssociated_merged, sub_rionovel_results, by="transcript_id")
+```
+
+
+```{r}
+write.csv(tabla_peptides_taa_testis_lncRNA,"/users/genomics/saraa/projectTestis/tumor_testis/Results/results_TAA_testis_shared_peptides.csv")
+```
+
+
+
+
+% --------------------------------------------------------------------------------------------------------------------------------------------%
+
+## Tumor-specofoc antigens (TSA)
+
+Then, we load the tumor-specific antigens: 
+
+- There are 199 cancer-specific antigens. 
+ (ojo que el Source no tiene info completa porq sino no tendría todas las columnas)
+ 
+```{r}
+tumor_specific_antigens_real<-read.csv("/users/genomics/marta/TestisProject_SaraRazquin/TSA_TCGA/tumorspecific_candidates_immunopeptidomics_TOLERABILITY5_pancancer.noBLCA.csv")
+
+tumor_specific_antigens_real<-na.omit(tumor_specific_antigens_real)
+transcripts_real<-tumor_specific_antigens_real$transcript_id
+tumor_specific_antigens_1<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/1_tumorspecific_candidates_immunopeptidomics_TOLERABILITY5_pancancer.csv")
+tumor_specific_antigens_2<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/2_tumorspecific_candidates_immunopeptidomics_TOLERABILITY5_pancancer.csv")
+tumor_specific_antigens_1<-subset(tumor_specific_antigens_1, select=-X)
+tumor_specific_antigens<-cbind(tumor_specific_antigens_1, tumor_specific_antigens_2)
+transcripts_false<-tumor_specific_antigens$transcript_id
+```
+
+```{r}
+tumor_specific_antigens <- subset(tumor_specific_antigens, !(transcript_id %in% setdiff(transcripts_false, transcripts_real)))
+
+tumor_specific_antigens<-subset(tumor_specific_antigens, select=-c(all_projects, num_cancertypes))
+#hacemos sub de reals
+sub_reals<-subset(tumor_specific_antigens_real, select=c(all_projects, num_cancertypes, transcript_id))
+#añadimos la info de shared y num
+tumor_specific_antigens<-merge(sub_reals,tumor_specific_antigens, by="transcript_id" )
+```
+
+```{r}
+head(tumor_specific_antigens)
+```
+```{r}
+dim(tumor_specific_antigens)
+```
+Hay una fila por cada transcript_id único
+```{r, echo=FALSE}
+length(unique(tumor_specific_antigens$transcript_id))
+```
+
+
+## testis-specific & tumor-specific Cross
+
+```{r}
+rna_ribonovel_results_gtex_testis_specific<-subset(rna_ribonovel_results_gtex_testis_specific, select=-translated_sample)
+tumor_testis_cross<-merge(rna_ribonovel_results_gtex_testis_specific,tumor_specific_antigens, by="transcript_id")
+tumor_testis_cross<-unique(tumor_testis_cross)
+tumor_testis_cross<-subset(tumor_testis_cross,select=-X)
+```
+
+## Tumor/testis RNAseq level data exploration
+
+
+```{r}
+#subset para tener solo transcriptID
+sub_tumor_testis_cross<-unique(tumor_testis_cross[,c(1,6)])
+```
+
+
+```{r}
+sub_tumor_testis_cross$Gene.type <- factor(sub_tumor_testis_cross$Gene.type, levels = c("lncRNA", "protein_coding", "processed_pseudogene"))
+
+
+bar_tsa_testis<-ggplot(data=sub_tumor_testis_cross, aes(x=Gene.type, fill=Gene.type))+geom_bar(stat="count")+ theme(legend.position = "none")+ theme_bw()+ labs(title="Shared tumour-specific and testis-restricted genes", x=NULL, fill= "Gene type")+scale_fill_brewer(palette = "Pastel2")+ylim(0,30)+theme(
+    axis.title.x = element_text(size = 15),   # Tamaño del título del eje x
+    axis.title.y = element_text(size = 15),   # Tamaño del título del eje y
+    axis.text.x = element_text(size = 12),    # Tamaño de los números del eje x
+    axis.text.y = element_text(size = 12),
+    legend.text = element_text(size = 12)# Tamaño de los números del eje y
+  )
+bar_tsa_testis
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/bar_tsa_testis.png", plot = bar_tsa_testis, width = 10, height = 6, units = "in", dpi = 300)
+
+```
+
+
+
+
+
+
+
+### Venn-Diagram of testis/tumor cross
+
+Nivel RNAseq
+
+```{r}
+tumor_lncRNAs<- c(tumor_specific_antigens[tumor_specific_antigens$gene_type=="lncRNA", ]$transcript_id)
+tumor_PCs<- c(tumor_specific_antigens[tumor_specific_antigens$gene_type=="protein_coding", ]$transcript_id)
+tumor_PPs<- c(tumor_specific_antigens[tumor_specific_antigens$gene_type=="processed_pseudogene", ]$transcript_id)
+```
+
+
+```{r}
+testis_lncRNAs<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="lncRNA", ]$transcript_id))
+testis_PCs<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="protein_coding", ]$transcript_id))
+testis_PPs<- c(unique(rna_ribonovel_results_gtex_testis_specific[rna_ribonovel_results_gtex_testis_specific$Gene.type=="processed_pseudogene", ]$transcript_id))
+```
+
+
+```{r, lncRNAs}
+rna_lncrna_tumor_testis<-list("Tumor-specific"=tumor_lncRNAs,"testis-restricted"=testis_lncRNAs)
+rna_lncrna_tumor_testis_vennD<-ggvenn(rna_lncrna_tumor_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("LncRNA")
+```
+
+```{r, PCGs}
+rna_PCGs_tumor_testis<-list("Tumor-specific"=tumor_PCs,"testis-specific"=testis_PCs)
+rna_PCGs_tumor_testis_vennD<-ggvenn(rna_PCGs_tumor_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("Protein Coding Genes")
+```
+
+```{r, PPs}
+rna_PPs_tumor_testis<-list("Tumor-specific"=tumor_PPs,"testis-specific"=testis_PPs)
+rna_PPs_tumor_testis_vennD<-ggvenn(rna_PPs_tumor_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("Processed Pseudogenes")
+```
+
+
+```{r, fig.height=8}
+tsa_genes<-cowplot::plot_grid(rna_lncrna_tumor_testis_vennD,rna_PCGs_tumor_testis_vennD, rna_PPs_tumor_testis_vennD, ncol=3)
+tsa_genes
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/testis_tsa_genes.png", plot = tsa_genes, width = 13, height = 6, units = "in", dpi = 300)
+```
+Saco tablas para cada caso: 
+
+
+```{r, intersections}
+intersec_lncrna<-intersect(tumor_lncRNAs,testis_lncRNAs)
+intersec_pcgs<-intersect(tumor_PCs,testis_PCs)
+intersec_pps<-intersect(tumor_PPs,testis_PPs)
+```
+
+```{r}
+tumor_testis_lncrna<-tumor_testis_cross[tumor_testis_cross$transcript_id %in% intersec_lncrna, ]
+dim(tumor_testis_lncrna)
+```
+
+```{r}
+tumor_testis_pcgs<-tumor_testis_cross[tumor_testis_cross$transcript_id %in% intersec_pcgs, ]
+dim(tumor_testis_pcgs)
+```
+
+```{r}
+tumor_testis_pps<-tumor_testis_cross[tumor_testis_cross$transcript_id %in% intersec_pps, ]
+dim(tumor_testis_pps)
+```
+
+
+Both intersection table: 
+```{r, echo=FALSE}
+v_transcripts_tumor_specific_antigens<-c(tumor_specific_antigens$transcript_id)
+v_transcripts_testis_specific<-c(unique(rna_ribonovel_results_gtex_testis_specific$transcript_id))
+```
+
+```{r, echo=FALSE}
+interseccion<-intersect(v_transcripts_tumor_specific_antigens,v_transcripts_testis_specific)
+```
+
+
+```{r echo=FALSE}
+tumor_testis_cross_both<-tumor_testis_cross[tumor_testis_cross$transcript_id %in% interseccion, ]
+dim(tumor_testis_cross_both)
+```
+```{r}
+length(na.omit(unique(tumor_testis_cross_both$transcript_id)))
+```
+
+A table with uniq transcriptIDs. At rnaseq level. 
+```{r}
+tumor_testis_cross_both<-tumor_testis_cross[tumor_testis_cross$transcript_id %in% interseccion, ]
+tumor_testis_cross_both_1trx<-unique(tumor_testis_cross_both)
+tumor_testis_cross_both_1trx<-unique(subset(tumor_testis_cross_both_1trx, select=-orfID))
+tumor_testis_cross_both_1trx<-unique(subset(tumor_testis_cross_both_1trx, select=-orf_length))
+tumor_testis_cross_both_1trx<-unique(subset(tumor_testis_cross_both_1trx, select=-fasta))
+tumor_testis_cross_both_1trx<-unique(subset(tumor_testis_cross_both_1trx, select=-Translation_Classification))
+tumor_testis_cross_both_1trx<-unique(subset(tumor_testis_cross_both_1trx, select=-prot))
+dim(tumor_testis_cross_both_1trx)
+tumor_testis_cross_both_1trx$translated_facet<- ifelse(tumor_testis_cross_both_1trx$translated=="YES", "Translated", "Untranslated")
+```
+
+#TABLA SUPER IMPORTANTEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE !!!!!
+```{r}
+translated_tumor_testis_cross_both<-unique(na.omit(tumor_testis_cross_both))
+write.csv(translated_tumor_testis_cross_both,"/users/genomics/saraa/projectTestis/tumor_testis/Results/results_TSA_testis_shared_peptides.csv")
+```
+
+
+### Proportion of translated
+
+```{r}
+col<-c("FF6699","CC6006")
+tumor_testis_cross_both_1trx$translated_facet<-factor(tumor_testis_cross_both_1trx$translated_facet, levels=c("Translated","Untranslated"))
+prop_plot<-ggplot(data=tumor_testis_cross_both_1trx)+geom_bar(mapping=aes(x=Gene.type, fill=translated_facet), stat="count", position ="fill")+ theme_bw()+ scale_fill_brewer(palette="Paired")+ labs(fill= NULL, x = NULL, y = NULL)
+prop_plot
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/prop_plot.png", plot = prop_plot, width = 10, height = 6, units = "in", dpi = 300)
+
+```
+
+
+
+
+
+### Expression levels in tesis
+
+
+```{r}
+head(tumor_testis_cross_both_1trx)
+```
+```{r, mean expression / transcript_id or gene_id}
+tumor_testis_cross_both_1trx$Log_Media_testis_TPM <- log10(rowMeans(tumor_testis_cross_both_1trx[, c("human_testis_rna_1", "human_testis_rna_2", "human_testis_rna_3")]))
+dim(tumor_testis_cross_both_1trx)
+length(unique(tumor_testis_cross_both_1trx$transcript_id))
+```
+
+```{r}
+tumor_testis_cross_both_1trx_plot<-tumor_testis_cross_both_1trx[tumor_testis_cross_both_1trx$Gene.type %in% c("lncRNA","protein_coding"),]
+```
+
+```{r}
+table(tumor_testis_cross_both_1trx$Gene.type)
+```
+
+```{r}
+table(tumor_testis_cross_both_1trx_plot$Gene.type, tumor_testis_cross_both_1trx_plot$translated)
+```
+
+Expression levels in testis of cancer/testis genes
+
+
+#upset
+
+
+separamos la variable all_projects en cancer_types
+
+```{r}
+prueba<-tumor_testis_cross_both_1trx %>% separate(
+  col=all_projects,
+  into=c("1","2","3","4","5","6","7"),
+  sep="&",
+  fill="right"
+)
+prueba3<-prueba[,c("1","2","3","4","5","6","7", "transcript_id")]
+```
+
+```{r}
+prueba4<-gather(prueba3, key="trx", value="cancer_type",-transcript_id)
+prueba4<-subset(prueba4, select=-trx)
+prueba4$cancer_type<-trimws((prueba4$cancer_type))
+prueba4<-unique(prueba4)
+```
+
+
+```{r}
+TSA_cancer_01 <- prueba4 %>%
+  mutate(present = 1) %>%
+  spread(key = cancer_type, value = present, fill = 0) %>%
+  column_to_rownames(var = "transcript_id")
+```
+
+
+```{r}
+add_info<-tumor_testis_cross_both_1trx[,c("gene_type", "translated", "transcript_id")]
+TSA_cancer_01$transcript_id<-rownames(TSA_cancer_01)
+TSA_cancer_01_upset<-merge(TSA_cancer_01, add_info, by="transcript_id", all.x=T)
+dim(TSA_cancer_01_upset)
+```
+```{r}
+table(TSA_cancer_01_upset$gene_type)
+```
+
+
+```{r, fig.width=9, fig.height=6, warning=F}
+slam_colours = c("#3B8CC8", "#C05830", "#5A3E87", "#F2CE46", "#B79F00","#00BA38","#00BFC4") %>% ## slam colours (too cute, I know)
+  rev()
+tumors= c("TCGA-KIRC","TCGA-PRAD", "TCGA-LIHC","TCGA-KIRP", "TCGA-LUSC", "TCGA-LUAD","TCGA-BRCA") %>% ## crucial order
+  rev()
+upset_tsa_lncrna<-UpSetR::upset(TSA_cancer_01_upset,
+      sets.bar.color = slam_colours,
+      sets=tumors,
+      keep.order = TRUE,
+      text.scale = c(1.3, 1.3, 1.3, 1, 1.5, 1),
+      mainbar.y.label = "Number of transcripts",
+      sets.x.label = "Total transcripts",
+      query.legend = "bottom",
+      queries = list(
+      list(
+        query = elements,
+        params = list("gene_type", "lncRNA"),
+        active = T,
+        query.name = "lncRNA",
+        color="red",
+        fill="red"
+    )
+    # list (query = elements,
+    #     params = list("gene_type", "processed_pseudogene"),
+    #     active = T,
+    #     query.name = "processed_pseudogene",
+    #     color="green",
+    #     fill="green"
+    # )
+  )
+)
+upset_tsa_lncrna
+
+```
+
+### Upset pf translated
+
+```{r,  fig.width=9, fig.height=6, warning=F}
+slam_colours = c("#3B8CC8", "#C05830", "#5A3E87", "#F2CE46","#B79F00","#00BA38","#00BFC4") %>% ## slam colours (too cute, I know)
+  rev()
+tumors= c("TCGA-KIRC","TCGA-PRAD", "TCGA-LIHC","TCGA-KIRP", "TCGA-LUSC", "TCGA-LUAD","TCGA-BRCA") %>% ## crucial order
+  rev()
+tsa_upset_transl<-UpSetR::upset(TSA_cancer_01_upset[TSA_cancer_01_upset$translated=="YES",],
+      sets.bar.color = slam_colours,
+      sets=tumors,
+      keep.order = TRUE,
+      text.scale = c(1.3, 1.3, 1.3, 1, 1.5, 2),
+      mainbar.y.label = "Number of translated transcripts",
+      sets.x.label = "Total transcripts",
+      query.legend = "bottom",
+      queries = list(
+      list(
+       query = elements,
+        params = list("gene_type", c("protein_coding", "lncRNA", "processed_pseudogene")),  color="#FF9966",active = T,
+        query.name = "protein-coding"),
+      list(
+         query = elements,
+        params = list("gene_type", c("lncRNA", "processed_pseudogene")),
+         color="#9999CC",
+        active = T, query.name = "processed_pseudogene"),
+     list(
+      query = elements,
+      params = list("gene_type", "lncRNA"),
+      active = T,
+      color = "#66CC99", query.name = "lncRNA"
+     )))
+
+tsa_upset_transl
+tsa_upset_transl_gg<-ggplotify::as.ggplot(tsa_upset_transl)
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/tsa_upset_translated.png", plot = tsa_upset_transl_gg, width = 15, height = 6, units = "in", dpi = 300)
+```
+
+```{r, fig.width=9, fig.height=6, warning=F}
+slam_colours = c("#3B8CC8", "#C05830", "#5A3E87", "#F2CE46", "#B79F00","#00BA38","#00BFC4") %>% ## slam colours (too cute, I know)
+  rev()
+tumors= c("TCGA-KIRC","TCGA-PRAD", "TCGA-LIHC","TCGA-KIRP", "TCGA-LUSC", "TCGA-LUAD","TCGA-BRCA") %>% ## crucial order
+  rev()
+UpSetR::upset(TSA_cancer_01_upset[TSA_cancer_01_upset$translated=="YES" & TSA_cancer_01_upset$gene_type =="lncRNA",],
+      sets.bar.color = slam_colours,
+      sets=tumors,
+      keep.order = TRUE,
+      text.scale = c(1.3, 1.3, 1.3, 1, 1.5, 1),
+      mainbar.y.label = "Number of transcripts",
+      sets.x.label = "Total transcripts",
+      query.legend = "bottom",
+      queries = list(
+      list(
+        query = elements,
+        params = list("gene_type", "lncRNA"),
+        active = T,
+        query.name = "lncRNA",
+        color="red",
+        fill="red"
+    )
+    # list (query = elements,
+    #     params = list("gene_type", "processed_pseudogene"),
+    #     active = T,
+    #     query.name = "processed_pseudogene",
+    #     color="green",
+    #     fill="green"
+    # )
+  )
+)
+
+
+```
+
+
+## Tumor/testis RiboSeq level data exploration
+
+De estos 66 transcriptIDs compartidos, 
+
+* 32 transcripts no se traducen 
+* 34 transcripts se traducen y presentan --> 49 ORFs.
+
+```{r}
+vshared_translatedORfs<-c(na.omit(unique(tumor_testis_cross_both$orfID)))
+length(vshared_translatedORfs)
+```
+
+### Venn Diagram de los transcriptID que se traducen 
+Hacemos una tabla y la sacamos para futuros análisis. son 49 orfIDs que se encuentran en 34 transcripts o genes. 
+
+```{r, echo=FALSE}
+shared_translated<-tumor_testis_cross_both[tumor_testis_cross_both$orfID %in% vshared_translatedORfs, ]
+```
+
+```{r}
+dim(table(shared_translated$orfID, shared_translated$Gene.type))
+```
+
+
+```{r, echo=FALSE}
+length(na.omit(unique((shared_translated$transcript_id))))
+nombres<-unique((shared_translated[shared_translated$Gene.type=="lncRNA",]$Gene.name))
+```
+```{r}
+write_lines(nombres,"/home/saraa/Downloads/nombres_cancer_testis_specific_genes.txt", sep=",")
+```
+
+```{r, echo=FALSE}
+#esto son los transcriptID de los tumor
+head(v_transcripts_tumor_specific_antigens)
+```
+
+
+```{r, echo=FALSE}
+sub_translated_rna_testis_table <- rna_ribonovel_results_gtex_testis_specific[which(rna_ribonovel_results_gtex_testis_specific$translated=='YES'), ]
+```
+
+```{r, echo=FALSE}
+v_translated_testis_transcript<-c(na.omit(unique(sub_translated_rna_testis_table$transcript_id)))
+length(v_translated_testis_transcript)
+```
+```{r, echo=FALSE}
+ribonovel_tumor_testis<-list("Tumor-specific transcripts"=v_transcripts_tumor_specific_antigens,"testis-specific transcripts"=v_translated_testis_transcript)
+```
+
+```{r, echo=FALSE}
+ribonovel_tumor_testis_vennD<-ggvenn(ribonovel_tumor_testis, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=6) +
+  ggtitle("Testis/Tumour specific transcripts")
+```
+
+```{r}
+ribonovel_tumor_testis_vennD
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/ribonovel_tumor_testis_vennD.png", plot = ribonovel_tumor_testis_vennD, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+Guardamos la info de estos 172 ORFids que se encuentran traducidos en testis - ¿? Podrían estarlo también en tumor en otra tabla. 
+
+
+
+### Create fasta file with translated TSA cancer/testis ORFs 
+
+```{r}
+#uniqORFs_tumor_testis_cross_both_Translated$prot<-trimws(uniqORFs_tumor_testis_cross_both_Translated$prot)
+```
+
+
+```{r}
+#write.fasta <- function(names, sequences, filename) {
+#   con <- file(filename, "w")
+#   for (i in 1:length(names)) {
+#     cat(">", names[i], "\n",file=con)
+#     cat(sequences[i], "\n", file = con)
+#   }
+#   close(con)
+# }
+
+# Guardar el archivo FASTA
+#write.fasta(uniqORFs_tumor_testis_cross_both_Translated$orfID, uniqORFs_tumor_testis_cross_both_Translated$prot, "/users/genomics/saraa/projectTestis/tumor_testis/Results/cancer_testis_TAA_ORFs_Translated_prot.fasta")
+#write.fasta(uniqORFs_tumor_testis_cross_both_Translated$orfID, uniqORFs_tumor_testis_cross_both_Translated$fasta, "/users/genomics/saraa/projectTestis/tumor_testis/Results/cancer_testis_TAA_ORFs_Translated_ORF.fasta")
+```
+
+
+
+
+
+#### Ver qué tipo de transcripts son
+
+
+```{r, echo=FALSE}
+sub_uniqORFs_tumor_testis_cross_both<-select(tumor_testis_cross_both_1trx, transcript_id, Gene.type, translated)
+uniqTrx_sub_uniqORFs_tumor_testis_cross_both<-unique(sub_uniqORFs_tumor_testis_cross_both)
+```
+
+```{r, echo=FALSE}
+dim(uniqTrx_sub_uniqORFs_tumor_testis_cross_both)
+```
+
+```{r, echo=FALSE}
+tabl_genetype<-as.data.frame(table(uniqTrx_sub_uniqORFs_tumor_testis_cross_both$Gene.type))
+prop_genetype<-as.data.frame(prop.table(tabl_genetype$Freq))
+colnames(prop_genetype)<-"freq"
+
+table_prop_genetype<- cbind(tabl_genetype, prop_genetype)
+table_prop_genetype<-table_prop_genetype %>% rename(Gene_type=Var1)
+table_prop_genetype$Gene_type<-factor(table_prop_genetype$Gene_type, levels=c("lncRNA", "protein_coding", "processed_pseudogene"))
+
+
+tsa_genetypes<-ggplot(table_prop_genetype, aes(x="", y=freq, fill=Gene_type))+geom_bar(width=1, stat="identity", alpha=1)+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis/tumour specific antigens", fill="Gene type")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=5)+scale_fill_brewer(palette="Pastel2")
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/tsa_genetypes.png", plot = tsa_genetypes, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+```{r, echo=FALSE}
+table_trans_genetype<-as.data.frame(table(uniqTrx_sub_uniqORFs_tumor_testis_cross_both$translated, uniqTrx_sub_uniqORFs_tumor_testis_cross_both$Gene.type))
+table_trans_genetype
+```
+```{r, echo=FALSE}
+lncrna<-as.data.frame(table_trans_genetype[table_trans_genetype$Var2 == "lncRNA", ])
+prop_lncrna<-as.data.frame(prop.table(lncrna$Freq))
+colnames(prop_lncrna)<-"freq"
+prop_lncrna
+table_prop_lncrna<-cbind(lncrna, prop_lncrna)
+table_prop_lncrna<-table_prop_lncrna %>% rename(translated=Var1)
+```
+
+
+```{r, echo=FALSE}
+lncRNA_piechart<-ggplot(table_prop_lncrna, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis/tumour specific lncRNAs")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "GnBu")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+```
+
+```{r, echo=FALSE}
+protC<-as.data.frame(table_trans_genetype[table_trans_genetype$Var2 == "protein_coding", ])
+prop_protC<-as.data.frame(prop.table(protC$Freq))
+colnames(prop_protC)<-"freq"
+prop_protC
+table_prop_protC<-cbind(protC, prop_protC)
+table_prop_protC<-table_prop_protC %>% rename(translated=Var1)
+
+```
+```{r, echo=FALSE}
+protC_piechart<-ggplot(table_prop_protC, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Testis/tumour specific protein_coding genes")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "OrRd")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+```
+
+```{r, echo=FALSE}
+pp<-as.data.frame(table_trans_genetype[table_trans_genetype$Var2 == "processed_pseudogene", ])
+prop_pp<-as.data.frame(prop.table(pp$Freq))
+colnames(prop_pp)<-"freq"
+prop_pp
+table_prop_pp<-cbind(pp, prop_pp)
+table_prop_pp<-table_prop_pp %>% rename(translated=Var1)
+```
+
+
+```{r, echo=FALSE}
+pp_piechart<-ggplot(table_prop_pp, aes(x="", y=freq, fill=translated))+geom_bar(width=1, stat="identity")+coord_polar("y", start=0)+ theme_void()+ labs(title="Tumor/testis specific processed_pseudogenes")+ geom_text(aes(label=Freq), position= position_stack(vjust=0.5), size=6)+ scale_fill_brewer(palette = "PuRd")+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+```
+
+```{r, fig.height=6}
+grid.arrange(lncRNA_piechart, protC_piechart, pp_piechart)
+
+tsa_gentype_transl<-cowplot::plot_grid(lncRNA_piechart,protC_piechart, pp_piechart, nrow=3)
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/tsa_gentype_transl.png", plot = tsa_gentype_transl, width = 6, height = 11, units = "in", dpi = 300)
+```
+
+
+
+
+```{r}
+#peptides_tumor_testis_cross_both<-na.omit(select(uniqORFs_tumor_testis_cross_both, orfID, Gene.type, translated))
+#peptides_tumor_testis_cross_both<-na.omit(select(tumor_testis_cross_both_1trx, orfID, Gene.type, translated))
+
+```
+
+```{r}
+lncRNAs_TSA_testis<-ggplot(data=translated_tumor_testis_cross_both, aes(x=Gene.type, fill=immunoevidence))+geom_bar(stat="count")+ theme(legend.position = "none")+ theme_bw()+ labs(title="Nº of testis-specific peptides, specific to tumours")+labs(x=NULL)+scale_fill_brewer(palette = "Pastel2")+scale_y_continuous(breaks=c(1:30))+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+lncRNAs_TSA_testis
+```
+
+
+```{r}
+tabla_peptides_tsa_testis_lncRNA<-lncRNA_tsa_testis<-translated_tumor_testis_cross_both[translated_tumor_testis_cross_both$Gene.type=="lncRNA",]
+```
+
+
+```{r}
+write.csv(tabla_peptides_tsa_testis_lncRNA,"/users/genomics/saraa/projectTestis/tumor_testis/Results/results_TSA_testis_shared_peptides_lncRNAs.csv")
+```
+
+```{r}
+write.table(unique(shared_translated), "/users/genomics/saraa/projectTestis/tumor_testis/Results/sub_results_TSA_testis_shared_peptides.csv")
+```
+
+
+
+
+
+

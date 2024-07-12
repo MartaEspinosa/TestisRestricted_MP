@@ -18,6 +18,7 @@ library(ggside)
 library(bioseq)
 library(ggthemr)
 library(ggbeeswarm)
+library(ggrepel)
 
 gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=T)
 names(gene_transcript) = c("gene_id","gene_type","gene_name")
@@ -28,25 +29,20 @@ save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_T
 ```
 
 ```{r annotation, echo=F}
-annot<-read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", header=F, sep=",")
-annot<- annot %>% mutate(gene_type = case_when(grepl("STRG",V3) ~ "novel",
-                                               TRUE ~ V3))
 ## novels
-novels = annot %>% subset(gene_type == "novel")
-novels$gene_id = novels$V2
-novels$transcript_id = novels$V1
-novels = novels %>% select(-c(V1,V2,V3))
+novels = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/novel_temp_biomart.csv", header=F, sep=",")
+names(novels) = c("transcript_id","gene_id","gene_type")
 novels$gene_name = novels$gene_id
 
+
 ## annotated
-annotated = annot %>% subset(gene_type != "novel")
-annotated$transcript_id = gsub("\\..*","", annotated$V2)
-annotated$gene_id = gsub("\\..*","", annotated$V1)
-annotated = annotated %>% select(-c(V1,V2,V3))
-annotated = merge(annotated, gene_transcript, by=c("gene_id","gene_type"))
+annotated = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/annotated_1transcript_1gene.csv", header=F, sep=",")
+names(annotated) = c("gene_id","transcript_id","gene_type","gene_name")
+annotated$gene_id = gsub("\\..*","", annotated$gene_id)
+annotated$transcript_id = gsub("\\..*","", annotated$transcript_id)
 
 annotation = rbind(annotated, novels)
-write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F)
+write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F, quote = F)
 head(annotation)
 
 
@@ -68,17 +64,36 @@ Obtained using STAR to align and featureCounts to quantify.
 ```{r input, echo=FALSE}
 ## Load counts data
 # raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
-toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs.csv", header=TRUE)
+toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
 
-# ## The names of the samples are simplified
-# names(raw_counts) = sub(".*X.users.genomics.saraa.projectTestis.STAR.(.*)_r1Aligned.sortedByCoord.out.bam","\\1", names(raw_counts))
-# names(raw_counts)[1] = "gene_id"
-# raw_counts$gene_id = gsub("\\..*","",raw_counts$gene_id)
-# dim(raw_counts)
-# 
-# ## Add gene_name and gene_type
-# raw_counts_Symb = merge(raw_counts, gene_transcript, by="gene_id")
+## For novels, remove those shorter than 300 pb
+toc_TPMs = toc_TPMs %>%
+  filter(!(startsWith(gene_id, "TCONS") & Length < 300))
+names(toc_TPMs)[1] = "transcript_id"
+
+toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
+toc_TPMs = toc_TPMs %>% unique()
+
+ggplot(toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel"), aes(x=Length, fill=gene_type)) +
+  geom_density(alpha=0.6) +
+  geom_vline(xintercept = 300) +
+  scale_x_continuous(trans="log10") +
+    labs(x="Length (nt)",
+       fill="Biotype",
+       title="Gene length distribution per biotype") +
+  scale_fill_manual(values=c("protein_coding"="#849DB1",
+                             "lncRNA" = "#B66353",
+                             "processed_pseudogene" = "#FBB04E",
+                             "novel" = "#B09C85")) +
+  theme_classic() +
+  theme(legend.position = "top")
+ggsave(file.path(plots_wd,"PNG/length_density.png"), height=4.45, width=5.30)
+ggsave(file.path(plots_wd,"PDF/length_density.pdf"), height=4.45, width=5.30)
+
+toc_TPMs = toc_TPMs %>% select(-Length)
+
 dim(toc_TPMs)
+toc_TPMs %>% head
 ```
 
 ### TPM normalization of raw counts
@@ -103,12 +118,9 @@ The expression counts data is normalized in transcript per million (TPM).
 ```{r TPM_distribution, echo=F}
 # toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample", values_to = "TPM")
 ## get patient number
-names(toc_TPMs)[1] = "transcript_id"
-toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
-toc_TPMs = toc_TPMs %>% unique()
 toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type), names_to = "sample", values_to = "TPM")
 
-toc_TPMs_long$patient = str_sub(toc_TPMs_long$sample, start= -4, end=-4)
+toc_TPMs_long$patient = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[length(x)])
 toc_TPMs_long$patient = paste0("Patient",toc_TPMs_long$patient)
 ## get tissue data
 toc_TPMs_long$tissue = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[2])
@@ -133,18 +145,19 @@ ggsave(file.path(plots_wd,"PNG/TPM_boxplot_tissue.png"), height=4.45, width=4.30
 ggsave(file.path(plots_wd,"PDF/TPM_boxplot_tissue.pdf"), height=4.45, width=4.30)
 
 #-------------- log2TPM boxplots per genetype --------------#
-ggplot(toc_TPMs_long %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding"), aes(x=patient, y=log2TPM, fill=gene_type))+
+ggplot(toc_TPMs_long %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel"), aes(x=patient, y=log2TPM, fill=gene_type))+
   geom_boxplot() +
   labs(x="Patient",
        fill="Biotype",
        title="Gene expression distribution per biotype") +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                              "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E")) +
+                             "processed_pseudogene" = "#FBB04E",
+                             "novel" = "#B09C85")) +
   theme_classic() + 
   theme(axis.text.x = element_text(angle=90),
         legend.position = "none") +
-  facet_wrap(~ gene_type)
+  facet_wrap(~ gene_type, ncol=4)
 ggsave(file.path(plots_wd,"PNG/TPM_boxplot_biotype.png"), height=4.45, width=4.30)
 ggsave(file.path(plots_wd,"PDF/TPM_boxplot_biotype.pdf"), height=4.45, width=4.30)
 ```
@@ -154,13 +167,13 @@ ggsave(file.path(plots_wd,"PDF/TPM_boxplot_biotype.pdf"), height=4.45, width=4.3
 * > 1 TPM in at least 2 samples
 
 ```{r testisExpressed, echo=F}
-toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>% unique()
+toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% unique()
 
 #------------------ BRAIN ------------------#
 ## they should be brain-expressed in at least 2 patients
-brainexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(3:5)] > 1) > 1, ]
+brainexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(2:4)] > 1) > 1, ]
 ## merge with all info
-brainexpr_full = merge(brainexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+brainexpr_full = merge(brainexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 brainexpr_full = brainexpr_full %>% unique()
 
 write.csv(brainexpr_full, file.path(save_wd,"brainExpressed.csv"), row.names = F)
@@ -168,19 +181,19 @@ write.csv(brainexpr_full, file.path(save_wd,"brainExpressed.csv"), row.names = F
 
 #------------------ LIVER ------------------#
 ## they should be liver-expressed in at least 2 patients
-liverexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(6:8)] > 1) > 1, ]
+liverexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(5:7)] > 1) > 1, ]
 ## merge with all info
-liverexpr_full = merge(liverexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+liverexpr_full = merge(liverexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 liverexpr_full = liverexpr_full %>% unique()
 
 write.csv(liverexpr_full, file.path(save_wd,"liverExpressed.csv"), row.names = F)
 
 #------------------ TESTIS ------------------#
 ## they should be testis-expressed in at least 2 patients
-testisexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(9:11)] > 1) > 1, ]
+testisexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(8:10)] > 1) > 1, ]
 
 ## merge with all info
-testisexpr_full = merge(testisexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+testisexpr_full = merge(testisexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 testisexpr_full = testisexpr_full %>% unique()
 
 write.csv(testisexpr_full, file.path(save_wd,"testisExpressed.csv"), row.names = F)
@@ -203,13 +216,13 @@ The same is performed for the rest tissues.
 
 ```{r testisRestricted_Sara, echo=F}
 ######## SARA'S APPROACH - no more than 0.5 in any patient
-toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>% unique()
+toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% unique()
 
 #------------------ BRAIN ------------------#
 ## they should be brain-restricted in at least 2 patients
-brainspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(3:5)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(6:11)] < 0.5) == 6, ]
+brainspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(2:4)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(5:10)] < 0.5) == 6, ]
 ## merge with all info
-brainspecific_full = merge(brainspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+brainspecific_full = merge(brainspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 brainspecific_full = brainspecific_full %>% unique()
 
 # brainspecific_full_in2 = brainspecific_full[rowSums(brainspecific_full[, c(5:7)] > 1) > 1,]
@@ -218,9 +231,9 @@ write.csv(brainspecific_full, file.path(save_wd,"brainRestricted.csv"), row.name
 
 #------------------ LIVER ------------------#
 ## they should be liver-restricted in at least 2 patients
-liverspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(6:8)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(3:5,9:11)] < 0.5) == 6, ]
+liverspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(5:7)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(2:4,8:10)] < 0.5) == 6, ]
 ## merge with all info
-liverspecific_full = merge(liverspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+liverspecific_full = merge(liverspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 liverspecific_full = liverspecific_full %>% unique()
 
 # liverspecific_full_in2 = liverspecific_full[rowSums(liverspecific_full[, c(8:10)] > 1) > 1,]
@@ -228,10 +241,10 @@ write.csv(liverspecific_full, file.path(save_wd,"liverRestricted.csv"), row.name
 
 #------------------ TESTIS ------------------#
 ## they should be testis-restricted in at least 2 patients
-testisspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(9:11)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(3:8)] < 0.5) == 6, ]
+testisspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(8:10)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(2:7)] < 0.5) == 6, ]
 
 ## merge with all info
-testisspecific_full = merge(testisspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type, Length), by=c("gene_id","gene_type","gene_name","Length")) 
+testisspecific_full = merge(testisspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
 testisspecific_full = testisspecific_full %>% unique()
 
 # testisspecific_full_in2 = testisspecific_full[rowSums(testisspecific_full[, c(11:13)] > 1) > 1,]
@@ -261,7 +274,6 @@ gtex$gene_id = gsub("\\..*","",gtex$gene_id)
 ```{r testis_GTEx, echo=F}
 nrow(testisspecific_full)
 testis_gtex = gtex %>% subset(gene_id %in% testisspecific_full$gene_id)
-# merged_testis_gtex = merge(gtex, testisspecific_full, by="gene_id")
 dim(testis_gtex)
 
 ## germline 
@@ -290,10 +302,16 @@ dim(subset_testis_full_GTEx)
 
 subset_testis_GTEx = subset_testis_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_testis == "> 0.5")
 dim(subset_testis_GTEx)
-write.csv(subset_testis_GTEx, file.path(save_wd,"testisRestricted_GTEx.csv"), row.names = F)
-nrow(subset_testis_GTEx)
-subset_testis_GTEx = na.omit(subset_testis_GTEx)
-tmp = subset_testis_GTEx %>% select(gene_id, gene_type) %>% unique()
+
+
+subset_testis_GTEx_w_novels = testisspecific_full %>% subset(gene_type == "novel")
+subset_testis_GTEx_w_novels$GTEx_healthy = NA
+subset_testis_GTEx_w_novels$GTEx_testis = NA
+subset_testis_GTEx_w_novels = rbind(subset_testis_GTEx_w_novels, subset_testis_GTEx)
+
+write.csv(subset_testis_GTEx_w_novels, file.path(save_wd,"testisRestricted_GTEx.csv"), row.names = F)
+nrow(subset_testis_GTEx_w_novels)
+tmp = subset_testis_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
 table(tmp$gene_type)
 ```
 
@@ -333,7 +351,8 @@ GTEx_expressed_restricted = GTEx_expressed_restricted %>%
   group_by(gene_type) %>% 
   mutate(perc = round((n/sum(n)*100),2))
 
-ggplot(GTEx_expressed_restricted, aes(x=gene_type, y=n, fill=testisRestricted_GTEx)) +
+## novels excluded cause they cannot be checked
+ggplot(GTEx_expressed_restricted %>% subset(gene_type != "novel"), aes(x=gene_type, y=n, fill=testisRestricted_GTEx)) +
   geom_bar(stat="identity", position="fill") +
   geom_text(aes(label=paste0(perc, "%")), position=position_fill(vjust=0.5)) +
   scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
@@ -374,10 +393,18 @@ GTEX_criteria = merge(all_others_05 %>% select(gene_id, GTEx_healthy), liver_05 
 subset_liver_full_GTEx = merge(liverspecific, GTEX_criteria, by="gene_id")
 # length(unique(subset_liver_full_GTEx$gene_id))
 
-subset_liver_full_GTEx = subset_liver_full_GTEx %>% subset(GTEx_healthy == "< 0.5") %>% subset(GTEx_liver == "> 0.5")
-write.csv(subset_liver_full_GTEx, file.path(save_wd,"liverRestricted_GTEx.csv"), row.names = F)
-nrow(subset_liver_full_GTEx)
-tmp = subset_liver_full_GTEx %>% select(gene_id, gene_type) %>% unique()
+subset_liver_GTEx = subset_liver_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_liver == "> 0.5")
+dim(subset_liver_GTEx)
+
+
+subset_liver_GTEx_w_novels = liverspecific_full %>% subset(gene_type == "novel")
+subset_liver_GTEx_w_novels$GTEx_healthy = NA
+subset_liver_GTEx_w_novels$GTEx_liver = NA
+subset_liver_GTEx_w_novels = rbind(subset_liver_GTEx_w_novels, subset_liver_GTEx)
+
+write.csv(subset_liver_GTEx_w_novels, file.path(save_wd,"liverRestricted_GTEx.csv"), row.names = F)
+nrow(subset_liver_GTEx_w_novels)
+tmp = subset_liver_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
 table(tmp$gene_type)
 ```
 
@@ -408,9 +435,17 @@ subset_brain_full_GTEx = merge(brainspecific, GTEX_criteria, by="gene_id")
 # length(unique(subset_liver_full_GTEx$gene_id))
 
 subset_brain_GTEx = subset_brain_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_brain == "> 0.5")
-write.csv(subset_brain_GTEx, file.path(save_wd,"brainRestricted_GTEx.csv"), row.names = F)
-nrow(subset_brain_GTEx)
-tmp = subset_brain_GTEx %>% select(gene_id, gene_type) %>% unique()
+dim(subset_brain_GTEx)
+
+
+subset_brain_GTEx_w_novels = brainspecific_full %>% subset(gene_type == "novel")
+subset_brain_GTEx_w_novels$GTEx_healthy = NA
+subset_brain_GTEx_w_novels$GTEx_brain = NA
+subset_brain_GTEx_w_novels = rbind(subset_brain_GTEx_w_novels, subset_brain_GTEx)
+
+write.csv(subset_brain_GTEx_w_novels, file.path(save_wd,"brainRestricted_GTEx.csv"), row.names = F)
+nrow(subset_brain_GTEx_w_novels)
+tmp = subset_brain_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
 table(tmp$gene_type)
 ```
 
@@ -420,21 +455,26 @@ table(tmp$gene_type)
 #### Testis-Expressed with RiboSeq
 
 ```{r translation_Expressed,echo=F}
+## translation
 ribORF_humanTestis_in2_fastas = read.csv(file.path(save_wd, "ribORF_humanTestis_in2.csv"))
+table(ribORF_humanTestis_in2_fastas$gene_type)
 
 nrow(testisExpressed)
+table(testisExpressed$gene_type)
 ## how many of the testis expressed are translated?
 testisExpressed_Restricted_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type"))
 nrow(testisExpressed_Restricted_Translated)
+table(testisExpressed_Restricted_Translated$gene_type)
 table(testisExpressed_Restricted_Translated$testisRestricted, testisExpressed_Restricted_Translated$gene_type)
 testisExpressed_Restricted_Translated = testisExpressed_Restricted_Translated %>% select(-ORFseq)
 
 to_plot = testisExpressed_Restricted_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
-ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "in", 
+ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out", lab.font = c(3, "plain", "black"),
       palette=c("protein_coding"="#849DB1",
                  "lncRNA" = "#B66353",
-                 "processed_pseudogene" = "#FBB04E")) +
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) +
   ggtitle("ORFs from testis-Expressed genes only translated in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisExpressed_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisExpressed_translated.pdf"), height=4.69, width=5.4)
@@ -580,7 +620,9 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_genetype.pdf"
 #### Testis-Specific with RiboSeq
 
 ```{r translation_testisRestricted,echo=F}
-testisRestrictedGTEx_Translated = merge(subset_testis_GTEx %>% select(gene_id, gene_type, gene_name), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type")) 
+testisRestrictedGTEx_Translated = merge(subset_testis_GTEx_w_novels %>% select(gene_id, gene_type, gene_name), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type")) 
+write.csv(testisRestrictedGTEx_Translated, file.path(save_wd, "testisRestricted_GTEx_translatedINtestis.csv"), row.names = F, quote = F)
+
 ## how many testis REstricted GTEx are translated?
 nrow(testisRestrictedGTEx_Translated)
 table(testisRestrictedGTEx_Translated$gene_type)
@@ -589,11 +631,12 @@ testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% select(-OR
 dim(testisRestrictedGTEx_Translated)
 to_plot = testisRestrictedGTEx_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
-ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "in", 
+ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out",   lab.font = c(5, "plain", "black"),
       palette=c("protein_coding"="#849DB1",
                  "lncRNA" = "#B66353",
-                 "processed_pseudogene" = "#FBB04E")) +
-  ggtitle("ORFs from testis-Restricted GTEx genes only translated in testis (2 samples at least)")
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) +
+  ggtitle("ORFs from testis-Restricted GTEx genes translated in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestrictedGTEx_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.69, width=5.4)
 ```
@@ -756,8 +799,8 @@ ribORF_humanBrain_simplified$tissue = "liver"
 ggvenn(list("brain"=ribORF_humanBrain_simplified$orfID,
                  "liver"=ribORF_humanLiver_simplified$orfID,
                  "testis"=testisRestrictedGTEx_Translated$orfID),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3) +
-  ggtitle("Testis Translated ORFs in other tissues")
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C57A2","#ABCD72","#82581F")) +
+  ggtitle("Translated ORFs per tissues")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_translated_tissues.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestricted_translated_tissues.pdf"), height=4.69, width=5.4)
 
@@ -765,6 +808,7 @@ testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% mutate("Tr
 
 ## select those only TRANSLATED in testis (in at least 2 samples) and no in any sample from brain or liver 
 testisRestrictedGTEx_Translated_onlyTestis = testisRestrictedGTEx_Translated %>% subset(TranslatedLiver == "no" & TranslatedBrain == "no")
+write.csv(testisRestrictedGTEx_Translated_onlyTestis, file.path(save_wd, "testisRestricted_GTEx_translatedONLYtestis.csv"), row.names = F, quote = F)
 table(testisRestrictedGTEx_Translated_onlyTestis$gene_type)
 
 to_plot_translatedOnlyTestis = testisRestrictedGTEx_Translated_onlyTestis %>% group_by(gene_type) %>% count()
@@ -772,10 +816,11 @@ to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)
 
 ###### ggpie
 labs <- paste0(to_plot_translatedOnlyTestis$gene_type, " (", to_plot_translatedOnlyTestis$n, ")")
-ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "in", palette=c("protein_coding"="#849DB1",
+ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "out", palette=c("protein_coding"="#849DB1",
                          "lncRNA" = "#B66353",
-                         "processed_pseudogene" = "#FBB04E")) +
-  ggtitle("ORFs from testis-expressed genes only translated in testis (2 samples at least)")
+                         "processed_pseudogene" = "#FBB04E",
+                                          "novel" = "#B09C85")) +
+  ggtitle("ORFs from testis-expressed genes translated ONLY in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_ORFs_onlyTestis.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisREstricted_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  
 ```

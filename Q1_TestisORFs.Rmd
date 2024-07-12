@@ -19,30 +19,12 @@ library(bioseq)
 library(ggthemr)
 library(ggbeeswarm)
 
-gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=F)
-names(gene_transcript) = c("gene_id","gene_type","gene_name")
-gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+# names(gene_transcript) = c("gene_id","gene_type","gene_name")
+# gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
 
-plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/plots"
-save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA"
-```
-
-```{r annotation, echo=F}
-annot<-read.table("/users/genomics/saraa/projectTestis/RiboNovel/Correct_format_files/riboNovel_gencode.v38.primary_assembly.annotation.sorted.1transcript.gtf", header=TRUE)
-
-annot$transcript_id<-gsub("\\..*","", annot$transcript_id)
-annot$gene_id<-gsub("\\..*","", annot$gene_id)
-
-# head(anot)
-
-
-# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid", all.x=T))
-# head(t_e_g)
-# t_e_g <- subset(t_e_g, !grepl("ENST00000654848", transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000609202", transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000669393", transcriptID)) 
-# t_e_g <- subset(t_e_g, !grepl("ENST00000512989", transcriptID))
-# dim(t_e_g)
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
 ```
 
 
@@ -58,37 +40,42 @@ annot$gene_id<-gsub("\\..*","", annot$gene_id)
 
 ```{r riboNovel_input, echo=F}
 ##-------------------------- SAMPLE 1 --------------------------##
-ribORF_humanTestis_1 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanTestis_1 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanTestis_1 =  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanTestis_1 =  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanTestis_1 = ribORF_humanTestis_1 %>% subset(orfID %in% repre_ribORF_humanTestis_1$V1)
 ribORF_humanTestis_1$sample = "Testis1"
+
 ## get transcriptID
-ribORF_humanTestis_1$transcript_id = gsub("\\..*","", ribORF_humanTestis_1$orfID)
-# nrow(ribORF_humanTestis_1)
-
+ribORF_humanTestis_1$transcript_id = gsub(":.*","", ribORF_humanTestis_1$orfID)
+ribORF_humanTestis_1$transcript_id = gsub("\\..*","", ribORF_humanTestis_1$transcript_id)
+nrow(ribORF_humanTestis_1)
+ 
 ##-------------------------- SAMPLE 2 --------------------------##
-ribORF_humanTestis_2 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanTestis_2 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanTestis_2 =  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanTestis_2 =  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanTestis_2 = ribORF_humanTestis_2 %>% subset(orfID %in% repre_ribORF_humanTestis_2$V1)
 ribORF_humanTestis_2$sample = "Testis2"
 ## get transcriptID
-ribORF_humanTestis_2$transcript_id = gsub("\\..*","", ribORF_humanTestis_2$orfID)
-# nrow(ribORF_humanTestis_2)
+ribORF_humanTestis_2$transcript_id = gsub(":.*","", ribORF_humanTestis_2$orfID)
+ribORF_humanTestis_2$transcript_id = gsub("\\..*","", ribORF_humanTestis_2$transcript_id)
+
+nrow(ribORF_humanTestis_2)
 
 ##-------------------------- SAMPLE 3 --------------------------##
-ribORF_humanTestis_3 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanTestis_3 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanTestis_3 =  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_testis_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanTestis_3 =  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_testis_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanTestis_3 = ribORF_humanTestis_3 %>% subset(orfID %in% repre_ribORF_humanTestis_3$V1)
 ribORF_humanTestis_3$sample = "Testis3"
 ## get transcriptID
-ribORF_humanTestis_3$transcript_id = gsub("\\..*","", ribORF_humanTestis_3$orfID)
-# nrow(ribORF_humanTestis_1)
+ribORF_humanTestis_3$transcript_id = gsub(":.*","", ribORF_humanTestis_3$orfID)
+ribORF_humanTestis_3$transcript_id = gsub("\\..*","", ribORF_humanTestis_3$transcript_id)
+nrow(ribORF_humanTestis_3)
 
 ### Concatenate ncORFs for all 2 samples
 ribORF_humanTestis = rbind(ribORF_humanTestis_3, ribORF_humanTestis_2, ribORF_humanTestis_1)
@@ -96,8 +83,20 @@ ribORF_humanTestis = rbind(ribORF_humanTestis_3, ribORF_humanTestis_2, ribORF_hu
 ggvenn(list("Sample1"=ribORF_humanTestis_1$orfID,
                  "Sample2"=ribORF_humanTestis_2$orfID,
                  "Sample3"=ribORF_humanTestis_3$orfID),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3) +
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
   ggtitle("Testis-expressed ORFs")
+ggsave(paste0(plots_wd,"/PNG/venn_TestisExpressedORFs.png"))
+ggsave(paste0(plots_wd,"/PDF/venn_TestisExpressedORFs.pdf"))
+
+### only novels
+ggvenn(list("Sample1"=ribORF_humanTestis_1 %>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID),
+                 "Sample2"=ribORF_humanTestis_2%>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID),
+                 "Sample3"=ribORF_humanTestis_3%>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle("Novel Testis-expressed ORFs")
+ggsave(paste0(plots_wd,"/PNG/venn_NovelTestisExpressedORFs.png"))
+ggsave(paste0(plots_wd,"/PDF/venn_NovelTestisExpressedORFs.pdf"))
+
 ```
 
 
@@ -109,11 +108,11 @@ ribORF_humanTestis_Annotated = merge(annot, ribORF_humanTestis, by="transcript_i
 ribORF_humanTestis_Annotated$orfType = sapply(strsplit(ribORF_humanTestis_Annotated$orfID, "\\|"), function(x) x[4])
 
 ## how many orfTypes per gene_type?
-ribORF_humanTestis_Annotated %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>% group_by(gene_type, orfType) %>% count()
+ribORF_humanTestis_Annotated %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% group_by(gene_type, orfType) %>% count()
 
 ## for protein-coding we only keep the canonical
 ribORF_humanTestis_Annotated_biotypes = ribORF_humanTestis_Annotated %>%
-  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>%
+  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>%
   filter(!(gene_type == "protein_coding" & orfType != "canonical"))
 ```
 
@@ -166,10 +165,12 @@ ggplot(num_ORFs_per_biotype, aes(x=num_ORFs_modif, y=n, fill=gene_type)) +
   scale_y_continuous(trans="log10") +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                            "lncRNA" = "#B66353",
-                           "processed_pseudogene" = "#FBB04E")) +
+                           "processed_pseudogene" = "#FBB04E",
+                           "novel" = "#B09C85")) +
   labs(title="Number of ORFs per transcript",
        fill="Biotype") +
-  theme_classic()
+  theme_classic() +
+  facet_wrap(~ gene_type)
 ggsave(file.path(plots_wd,"PNG/nORFs_per_transcript.png"), height=4.45, width=6.24)
 ggsave(file.path(plots_wd,"PDF/nORFs_per_transcript.pdf"), height=4.45, width=6.24)
 ```
@@ -181,20 +182,21 @@ Questions: How many ncORFs in lncRNAs/processed pseudogenes are translated in te
 **Length**
 
 ```{r length, echo=F}
-my_comparisons = list(c("lncRNA","processed_pseudogene"), c("protein_coding","processed_pseudogene"), c("protein_coding","lncRNA"))
+my_comparisons = list(c("lncRNA","processed_pseudogene"), c("protein_coding","processed_pseudogene"), c("protein_coding","lncRNA"), c("lncRNA","novel"), c("novel","processed_pseudogene"), c("novel","protein_coding"))
 ggplot(ribORF_humanTestis_in2, aes(x=gene_type, y=length, fill=gene_type)) +
   geom_boxplot() +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                          "lncRNA" = "#B66353",
-                         "processed_pseudogene" = "#FBB04E")) +
+                         "processed_pseudogene" = "#FBB04E",
+                           "novel" = "#B09C85")) +
   scale_y_continuous(trans="log10") +
   labs(x="Biotype",
        y="Length (nt)",
        title="Length of translated ncORFs\nand canonical ORFs") +
   theme_classic() +
   theme(legend.position = "none") 
-ggsave(file.path(plots_wd,"PNG/nORFs_length.png"), height=4.30, width=4.75)
-ggsave(file.path(plots_wd,"PDF/nORFs_length.pdf"), height=4.30, width=4.75)
+ggsave(file.path(plots_wd,"PNG/nORFs_length.png"), height=4.30, width=5.75)
+ggsave(file.path(plots_wd,"PDF/nORFs_length.pdf"), height=4.30, width=5.75)
 
 ## ncORFs vs canonical ORFs
 wilcox.test(ribORF_humanTestis_in2$length ~ ribORF_humanTestis_in2$orfType)
@@ -207,11 +209,10 @@ ggplot(ribORF_humanTestis_in2, aes(x=length_aa, fill=gene_type)) +
   geom_xsideboxplot(orientation = "y", width=4) +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                          "lncRNA" = "#B66353",
-                         "processed_pseudogene" = "#FBB04E")) +
-  # scale_color_manual(values=c("protein_coding"="#849DB1",
-  #                        "lncRNA" = "#B66353",
-  #                        "processed_pseudogene" = "#FBB04E")) +  
+                         "processed_pseudogene" = "#FBB04E",
+                                               "novel" = "#B09C85")) +
   scale_x_continuous(trans="log10") +
+  geom_vline(xintercept=100) +
   labs(fill="Biotype",
        color="Biotype",
        x="Length (aa)",
@@ -234,40 +235,42 @@ ggplot(ribORF_humanTestis_in2, aes(x=gene_type, fill=start_codon)) +
        fill="Starting codon",
        title="Starting codon of ncORFs and canonical ORFs") +
   scale_fill_manual(values=c("#004D40","#00695C","#00897B","#4DB6AC")) +
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/startCodons.png"), height=5.69, width=4.72)
-ggsave(file.path(plots_wd,"PDF/startCodons.pdf"), height=5.69, width=4.72)
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=45))
+ggsave(file.path(plots_wd,"PNG/startCodons.png"), height=4.69, width=4.72)
+ggsave(file.path(plots_wd,"PDF/startCodons.pdf"), height=4.69, width=4.72)
 ```
 
 
 ```{r translate_seq, echo=F}
 # library(Biostrings)
-
+# 
 # # Function to translate DNA sequence to amino acids
 # translate_dna_to_aa <- function(dna_sequence) {
 #   aa_seq <- translate(DNAString(dna_sequence))
 #   return(as.character(aa_seq))
 # }
-
-# fastaFile = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/Annotation/candidateORF.fa", header=F)
+# 
+# fastaFile = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/Annotation/candidateORF.fa", header=F)
+# 
 # ## subset headers and seqs
 # orfIDs = fastaFile %>% subset(grepl(">", V1))
 # seqs = fastaFile %>% subset(!grepl(">", V1))
-
+# 
 # fastaCandidates = data.frame("orfID" = orfIDs,
 #                              "ORFseq"= seqs)
 # names(fastaCandidates) = c("orfID","ORFseq")
 # fastaCandidates$orfID = gsub(">","",fastaCandidates$orfID)
-
+# 
 # ## select those that are in subset of interest --> ribORF_humanTestis_in2
 # nrow(ribORF_humanTestis_in2)
 # fastaCandidates_subset = fastaCandidates %>% subset(orfID %in% ribORF_humanTestis_in2$orfID)
 # nrow(fastaCandidates_subset)
-
+# 
 # ## add the fasta sequences to the dataframe
 # ribORF_humanTestis_in2_fastas = merge(fastaCandidates_subset, ribORF_humanTestis_in2, by="orfID")
 # nrow(ribORF_humanTestis_in2_fastas)
-
+# 
 # ## translate the ORFs
 # ribORF_humanTestis_in2_fastas$ORFpep = sapply(ribORF_humanTestis_in2_fastas$ORFseq, translate_dna_to_aa)
 # write.csv(ribORF_humanTestis_in2_fastas, file.path(save_wd, "ribORF_humanTestis_in2.csv"), row.names = F)
@@ -352,14 +355,15 @@ ggsave(file.path(plots_wd,"PDF/log2ratio_aa_ncORFsVSORFs.ordered.pdf"), height=4
 **Translation efficiency**
 
 ```{r translation_eficiency, echo=F}
-orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/Expression/ribORFsimp.testis_1.tsv", sep="\t")
-orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/Expression/ribORFsimp.testis_2.tsv", sep="\t")
-orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/Expression/ribORFsimp.testis_3.tsv", sep="\t")
+orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.testis_1.tsv", sep="\t")
+orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.testis_2.tsv", sep="\t")
+orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.testis_3.tsv", sep="\t")
 
 orf_TE = rbind(orf_TE_1, orf_TE_2, orf_TE_3)
 
 ## get transcript_id
-orf_TE$transcript_id = gsub("\\..*","",orf_TE$orfID)
+orf_TE$transcript_id = gsub(":.*","",orf_TE$orfID)
+orf_TE$transcript_id = gsub("\\..*","",orf_TE$transcript_id)
 
 ## we keep only those that are in the interesting subset
 nrow(ribORF_humanTestis_in2)
@@ -374,11 +378,11 @@ nrow(orf_TE_in2)
 ```
 
 ```{r RNA_Ribo, echo=F}
-TPMs_RNA = read.csv(file.path(save_wd,"TPMs_complete.csv"))
+TPMs_RNA = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv")
 
-testis_TPMs = TPMs_RNA %>% select(gene_id, gene_name, gene_type, Length, human_testis_rna_1, human_testis_rna_2, human_testis_rna_3)
-
-testis_TPMs_with_ORFs = testis_TPMs %>% subset(gene_id %in% orf_TE_in2$gene_id)
+testis_TPMs = TPMs_RNA %>% select(gene_id, Length, human_testis_rna_1, human_testis_rna_2, human_testis_rna_3)
+names(testis_TPMs)[1] = "transcript_id"
+testis_TPMs_with_ORFs = testis_TPMs %>% subset(transcript_id %in% orf_TE_in2$transcript_id)
 
 #----------- sample 1 ---------#
 ## riboseq
@@ -387,10 +391,10 @@ names(orf_testis_1)[4] = "Ribo_TPM"
 orf_testis_1 = merge(orf_testis_1, annot, by="transcript_id")
 
 ## rnaseq
-rna_testis_1 = testis_TPMs_with_ORFs %>% select(gene_id, gene_name, gene_type, human_testis_rna_1)
-names(rna_testis_1)[4] = "RNA_TPM"
+rna_testis_1 = testis_TPMs_with_ORFs %>% select(transcript_id, human_testis_rna_1)
+names(rna_testis_1)[2] = "RNA_TPM"
 
-testis_1 = merge(rna_testis_1, orf_testis_1, by=c("gene_id","gene_name","gene_type"))
+testis_1 = merge(rna_testis_1, orf_testis_1, by=c("transcript_id"))
 
 ## TE
 testis_1$TE = testis_1$Ribo_TPM / testis_1$RNA_TPM
@@ -403,10 +407,10 @@ names(orf_testis_2)[4] = "Ribo_TPM"
 orf_testis_2 = merge(orf_testis_2, annot, by="transcript_id")
 
 ## rnaseq
-rna_testis_2 = testis_TPMs_with_ORFs %>% select(gene_id, gene_name, gene_type, human_testis_rna_2)
-names(rna_testis_2)[4] = "RNA_TPM"
+rna_testis_2 = testis_TPMs_with_ORFs %>% select(transcript_id, human_testis_rna_2)
+names(rna_testis_2)[2] = "RNA_TPM"
 
-testis_2 = merge(rna_testis_2, orf_testis_2, by=c("gene_id","gene_name","gene_type"))
+testis_2 = merge(rna_testis_2, orf_testis_2, by=c("transcript_id"))
 
 ## TE
 testis_2$TE = testis_2$Ribo_TPM / testis_2$RNA_TPM
@@ -419,10 +423,10 @@ names(orf_testis_3)[4] = "Ribo_TPM"
 orf_testis_3 = merge(orf_testis_3, annot, by="transcript_id")
 
 ## rnaseq
-rna_testis_3 = testis_TPMs_with_ORFs %>% select(gene_id, gene_name, gene_type, human_testis_rna_3) 
-names(rna_testis_3)[4] = "RNA_TPM"
+rna_testis_3 = testis_TPMs_with_ORFs %>% select(transcript_id, human_testis_rna_3) 
+names(rna_testis_3)[2] = "RNA_TPM"
 
-testis_3 = merge(rna_testis_3, orf_testis_3, by=c("gene_id","gene_name","gene_type"))
+testis_3 = merge(rna_testis_3, orf_testis_3, by=c("transcript_id"))
 
 ## TE
 testis_3$TE = testis_3$Ribo_TPM / testis_3$RNA_TPM
@@ -430,6 +434,9 @@ testis_3$sample = "Testis_3"
 #--------------- merging ---------------#
 testis_TE = rbind(testis_1, testis_2, testis_3)
 write.csv(testis_TE, file.path(save_wd, "translationEfficiency_testis.csv"), row.names=F)
+testis_TE = testis_TE %>% subset(Ribo_TPM > 0 & RNA_TPM > 0)
+write.csv(testis_TE, file.path(save_wd, "translationEfficiency_testis.withoutZeros.csv"), row.names=F)
+
 ```
 
 ```{r TE_plot, echo=F}
@@ -437,7 +444,8 @@ ggplot(testis_TE, aes(x=sample, y=TE, fill=gene_type)) +
   geom_boxplot() +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                         "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E")) +
+                        "processed_pseudogene" = "#FBB04E",
+                                               "novel" = "#B09C85")) +
   labs(x="Sample",
   y="Translation Efficiency",
   title="Translation Efficiency") +
@@ -455,16 +463,40 @@ mean_testis_TE = testis_TE %>%
   summarize(mean_TE = ifelse(n() > 1, mean(TE), TE))
 write.csv(mean_testis_TE, file.path(save_wd, "mean_translationEfficiency_testis.csv"), row.names=F)
 
+ggplot(mean_testis_TE, aes(x=gene_type, y=log10(mean_TE))) +
+  # geom_violin(aes(fill=gene_type), alpha=.2) +
+  geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
+  geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
+  scale_fill_manual(values=c("protein_coding"="#849DB1",
+                        "lncRNA" = "#B66353",
+                        "processed_pseudogene" = "#FBB04E",
+                        "novel" = "#B09C85")) +
+  scale_color_manual(values=c("protein_coding"="#849DB1",
+                        "lncRNA" = "#B66353",
+                        "processed_pseudogene" = "#FBB04E",
+                        "novel" = "#B09C85")) +
+  labs(x="Biotype",
+  y="Translation Efficiency (log10TE)",
+  title="Translation Efficiency") +
+  # scale_y_continuous(trans="log10") +
+  theme_classic() +
+  theme(legend.position="none")
+
+ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE.log10.png"), height=4.72, width=5.02)
+ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE.log10.pdf"), height=4.72, width=5.02)
+
 ggplot(mean_testis_TE, aes(x=gene_type, y=mean_TE)) +
   # geom_violin(aes(fill=gene_type), alpha=.2) +
   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
   geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                         "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E")) +
+                        "processed_pseudogene" = "#FBB04E",
+                        "novel" = "#B09C85")) +
   scale_color_manual(values=c("protein_coding"="#849DB1",
                         "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E")) +
+                        "processed_pseudogene" = "#FBB04E",
+                        "novel" = "#B09C85")) +
   labs(x="Biotype",
   y="Translation Efficiency",
   title="Translation Efficiency") +
@@ -472,44 +504,48 @@ ggplot(mean_testis_TE, aes(x=gene_type, y=mean_TE)) +
   theme_classic() +
   theme(legend.position="none")
 
-ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE.png"), height=4.72, width=4.02)
-ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE.pdf"), height=4.72, width=4.02)
+ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE.png"), height=4.72, width=5.02)
+ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE.pdf"), height=4.72, width=5.02)
 ```
 
 ## Of the translated, how many are NOT translated in liver or brain?
 
 ```{r translation_brain, echo=F}
 ##-------------------------- SAMPLE 1 --------------------------##
-ribORF_humanBrain_1 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanBrain_1 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanBrain_1=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanBrain_1=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanBrain_1 = ribORF_humanBrain_1 %>% subset(orfID %in% repre_ribORF_humanBrain_1$V1)
 ribORF_humanBrain_1$sample = "Brain1"
 ## get transcriptID
-ribORF_humanBrain_1$transcript_id = gsub("\\..*","", ribORF_humanBrain_1$orfID)
+ribORF_humanBrain_1$transcript_id = gsub(":.*","", ribORF_humanBrain_1$orfID)
+ribORF_humanBrain_1$transcript_id = gsub("\\..*","", ribORF_humanBrain_1$transcript_id)
 # nrow(ribORF_humanBrain_1)
 
 ##-------------------------- SAMPLE 2 --------------------------##
-ribORF_humanBrain_2 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanBrain_2 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanBrain_2=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanBrain_2=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanBrain_2 = ribORF_humanBrain_2 %>% subset(orfID %in% repre_ribORF_humanBrain_2$V1)
 ribORF_humanBrain_2$sample = "Brain2"
 ## get transcriptID
-ribORF_humanBrain_2$transcript_id = gsub("\\..*","", ribORF_humanBrain_2$orfID)
+ribORF_humanBrain_2$transcript_id = gsub(":.*","", ribORF_humanBrain_2$orfID)
+ribORF_humanBrain_2$transcript_id = gsub("\\..*","", ribORF_humanBrain_2$transcript_id)
 # nrow(ribORF_humanBrain_2)
 
 ##-------------------------- SAMPLE 3 --------------------------##
-ribORF_humanBrain_3 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanBrain_3 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanBrain_3=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_brain_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanBrain_3=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_brain_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanBrain_3 = ribORF_humanBrain_3 %>% subset(orfID %in% repre_ribORF_humanBrain_3$V1)
 ribORF_humanBrain_3$sample = "Brain3"
 ## get transcriptID
-ribORF_humanBrain_3$transcript_id = gsub("\\..*","", ribORF_humanBrain_3$orfID)
+ribORF_humanBrain_3$transcript_id = gsub(":.*","", ribORF_humanBrain_3$orfID)
+ribORF_humanBrain_3$transcript_id = gsub("\\..*","", ribORF_humanBrain_3$transcript_id)
+
 # nrow(ribORF_humanBrain_3)
 
 ### Concatenate ncORFs for all 2 samples
@@ -527,43 +563,47 @@ ribORF_humanBrain_Annotated$orfType = sapply(strsplit(ribORF_humanBrain_Annotate
 
 ## for protein-coding we only keep the canonical
 ribORF_humanBrain_Annotated_biotypes = ribORF_humanBrain_Annotated %>%
-  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>%
+  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>%
   filter(!(gene_type == "protein_coding" & orfType != "canonical"))
 write.csv(ribORF_humanBrain_Annotated_biotypes, file.path(save_wd, "ribORF_humanBrain_translated.csv"), row.names=F) 
 ```
 
 ```{r translation_liver, echo=F}
 ##-------------------------- SAMPLE 1 --------------------------##
-ribORF_humanLiver_1 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanLiver_1 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_1_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanLiver_1=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanLiver_1=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_1_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanLiver_1 = ribORF_humanLiver_1 %>% subset(orfID %in% repre_ribORF_humanLiver_1$V1)
 ribORF_humanLiver_1$sample = "Liver1"
 ## get transcriptID
-ribORF_humanLiver_1$transcript_id = gsub("\\..*","", ribORF_humanLiver_1$orfID)
+ribORF_humanLiver_1$transcript_id = gsub(":.*","", ribORF_humanLiver_1$orfID)
+ribORF_humanLiver_1$transcript_id = gsub("\\..*","", ribORF_humanLiver_1$transcript_id)
 # nrow(ribORF_humanLiver_1)
 
 ##-------------------------- SAMPLE 2 --------------------------##
-ribORF_humanLiver_2 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanLiver_2 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanLiver_2=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanLiver_2=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanLiver_2 = ribORF_humanLiver_2 %>% subset(orfID %in% repre_ribORF_humanLiver_2$V1)
 ribORF_humanLiver_2$sample = "Liver2"
 ## get transcriptID
-ribORF_humanLiver_2$transcript_id = gsub("\\..*","", ribORF_humanLiver_2$orfID)
+ribORF_humanLiver_2$transcript_id = gsub(":.*","", ribORF_humanLiver_2$orfID)
+ribORF_humanLiver_2$transcript_id = gsub("\\..*","", ribORF_humanLiver_2$transcript_id)
+
 # nrow(ribORF_humanLiver_2)
 
 ##-------------------------- SAMPLE 3 --------------------------##
-ribORF_humanLiver_3 = read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanLiver_3 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanLiver_3=  read.table("/users/genomics/saraa/projectTestis/170424_RiboNovel/RibORF/human_liver_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanLiver_3=  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240708_RiboNovel/RibORF/human_liver_ribo_3_r1/repre.valid.ORF.genepred.txt", header=F)
 
 ribORF_humanLiver_3 = ribORF_humanLiver_3 %>% subset(orfID %in% repre_ribORF_humanLiver_3$V1)
 ribORF_humanLiver_3$sample = "Liver3"
 ## get transcriptID
-ribORF_humanLiver_3$transcript_id = gsub("\\..*","", ribORF_humanLiver_3$orfID)
+ribORF_humanLiver_3$transcript_id = gsub(":.*","", ribORF_humanLiver_3$orfID)
+ribORF_humanLiver_3$transcript_id = gsub("\\..*","", ribORF_humanLiver_3$transcript_id)
 # nrow(ribORF_humanLiver_3)
 
 ### Concatenate ncORFs for all 2 samples
@@ -581,7 +621,7 @@ ribORF_humanLiver_Annotated$orfType = sapply(strsplit(ribORF_humanLiver_Annotate
 
 ## for protein-coding we only keep the canonical
 ribORF_humanLiver_Annotated_biotypes = ribORF_humanLiver_Annotated %>%
-  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding") %>%
+  subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>%
   filter(!(gene_type == "protein_coding" & orfType != "canonical"))
 write.csv(ribORF_humanLiver_Annotated_biotypes, file.path(save_wd, "ribORF_humanLiver_translated.csv"), row.names=F) 
 ```
