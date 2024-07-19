@@ -25,4 +25,4 @@ module load Subread/2.0.3
 
 # countReadPairs may need to be removed in case of single-end reads
 featureCounts -T 10 -p -s 0 -g transcript_id -O --countReadPairs -a $AnnotGTF -o ${OUTDIR}/featureCounts_${PROJECT}.txt /users/genomics/marta/TCGA_RNASeq/${PROJECT}/analysis/05_STAR/uniquely_mapped_2pass_BAM_files/*bam 
-
+# featureCounts -T 10 -p -s 0 -g transcript_id -O --countReadPairs -a $AnnotGTF -o ${OUTDIR}/featureCounts_${PROJECT}.txt /users/genomics/marta/TCGA_RNASeq/${PROJECT}/analysis/05_STAR/uniquely_mapped_2pass_BAM_files/*bam 

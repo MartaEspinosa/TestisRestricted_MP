@@ -1,0 +1,469 @@
+---
+title: "evolution"
+author: "sararaz"
+date: "2024-05-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+#BiocManager::install("readODS")
+library(readODS)
+library(treeio)
+library(stringr)
+library(tidyr)
+library(treeio)
+library(stringr)
+library(ggplot2)
+library(grid)
+library(ggvenn)
+
+```
+
+## Evolution of testis_specific genes
+
+```{r}
+# Load all genes expressed in testis
+
+#human
+human_testis_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/testis_genes_all.txt")
+#mouse
+mouse_testis_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/testis_genes_all.txt")
+```
+
+
+```{r}
+# Load all genes expressed in brain
+
+#human
+human_brain_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/brain_genes_all.txt")
+#mouse
+mouse_brain_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/brain_genes_all.txt")
+```
+
+```{r}
+# Load all genes expressed in liver
+#human
+human_liver_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/liver_genes_all.txt")
+#mouse
+mouse_liver_all<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/liver_genes_all.txt")
+
+```
+
+```{r}
+#dim
+dim(human_testis_all)
+dim(mouse_testis_all)
+```
+
+
+```{r}
+# Select only genes with Gene type == "protein_coding", "lncRNA", "processed_pseudogene"
+human_testis_all<-human_testis_all[human_testis_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+mouse_testis_all<-mouse_testis_all[mouse_testis_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+
+human_brain_all<-human_brain_all[human_brain_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+mouse_brain_all<-mouse_brain_all[mouse_brain_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+
+human_liver_all<-human_liver_all[human_liver_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+mouse_liver_all<-mouse_liver_all[mouse_liver_all$Gene.type %in% c("protein_coding", "lncRNA", "processed_pseudogene"),]
+```
+
+```{r}
+# Add new variables of species and tissues to bind all the information in one unique table 
+human_testis_all$specie<-"human"
+mouse_testis_all$specie<-"mouse"
+human_testis_all$tissue<-"testis"
+mouse_testis_all$tissue<-"testis"
+
+human_brain_all$specie<-"human"
+mouse_brain_all$specie<-"mouse"
+human_brain_all$tissue<-"brain"
+mouse_brain_all$tissue<-"brain"
+
+human_liver_all$specie<-"human"
+mouse_liver_all$specie<-"mouse"
+human_liver_all$tissue<-"liver"
+mouse_liver_all$tissue<-"liver"
+```
+
+
+```{r}
+# We merge all the info in one unique table 
+
+tabla<-rbind(human_testis_all[,c("Gene.type", "specie", "tissue")],mouse_testis_all[,c("Gene.type", "specie", "tissue")],human_brain_all[,c("Gene.type", "specie", "tissue")], mouse_brain_all[,c("Gene.type", "specie", "tissue")],human_liver_all[,c("Gene.type", "specie", "tissue")], mouse_liver_all[,c("Gene.type", "specie", "tissue")])
+
+a<-ggplot(data=tabla, aes(x=specie, fill=Gene.type))+geom_bar( stat="count", alpha=1)+ theme(legend.position = "right")+  scale_fill_brewer(palette = "Pastel2") + theme_bw()+labs(y=NULL,x=NULL, fill="Gene type")+facet_wrap(~tissue)+theme(axis.text.x = element_text(angle=45, hjust=1), x=NULL)
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/evolution/figures/testis_genes_evol.png", plot = a, width = 10, height = 6, units = "in", dpi = 300)
+a
+```
+
+```{r}
+# Load the testis-specific genes 
+#human
+human_testis_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/testis_specific_genes.txt")
+#mouse
+mouse_testis_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/testis_specific_genes.txt")
+
+# Load the brain-specific genes 
+#human
+human_brain_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/brain_specific_genes.txt")
+
+#mouse
+mouse_brain_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/brain_specific_genes.txt")
+
+# Load the testis-specific genes 
+#human
+human_liver_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RNAseq/tissue_specific_genes/liver_specific_genes.txt")
+#mouse
+mouse_liver_specific<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/mouse/RNAseq/tissue_specific_genes/liver_specific_genes.txt")
+```
+
+```{r}
+# dimensions of the three of them
+dim(human_testis_specific)
+dim(mouse_testis_specific)
+```
+```{r}
+# Add new variables of species and tissues to bind all the information in one unique table 
+human_testis_specific$specie<-"human"
+mouse_testis_specific$specie<-"mouse"
+human_testis_specific$tissue<-"testis"
+mouse_testis_specific$tissue<-"testis"
+
+
+human_brain_specific$specie<-"human"
+mouse_brain_specific$specie<-"mouse"
+human_brain_specific$tissue<-"brain"
+mouse_brain_specific$tissue<-"brain"
+
+human_liver_specific$specie<-"human"
+mouse_liver_specific$specie<-"mouse"
+human_liver_specific$tissue<-"liver"
+mouse_liver_specific$tissue<-"liver"
+```
+
+
+```{r}
+# We merge all the info in one unique table 
+tabla2<-rbind(human_testis_specific[,c("Gene.type", "specie", "tissue")], mouse_testis_specific[,c("Gene.type", "specie", "tissue")],human_brain_specific[,c("Gene.type", "specie", "tissue")], mouse_brain_specific[,c("Gene.type", "specie", "tissue")],human_liver_specific[,c("Gene.type", "specie", "tissue")], mouse_liver_specific[,c("Gene.type", "specie", "tissue")])
+
+a<-ggplot(data=tabla2, aes(x=specie, fill=Gene.type))+geom_bar( stat="count", alpha=1)+ theme(legend.position = "right")+  scale_fill_brewer(palette = "Pastel2") + theme_bw()+labs(y=NULL,x=NULL, fill="Gene type")+facet_wrap(~tissue)+theme(axis.text.x = element_text(angle=45, hjust=1), x=NULL)
+a
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/testis_specific_genes_evol.png", plot = a, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+# Results BLASTp
+
+818 human testis-specific ORFs
+
+
+```{r}
+#Load the riboseq data 
+human_riboseq<-read.csv("/users/genomics/saraa/projectTestis/Rstudio/human/RiboSeq/results/rnaseq_and_ribonovel_human_testis_GTEx_final_table.csv")
+# Make a subset 
+human_riboseq_orfid_genetype<-subset(human_riboseq, select=c("orfID", "Gene.type", "Gene.name"))
+```
+
+
+```{r}
+# Load the human testis-sepcific ORFs data 
+human_fasta<-read.fasta("/users/genomics/saraa/projectTestis/Rstudio/human/RiboSeq/human_translated_prot.fasta")
+names_human_fasta<-str_trim(names(human_fasta))
+```
+
+```{r}
+length(names_human_fasta)
+names_human_fasta<-gsub("Human_", "", names_human_fasta)
+```
+
+```{r}
+#Load the BLASTp results
+results_human_vs_mouse_liver<-read.table("/users/genomics/saraa/projectTestis/BLASTp/results/results_human_vs_mouse_liver_blastp2.txt", sep="\t", header=F)
+results_human_vs_mouse_brain<-read.table("/users/genomics/saraa/projectTestis/BLASTp/results/results_human_vs_mouse_brain_blastp2.txt", sep="\t", header=F)
+results_human_vs_mouse_testis<-read.table("/users/genomics/saraa/projectTestis/BLASTp/results/results_human_vs_mouse_testis_blastp2.txt", sep="\t", header=F)
+colnames(results_human_vs_mouse_testis)<-c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "qframe", "sframe", "sstrand", "qcovs")
+colnames(results_human_vs_mouse_liver)<-c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "qframe", "sframe", "sstrand", "qcovs")
+colnames(results_human_vs_mouse_brain)<-c("qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "qframe", "sframe", "sstrand", "qcovs")
+```
+
+
+```{r}
+results_human_vs_mouse_testis$orfID<-results_human_vs_mouse_testis$qseqid
+results_human_vs_mouse_testis <- separate(results_human_vs_mouse_testis, orfID, into=c("transcripID:chr:strand","rankNumber", "transcriptLength:startCodonPos:stopCodonPos", "gene_type", "startCodonType"), sep="\\|")
+results_human_vs_mouse_brain$orfID<-results_human_vs_mouse_brain$qseqid
+results_human_vs_mouse_brain <- separate(results_human_vs_mouse_brain, orfID, into=c("transcripID:chr:strand","rankNumber", "transcriptLength:startCodonPos:stopCodonPos", "gene_type", "startCodonType"), sep="\\|")
+results_human_vs_mouse_liver$orfID<-results_human_vs_mouse_liver$qseqid
+results_human_vs_mouse_liver <- separate(results_human_vs_mouse_liver, orfID, into=c("transcripID:chr:strand","rankNumber", "transcriptLength:startCodonPos:stopCodonPos", "gene_type", "startCodonType"), sep="\\|")
+```
+
+
+```{r}
+#Control
+dim(results_human_vs_mouse_testis)
+dim(results_human_vs_mouse_brain)
+dim(results_human_vs_mouse_liver)
+```
+
+```{r}
+#Number of human ORFs that map to macaque ORFs
+length(unique(results_human_vs_mouse_testis$qseqid))
+length(unique(results_human_vs_mouse_brain$qseqid))
+length(unique(results_human_vs_mouse_liver$qseqid))
+```
+
+
+```{r}
+#Load the human tetsis-specific sequences results and process them 
+seqid_human_vs_mouse_testis<-(unique(results_human_vs_mouse_testis$qseqid))
+seqid_human_vs_mouse_brain<-(unique(results_human_vs_mouse_brain$qseqid))
+seqid_human_vs_mouse_liver<-(unique(results_human_vs_mouse_liver$qseqid))
+
+
+seqid_human_vs_mouse_testis<-gsub("Human_", "", seqid_human_vs_mouse_testis)
+seqid_human_vs_mouse_brain<-gsub("Human_", "", seqid_human_vs_mouse_brain)
+seqid_human_vs_mouse_liver<-gsub("Human_", "", seqid_human_vs_mouse_liver)
+```
+
+
+```{r}
+#Merge all the mouse
+all_mouse <- c(seqid_human_vs_mouse_testis, seqid_human_vs_mouse_brain, seqid_human_vs_mouse_liver)
+length(all_mouse)
+all_mouse<-unique(all_mouse)
+length(all_mouse)
+
+#Find human proteins that are conserved in mouse
+table_all_mouse<-unique(human_riboseq_orfid_genetype[human_riboseq_orfid_genetype$orfID %in% all_mouse, ])
+table(table_all_mouse$Gene.type)
+table_all_mouse$conservation <- "conserved in mouse"
+
+```
+
+```{r}
+# Find proteins that are unique to human 
+human_not_in_mouse<-setdiff(names_human_fasta, all_mouse)
+length(human_not_in_mouse)
+
+table_human_not_in_mouse<-unique(human_riboseq_orfid_genetype[human_riboseq_orfid_genetype$orfID %in% human_not_in_mouse, ])
+table(table_human_not_in_mouse$Gene.type)
+table_human_not_in_mouse$conservation<-"not conserved in mouse"
+```
+```{r}
+# Merge all the ionformation inne unique table 
+conservation_human_in_mouse<-rbind(table_all_mouse, table_human_not_in_mouse)
+write.csv(conservation_human_in_mouse,"/users/genomics/saraa/projectTestis/Rstudio/evolution/conservation/conservation_human_ts_ORFs_in_mouse.csv")
+
+# PLOTs
+HUMAN_CONSV<-ggplot(data=conservation_human_in_mouse, aes(x=Gene.type, fill=conservation))+ geom_bar(position="fill")+labs(x=NULL)+scale_fill_brewer(palette="Spectral")+geom_bar(position="fill")+labs(x=NULL)+ geom_text(aes(label=..count..), 
+            stat="count", 
+            position=position_fill(vjust=0.5), 
+            colour="black", 
+            size=4)+theme_minimal()+theme(
+    axis.title.x = element_text(size = 8),   # Tamaño del título del eje x
+    axis.title.y = element_text(size = 8),   # Tamaño del título del eje y
+    axis.text.x = element_text(size = 8),    # Tamaño de los números del eje x
+    axis.text.y = element_text(size = 8),
+    legend.text = element_text(size = 8)# Tamaño de los números del eje y
+  )
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/_CONSV.png", plot = HUMAN_CONSV, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+```{r}
+conservation_human_in_mouse$specie<-"human"
+# Make a barplot 
+barplot_consv<-ggplot(data=conservation_human_in_mouse, aes(x=specie, fill=conservation))+geom_bar()+ labs(y=NULL, x=NULL)+
+  #geom_text(aes(label=scales::percent(..count../sum(..count..), accuracy=0.1)),stat="count", position=position_stack(vjust=0.5), colour="black", size=3,  fontface="bold")
+  theme_minimal()+scale_fill_brewer(palette="Spectral")+geom_text(aes(label=..count..), stat="count", position=position_stack(vjust=0.5), colour="black", size=4)+theme(
+    axis.title.x = element_text(size = 15),   # Tamaño del título del eje x
+    axis.title.y = element_text(size = 15),   # Tamaño del título del eje y
+    axis.text.x = element_text(size = 12),    # Tamaño de los números del eje x
+    axis.text.y = element_text(size = 12),
+    legend.text = element_text(size = 12)# Tamaño de los números del eje y
+  )
+
+barplot_consv
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/human_1_CONSV.png", plot = barplot_consv, width = 10, height = 6, units = "in", dpi = 300)
+
+# Make a piechart 
+l_conserved<-length(conservation_human_in_mouse[conservation_human_in_mouse$conservation=="conserved in mouse",]$orfID)
+l_not_conserved<-length(conservation_human_in_mouse[conservation_human_in_mouse$conservation=="not conserved in mouse",]$orfID)
+
+consv_piechart <- data.frame(
+  value=c(l_conserved, l_not_conserved),
+  group=c("conserved in mouse","not conserved in mouse"))
+
+consv_piechart <- consv_piechart %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(consv_piechart$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+consv_piechart$group<-as.character(consv_piechart$group)
+
+plot_consv_piechart <- ggplot(consv_piechart, aes(x = "", y = prop, fill = group)) +
+  geom_bar(stat = "identity", width = 1, alpha = 1) +
+  coord_polar("y", start = 0) +
+  theme_void() + 
+  scale_fill_brewer(palette = "Spectral") +
+  labs(fill = "Conservation") +
+  geom_text(aes(y = ypos, label = value), color = "black", size = 4)
+
+plot_consv_piechart
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/plot_consv_piechart.png", plot = plot_consv_piechart, width = 10, height = 6, units = "in", dpi = 300)
+
+
+```
+
+```{r}
+#Venn diagram of sequences conserved ebtween mouse tissues
+mouse_conserv<-list("Human_mouse_testis"=seqid_human_vs_mouse_testis,"Human_mouse_brain"=seqid_human_vs_mouse_brain,"Human_mouse_liver"=seqid_human_vs_mouse_liver)
+
+mouse_conservation<-ggvenn(mouse_conserv, fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3) +
+  ggtitle("Human testis-specific ORFs conservation")
+########################################################################################################################################
+```
+
+
+## Conservation of Testis/Cancer antigens in mouse 
+
+```{r}
+# Load data from Tumor-associated antigens
+cancer_testis_orfs_taa<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/Results/results_TAA_testis_shared_peptides_lncRNAs.csv", header=TRUE)
+cancer_testis_orfs_taa<-subset(cancer_testis_orfs_taa, select=-X)
+cancer_testis_orfs_taa<-unique(cancer_testis_orfs_taa)
+dim(cancer_testis_orfs_taa)
+
+#we select the orfID
+cancer_testis_orfs_taa_id<-c(na.omit(cancer_testis_orfs_taa$orfID))
+length(cancer_testis_orfs_taa_id)
+```
+
+```{r}
+# compare the orfIDs from TAA antigens with conserved in mouse and not conserved in mouse datasets
+
+#Instersection with not conserved in mouse
+cancer_testis_orfs_taa_human_specific<-intersect(human_not_in_mouse, cancer_testis_orfs_taa_id)
+length(cancer_testis_orfs_taa_human_specific)
+```
+```{r}
+table_human_specific_cancer_taa<-cancer_testis_orfs_taa[cancer_testis_orfs_taa$orfID %in% c(cancer_testis_orfs_taa_human_specific), ]
+table_human_specific_cancer_taa<-unique(table_human_specific_cancer_taa)
+dim(table_human_specific_cancer_taa)
+table(table_human_specific_cancer_taa$Gene.type)
+table_human_specific_cancer_taa$conservation<-"not conserved in mouse"
+```
+
+
+```{r}
+# Intersection with conserved in mouse
+cancer_testis_orfs_taa_conserved_mouse<-intersect(all_mouse, cancer_testis_orfs_taa_id)
+table_conserved_cancer_taa<-cancer_testis_orfs_taa[cancer_testis_orfs_taa$orfID %in% c(cancer_testis_orfs_taa_conserved_mouse), ]
+dim(table_conserved_cancer_taa)
+table(table_conserved_cancer_taa$Gene.type)
+table_conserved_cancer_taa$conservation<-"conserved in mouse"
+```
+
+```{r}
+# We make a table where we merge allt he information
+taa_conservation<-rbind(table_human_specific_cancer_taa,table_conserved_cancer_taa )
+
+# Plot
+TAA_CONSV<-ggplot(data=taa_conservation, aes(x=Gene.type, fill=conservation))+ geom_bar(position="fill")+labs(x=NULL, y=NULL)+ geom_text(aes(label=..count..), 
+            stat="count", 
+            position=position_fill(vjust=0.5), 
+            colour="black", 
+            size=6)+scale_fill_brewer(palette="Spectral")+theme_minimal()+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/TAA_CONSV.png", plot = TAA_CONSV, width = 10, height = 6, units = "in", dpi = 300)
+```
+
+
+```{r}
+write.csv(taa_conservation, "/users/genomics/saraa/projectTestis/Rstudio/evolution/conservation/taa_consnervation.csv")
+```
+
+
+
+
+```{r}
+taa_conservados_conservados_en_mouse_testis<-intersect(cancer_testis_orfs_taa_conserved_mouse,seqid_human_vs_mouse_testis)
+length(taa_conservados_conservados_en_mouse_testis)
+```
+
+```{r}
+taa_conservados_conservados_en_mouse_brain<-intersect(cancer_testis_orfs_taa_conserved_mouse,seqid_human_vs_mouse_brain)
+length(taa_conservados_conservados_en_mouse_brain)
+```
+
+```{r}
+taa_conservados_conservados_en_mouse_liver<-intersect(cancer_testis_orfs_taa_conserved_mouse,seqid_human_vs_mouse_liver)
+length(taa_conservados_conservados_en_mouse_liver)
+#########################################################################################################################################
+```
+
+```{r}
+# We loas the data of pan-cancer tumor-specific antigens 
+cancer_testis_orfs_tsa<-read.csv("/users/genomics/saraa/projectTestis/tumor_testis/Results/results_TSA_testis_shared_peptides.csv", header=TRUE)
+#Control
+dim(cancer_testis_orfs_tsa)
+# We save the orfIDs
+cancer_testis_orfs_tsa_id<-c(cancer_testis_orfs_tsa$orfID)
+length(cancer_testis_orfs_tsa_id)
+```
+```{r}
+#Compare and see whether TSA orfIDs are in conserved in mouse dataset or if they are in not_in_mouse dataset
+
+# Not conserved in mouse
+cancer_testis_orfs_tsa_human_specific<-intersect(human_not_in_mouse, cancer_testis_orfs_tsa_id)
+length(cancer_testis_orfs_tsa_human_specific)
+```
+
+```{r}
+table_human_specific_cancer_tsa<-cancer_testis_orfs_tsa[cancer_testis_orfs_tsa$orfID %in% c(cancer_testis_orfs_tsa_human_specific), ]
+dim(table_human_specific_cancer_tsa)
+table(table_human_specific_cancer_tsa$Gene.type)
+table_human_specific_cancer_tsa$conservation<-"not conserved in mouse"
+table(table_human_specific_cancer_tsa$Gene.type)
+(table_human_specific_cancer_tsa)
+table_human_specific_cancer_tsa[ ,c("Gene.type", "Gene.name", "Log_Media_testis_TPM", "orf_length", "all_projects", "num_cancertypes", "Source")]
+
+```
+
+```{r}
+# Conserved in mouse 
+cancer_testis_orfs_tsa_conserved_mouse<-intersect(all_mouse, cancer_testis_orfs_tsa_id)
+table_conserved_cancer_tsa<-cancer_testis_orfs_tsa[cancer_testis_orfs_tsa$orfID %in% c(cancer_testis_orfs_tsa_conserved_mouse), ]
+dim(table_conserved_cancer_tsa)
+table(table_conserved_cancer_tsa$Gene.type)
+table_conserved_cancer_tsa$conservation<-"conserved in mouse"
+```
+```{r}
+# We merge all the information in one unique table 
+tsa_conservation<-rbind(table_human_specific_cancer_tsa,table_conserved_cancer_tsa )
+table(tsa_conservation$Gene.type)
+table_conserved_cancer_tsa
+# hey! There are lines with different gene_names mapped to same gene_ids. Just take it into account. 
+```
+
+```{r}
+# We save the table in a file. FINAL TABLE !!!!!!!!!!!!!!!!!!!!!!!
+write.csv(tsa_conservation, "/users/genomics/saraa/projectTestis/Rstudio/evolution/conservation/tsa_consnervation.csv")
+```
+
+```{r}
+#Plot
+TSA_CONSV<-ggplot(data=tsa_conservation, aes(x=Gene.type, fill=conservation))+ geom_bar(position="fill")+geom_text(aes(label=..count..), 
+            stat="count", 
+            position=position_fill(vjust=0.5), 
+            colour="black", 
+            size=6)+scale_fill_brewer(palette="Spectral")+labs(x=NULL, y=NULL)+theme_minimal()+theme(
+    legend.text = element_text(size = 12), 
+    legend.title = element_text(size = 14)
+    )
+
+ggsave("/users/genomics/saraa/projectTestis/Rstudio/human/figures/TSA_CONSV.png", plot = TSA_CONSV, width = 10, height = 6, units = "in", dpi = 300)
+```

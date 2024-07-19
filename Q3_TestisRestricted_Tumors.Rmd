@@ -26,18 +26,26 @@ annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_Transcrip
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots"
 save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
 
-cancers = c("TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-LUSC","TCGA-PRAD","TCGA-BRCA","TCGA-LIHC")
-cancers_dir = "/users/genomics/marta/TCGA_RNASeq"
+cancers = c("KIRC","KIRP","LUAD","LUSC","PRAD")#,"BRCA","LIHC")
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
 ```
 
 ## Testis-Specific Translated ORFs
 
 ```{r input_translation_data}
+print("Translated IN testis")
 translated_IN_testis = read.csv(file.path(save_wd,"testisRestricted_GTEx_translatedINtestis.csv"))
 table(translated_IN_testis$gene_type)
+print("Corresponding to how many genes?")
+translated_IN_testis_genes = translated_IN_testis %>% select(gene_type, gene_name) %>% unique()
+table(translated_IN_testis_genes$gene_type)
 
+print("Translated ONLY in testis")
 translated_only_testis = read.csv(file.path(save_wd,"testisRestricted_GTEx_translatedONLYtestis.csv"))
 table(translated_only_testis$gene_type)
+print("Corresponding to how many genes?")
+translated_only_testis_genes = translated_only_testis %>% select(gene_type, gene_name) %>% unique()
+table(translated_only_testis_genes$gene_type)
 
 ## add column to translated IN testis
 translated_IN_testis = translated_IN_testis %>% mutate(ONLYtranslation_testis = case_when(transcript_id %in% translated_only_testis$transcript_id ~ "ONLYTestis",
@@ -52,7 +60,10 @@ table(translated_IN_testis$ONLYtranslation_testis, translated_IN_testis$gene_typ
 TAA_df = data.frame(transcript_id = character(),
                     gene_id = character())
 for(i in 1:length(cancers)) {
-  TAA = read.csv(file.path(cancers_dir,cancers[i],"analysis/07_quantification/TPM/tumor_1TPM_n_TOLERABILITY5.csv"))
+  TAA = read.csv(paste0(cancers_dir,"/tumorexpressed/tumor_1FPKM_n_",cancers[i],".csv"))
+  max_TAA = max(TAA$n)
+  tenpercent = max_TAA*0.1
+  TAA = TAA %>% subset(n > tenpercent)
   TAA$cancertype = cancers[i]
   
   TAA_df = rbind(TAA_df, TAA)
@@ -64,6 +75,7 @@ ggplot(TAA_df %>% group_by(gene_type, cancertype) %>% count(), aes(x=n, y=cancer
                              "lncRNA" = "#B66353",
                              "processed_pseudogene" = "#FBB04E",
                              "novel" = "#B09C85")) +
+  ggtitle("Tumor-Expressed genes (> 1 TPM in > 10% patients") +
   theme_classic()
 ```
 
@@ -72,3 +84,92 @@ TAA_translated = merge(TAA_df, translated_IN_testis, by=c("transcript_id","gene_
 TAA_translated_genes = TAA_translated %>% select(transcript_id, gene_name, gene_type, ONLYtranslation_testis) %>% unique()
 table(TAA_translated_genes$gene_type, TAA_translated_genes$ONLYtranslation_testis)
 ```
+
+## Is the expression in testis and in tumor correlated?
+
+```{r stats_function, echo=F}
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+```
+
+```{r TPMS_testis, echo=F}
+## Load counts data
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
+testis_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+
+## For novels, remove those shorter than 300 pb
+testis_TPMs = testis_TPMs %>%
+  filter(!(startsWith(gene_id, "TCONS") & Length < 300))
+names(testis_TPMs)[1] = "transcript_id"
+
+testis_TPMs = merge(testis_TPMs, annot, by="transcript_id", all.x=T)
+testis_TPMs = testis_TPMs %>% unique()
+testis_TPMs = testis_TPMs[,!grepl("brain", names(testis_TPMs))]
+testis_TPMs = testis_TPMs[,!grepl("liver", names(testis_TPMs))]
+testis_TPMs = testis_TPMs %>% select(-Length)
+
+## Select only numeric columns
+numeric_df = testis_TPMs[, sapply(testis_TPMs, is.numeric)]
+## Apply the function to each row
+stats_per_row = t(apply(numeric_df, 1, compute_stats))
+stats_df = as.data.frame(stats_per_row)
+
+testis_TPMs_stats = cbind(testis_TPMs %>% select(transcript_id, gene_id, gene_type, gene_name), stats_df)
+testis_TPMs_stats %>% head
+names(testis_TPMs_stats) = c("transcript_id","gene_id","gene_type","gene_name","mean_testis","median_testis","sd_testis","Q1.25%_testis","Q3.75%_testis")
+
+```
+
+
+```{r TPMS_cancer, echo=F}
+testis_tumor_TPMs = data.frame(transcript_id = character(),
+                               stringsAsFactors = F)
+
+for(i in 1:length(cancers)) {
+  TAA = read.csv(paste0(cancers_dir,"/tumorexpressed/tumor_1FPKM_table_of_counts_",cancers[i],".csv"))
+  TAA_tumor = TAA[ ,!grepl("normal", names(TAA))]
+  TAA_tumor = TAA_tumor %>% select(-Length)
+  ## Select only numeric columns
+  numeric_df = TAA_tumor[, sapply(TAA_tumor, is.numeric)]
+  ## Apply the function to each row
+  stats_per_row = t(apply(numeric_df, 1, compute_stats))
+  stats_df = as.data.frame(stats_per_row)
+
+  TAA_tumor_stats = cbind(TAA_tumor %>% select(transcript_id), stats_df)
+  names(TAA_tumor_stats) = c("transcript_id","mean_tumor","median_tumor","sd_tumor","Q1.25%_tumor","Q3.75%_tumor")
+  TAA_tumor_stats_testis = merge(testis_TPMs_stats, TAA_tumor_stats, by="transcript_id")
+  TAA_tumor_stats_testis$cancertype = cancers[i]
+  
+  ## rbind
+  testis_tumor_TPMs = rbind(testis_tumor_TPMs, TAA_tumor_stats_testis)
+}
+```
+
+```{r correlation_TPM, echo=F}
+ggplot(testis_tumor_TPMs, aes(x=mean_tumor, y=mean_testis)) +
+  geom_point(size=.1) +
+  geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+  scale_x_continuous(trans="log10") +
+  scale_y_continuous(trans="log10") +
+  scale_color_manual(values=c("protein_coding"="#849DB1",
+                             "lncRNA" = "#B66353",
+                             "processed_pseudogene" = "#FBB04E",
+                             "novel" = "#B09C85")) +
+  labs(title="Correlation TPMs between tumor and testis") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  facet_wrap(~ cancertype, nrow=1) +
+  stat_cor(label.y = 4.4) 
+ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.cancertype.png"), width=10.52, height=5.64)
+ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), width=10.52, height=5.64)
+```
+
