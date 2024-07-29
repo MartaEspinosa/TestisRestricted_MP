@@ -75,7 +75,7 @@ ggplot(TAA_df %>% group_by(gene_type, cancertype) %>% count(), aes(x=n, y=cancer
                              "lncRNA" = "#B66353",
                              "processed_pseudogene" = "#FBB04E",
                              "novel" = "#B09C85")) +
-  ggtitle("Tumor-Expressed genes (> 1 TPM in > 10% patients") +
+  ggtitle("Tumor-Expressed genes (> 1 TPM in > 10% patients)") +
   theme_classic()
 ```
 
