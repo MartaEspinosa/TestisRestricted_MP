@@ -150,7 +150,7 @@ for(i in 1:length(all_projects)) {
 
 ```{r correlation_TPM, echo=F}
 ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
-  geom_point(size=.1) +
+  geom_point(size=.03) +
   geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
   scale_x_continuous(trans="log10") +
   scale_y_continuous(trans="log10") +
@@ -162,7 +162,7 @@ ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
   theme_classic() +
   theme(legend.position = "top") +
   facet_wrap(~ cancertype, nrow=2) +
-  stat_cor(label.y = 4.4) 
+  stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type, color = gene_type), size=3) 
 ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.cancertype.png"), width=12.52, height=5.64)
 ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), width=12.52, height=5.64)
 ```
