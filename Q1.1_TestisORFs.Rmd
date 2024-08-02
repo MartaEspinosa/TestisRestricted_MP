@@ -8,7 +8,6 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
-library(tidyr)
 library(ggplot2)
 library(stringr)
 library(purrr)
@@ -326,8 +325,8 @@ log2ratios = log2ratios %>%
                              Aminoacid %in% positively_charged ~ "positive",
                              Aminoacid %in% negatively_charged ~ "negative",
                              Aminoacid %in% special_cases ~ "special")) %>%
-  subset(Aminoacid != "*") %>% 
-  drop_na()
+  subset(Aminoacid != "*")
+log2ratios = na.omit(log2ratios) 
 
 ggthemr("dust")
 ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
@@ -630,6 +629,7 @@ write.csv(ribORF_humanLiver_Annotated_biotypes, file.path(save_wd, "ribORF_human
 ## Phylistratigraphy
 
 ```{r phylostratigraphy, echo=F}
+library(tidyr)
 all_genes = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.csv")
 all_genes$Phylostratum = replace(all_genes$Phylostratum, all_genes$Phylostratum == "", "NA") 
 summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/summary_all_genes_ages.csv")
