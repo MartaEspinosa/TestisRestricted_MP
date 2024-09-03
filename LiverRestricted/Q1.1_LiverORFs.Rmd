@@ -458,7 +458,7 @@ ggsave(file.path(plots_wd,"PDF/translation_efficiency_persample.pdf"), height=4.
 mean_liver_TE_temp = liver_TE %>%
   group_by(orfID, gene_type, gene_id, gene_name, ORF_type) %>%
   count()
-mean_liver_TE_temp = merge(mean_liver_TE_temp, brain_TE, by=c("orfID", "gene_type", "gene_id", "gene_name", "ORF_type"))
+mean_liver_TE_temp = merge(mean_liver_TE_temp, liver_TE, by=c("orfID", "gene_type", "gene_id", "gene_name", "ORF_type"))
 mean_liver_TE = mean_liver_TE_temp %>%
   mutate(mean_TE = ifelse(n > 1, mean(TE), TE)) 
 mean_liver_TE = mean_liver_TE %>% select("orfID","gene_type","gene_id","gene_name","ORF_type","mean_TE") %>% unique()

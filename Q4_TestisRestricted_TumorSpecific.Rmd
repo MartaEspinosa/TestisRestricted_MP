@@ -27,7 +27,7 @@ annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_Transcrip
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots"
 save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
 
-cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","LIHC")#"COAD")
+cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","LIHC","COAD")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","GSE89223_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE103001_BRCA","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD")#,"SRP107326_COAD"]
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")

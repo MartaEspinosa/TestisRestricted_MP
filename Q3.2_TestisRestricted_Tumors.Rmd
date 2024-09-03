@@ -7,6 +7,20 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+# packages <- c("dplyr", "tidyr", "ggplot2", "stringr", "purrr", "ggvenn", "ggpubr", 
+#               "ggside", "bioseq", "ggthemr", "ggbeeswarm", "ggbreak")
+# 
+# # Install packages that are not already installed
+# installed_packages <- installed.packages()
+# for (pkg in packages) {
+#   if (!(pkg %in% installed_packages[, "Package"])) {
+#     install.packages(pkg)
+#   }
+# }
+# 
+# # Load the packages
+# lapply(packages, library, character.only = TRUE)
+
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -16,7 +30,7 @@ library(ggvenn)
 library(ggpubr)
 library(ggside)
 library(bioseq)
-library(ggthemr)
+# library(ggthemr)
 library(ggbeeswarm)
 library(ggbreak)
 
@@ -29,7 +43,7 @@ save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_T
 
 cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
-other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","GSE89223_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE103001_BRCA","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD")#,"SRP107326_COAD"]
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","GSE89223_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE103001_BRCA","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
 
@@ -177,7 +191,7 @@ all_genes_tumorexpressed = all_genes_tumorexpressed %>% mutate(ORFtype = case_wh
 
 ggplot(all_genes_tumorexpressed, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=ORFtype)) +
   geom_bar(stat="count", position="dodge") +
-    scale_y_break(c(2000, 6500)) +
+  scale_y_break(c(2000, 6500)) +  # Make sure this is a valid range
   scale_fill_manual(values=c("CDS"="#849DB1","ncORF" = "#FD8F24"), labels = c("ncORFs","CDS")) +
   labs(x="Phylostratum",
        y="Number of genes",

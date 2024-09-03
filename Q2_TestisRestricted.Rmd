@@ -787,14 +787,14 @@ ribORF_humanLiver_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_human
 ribORF_humanLiver_simplified = ribORF_humanLiver_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
   group_by(orfID, gene_type, gene_id) %>% count()
 names(ribORF_humanLiver_simplified)[4] = "num_samples"
-ribORF_humanLiver_simplified$tissue = "brain"
+ribORF_humanLiver_simplified$tissue = "liver"
 
 ## ---------- BRAIN -----------##
 ribORF_humanBrain_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_humanBrain_translated.csv"))
 ribORF_humanBrain_simplified = ribORF_humanBrain_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
   group_by(orfID, gene_type, gene_id) %>% count()
 names(ribORF_humanBrain_simplified)[4] = "num_samples"
-ribORF_humanBrain_simplified$tissue = "liver"
+ribORF_humanBrain_simplified$tissue = "brain"
 
 ggvenn(list("brain"=ribORF_humanBrain_simplified$orfID,
                  "liver"=ribORF_humanLiver_simplified$orfID,

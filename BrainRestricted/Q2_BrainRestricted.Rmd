@@ -1,0 +1,476 @@
+---
+title: "Brain-restricted microproteins | RNASeq"
+author: "Marta Espinosa"
+date: "2024-09-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+# library(ggthemr)
+library(ggbeeswarm)
+library(ggrepel)
+
+gene_transcript = read.table("/data/genomics/marta/genomes/1transcript_1gene.txt",sep=",", header=T)
+names(gene_transcript) = c("gene_id","gene_type","gene_name")
+gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots_brain"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
+```
+
+```{r annotation, echo=F}
+## novels
+novels = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/novel_temp_biomart.csv", header=F, sep=",")
+names(novels) = c("transcript_id","gene_id","gene_type")
+novels$gene_name = novels$gene_id
+
+
+## annotated
+annotated = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/annotated_1transcript_1gene.csv", header=F, sep=",")
+names(annotated) = c("gene_id","transcript_id","gene_type","gene_name")
+annotated$gene_id = gsub("\\..*","", annotated$gene_id)
+annotated$transcript_id = gsub("\\..*","", annotated$transcript_id)
+
+annotation = rbind(annotated, novels)
+write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F, quote = F)
+head(annotation)
+
+
+# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid", all.x=T))
+# head(t_e_g)
+# t_e_g <- subset(t_e_g, !grepl("ENST00000654848", transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000609202", transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000669393", transcriptID)) 
+# t_e_g <- subset(t_e_g, !grepl("ENST00000512989", transcriptID))
+# dim(t_e_g)
+```
+
+## Human Data | RNASeq
+
+### Load Table of Counts (input data)
+
+Obtained using STAR to align and featureCounts to quantify.
+
+```{r input, echo=FALSE}
+## Load counts data
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
+toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+
+## For novels, remove those shorter than 300 pb
+toc_TPMs = toc_TPMs %>%
+  filter(!(startsWith(gene_id, "TCONS") & Length < 300))
+names(toc_TPMs)[1] = "transcript_id"
+
+toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
+toc_TPMs = toc_TPMs %>% unique()
+
+toc_TPMs = toc_TPMs %>% select(-Length)
+
+dim(toc_TPMs)
+toc_TPMs %>% head
+```
+
+### TPM normalization of raw counts
+
+The expression counts data is normalized in transcript per million (TPM).
+
+
+```{r TPM_distribution, echo=F}
+# toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample", values_to = "TPM")
+## get patient number
+toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type), names_to = "sample", values_to = "TPM")
+
+toc_TPMs_long$patient = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[length(x)])
+toc_TPMs_long$patient = paste0("Patient",toc_TPMs_long$patient)
+## get tissue data
+toc_TPMs_long$tissue = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[2])
+## log2TPM
+toc_TPMs_long$log2TPM = log2(toc_TPMs_long$TPM)
+```
+
+### Brain-Expressed | RNASeq
+
+* > 1 TPM in at least 2 samples
+
+```{r brainExpressed, echo=F}
+toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% unique()
+
+#------------------ BRAIN ------------------#
+brainexpr_full = read.csv(file.path(save_wd,"brainExpressed.csv"))
+
+#------------------ LIVER ------------------#
+liverexpr_full = read.csv(file.path(save_wd,"liverExpressed.csv"))
+
+#------------------ TESTIS ------------------#
+testisexpr_full = read.csv(file.path(save_wd,"testisExpressed.csv"))
+
+print("brain")
+print(table(brainexpr_full$gene_type))
+print("liver")
+print(table(liverexpr_full$gene_type))
+print("testis")
+print(table(testisexpr_full$gene_type))
+```
+
+### Brain-Restricted | RNASeq
+
+In this case, we want to determine brain specific genes. For that matter, the following criteria was applied:
+
+* CRITERIA 2: TPM > 1 in at least 2 brain sample and TPM < 0.5 in all other tissues 
+
+The same is performed for the rest tissues. 
+
+```{r brainRestricted_Sara, echo=F}
+######## SARA'S APPROACH - no more than 0.5 in any patient
+toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% unique()
+
+#------------------ BRAIN ------------------#
+brainspecific_full = read.csv(file.path(save_wd,"brainRestricted.csv"))
+
+#------------------ LIVER ------------------#
+liverspecific_full = read.csv(file.path(save_wd,"liverRestricted.csv"))
+
+#------------------ TESTIS ------------------#
+testisspecific_full = read.csv(file.path(save_wd,"testisRestricted.csv"))
+
+print("brain")
+print(table(brainspecific_full$gene_type))
+print("liver")
+print(table(liverspecific_full$gene_type))
+print("testis")
+print(table(testisspecific_full$gene_type))
+```
+
+### Brain-Restricted | RNASeq & GTEx filter
+
+We will use GTEx to filter those genes whose expression in other tissues is higher than 0.5.
+
+In cases where several "sub-tissues" are available, we kept the highest value.
+
+```{r, reading_GTEx, echo=F}
+# gtex = read.table("/data/genomics/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+# names(gtex)[1] = "gene_id"
+# nrow(gtex)
+# gtex$gene_id = gsub("\\..*","",gtex$gene_id)
+```
+
+```{r brain_GTEx, echo=F}
+subset_brain_GTEx_w_novels = read.csv(file.path(save_wd,"brainRestricted_GTEx.csv"))
+brainRestricted = subset_brain_GTEx_w_novels
+nrow(subset_brain_GTEx_w_novels)
+tmp = subset_brain_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
+table(tmp$gene_type)
+```
+
+**Of the expressed, how many are restricted based on Wang and based on GTEx?**
+
+```{r expr_restr, echo=F}
+brainExpressed = brainexpr_full %>% mutate("brainRestricted" = case_when(gene_id %in% brainspecific_full$gene_id ~ "yes", TRUE ~ "no")) %>%
+  mutate("brainRestricted_GTEx" = case_when(gene_id %in% subset_brain_GTEx_w_novels$gene_id ~ "yes", TRUE ~ "no"))
+table(brainExpressed$gene_type)
+##-------------- WANG et al.--------------##
+table(brainExpressed$gene_type, brainExpressed$brainRestricted)
+Wang_expressed_restricted = as.data.frame(table(brainExpressed$gene_type, brainExpressed$brainRestricted))
+names(Wang_expressed_restricted) = c("gene_type","brainRestricted","n")
+Wang_expressed_restricted = Wang_expressed_restricted %>% 
+  group_by(gene_type) %>% 
+  mutate(perc = round((n/sum(n)*100),2))
+
+ggplot(Wang_expressed_restricted, aes(x=gene_type, y=n, fill=brainRestricted)) +
+  geom_bar(stat="identity", position="fill") +
+  geom_text(aes(label=paste0(perc, "%")), position=position_fill(vjust=0.5)) +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x="Biotype",
+        y="Number of genes",
+        title="How many of the brainExpressed genes\nare brainRestricted (Wang et al.)?") +
+  theme_classic() +
+  theme(legend.position="top")
+
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted.png"), height=5.69, width=4.72)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted.pdf"), height=5.69, width=4.72)
+
+
+##-------------- GTEx et al.--------------##
+GTEx_expressed_restricted = as.data.frame(table(brainExpressed$gene_type, brainExpressed$brainRestricted_GTEx))
+names(GTEx_expressed_restricted) = c("gene_type","brainRestricted_GTEx","n")
+GTEx_expressed_restricted = GTEx_expressed_restricted %>% 
+  group_by(gene_type) %>% 
+  mutate(perc = round((n/sum(n)*100),2))
+
+## novels excluded cause they cannot be checked
+ggplot(GTEx_expressed_restricted %>% subset(gene_type != "novel"), aes(x=gene_type, y=n, fill=brainRestricted_GTEx)) +
+  geom_bar(stat="identity", position="fill") +
+  geom_text(aes(label=paste0(perc, "%")), position=position_fill(vjust=0.5)) +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x="Biotype",
+        y="Number of genes",
+        title="How many of the brainExpressed genes\nare brainRestricted GTEx?") +
+  theme_classic() +
+  theme(legend.position="top")
+
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted_GTEx.png"), height=5.69, width=4.72)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted_GTEx.pdf"), height=5.69, width=4.72)
+```
+
+## TESTIS-RESTRICTED
+
+```{r testis_GTEx, echo=F}
+subset_testis_GTEx_w_novels = read.csv(file.path(save_wd,"testisRestricted_GTEx.csv"))
+```
+
+## LIVER-RESTRICTED
+
+```{r liver_GTEx, echo=F}
+subset_liver_GTEx_w_novels = read.csv(file.path(save_wd,"liverRestricted_GTEx.csv"))
+```
+
+
+## Human Data | RiboSeq
+
+#### Brain-Expressed with RiboSeq
+
+```{r translation_Expressed,echo=F}
+## translation
+ribORF_humanBrain_in2_fastas = read.csv(file.path(save_wd, "ribORF_humanBrain_in2.csv"))
+table(ribORF_humanBrain_in2_fastas$gene_type)
+
+nrow(brainExpressed)
+table(brainExpressed$gene_type)
+## how many of the brain expressed are translated?
+brainExpressed_Restricted_Translated = merge(brainExpressed %>% select(gene_id, gene_type, gene_name, brainRestricted), ribORF_humanBrain_in2_fastas, by=c("gene_id","gene_name","gene_type"))
+nrow(brainExpressed_Restricted_Translated)
+table(brainExpressed_Restricted_Translated$gene_type)
+table(brainExpressed_Restricted_Translated$brainRestricted, brainExpressed_Restricted_Translated$gene_type)
+brainExpressed_Restricted_Translated = brainExpressed_Restricted_Translated %>% select(-ORFseq)
+
+to_plot = brainExpressed_Restricted_Translated %>% group_by(gene_type) %>% count()
+to_plot = as.data.frame(to_plot)
+ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out", lab.font = c(3, "plain", "black"),
+      palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) +
+  ggtitle("ORFs from brain-Expressed genes only translated in brain (2 samples at least)")
+ggsave(file.path(plots_wd,"PNG/brainExpressed_translated.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_translated.pdf"), height=4.69, width=5.4)
+```
+
+```{r differences_Expressed, echo=F}
+#### should I do it vs all or vs the non-brainRestricted?
+##---------- length differences ----------##
+ggplot(brainExpressed_Restricted_Translated, aes(x=brainRestricted, y=length_aa, fill=brainRestricted)) +
+  geom_boxplot() +
+  stat_compare_means() +
+  scale_y_continuous(trans="log10") +
+    scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  labs(title="Translated brainExpressed & brainRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted_lengthAA.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted_lengthAA.pdf"), height=4.69, width=5.4)
+
+##---------- length differences | gene_type ----------##
+ggplot(brainExpressed_Restricted_Translated, aes(x=gene_type, y=length_aa, fill=brainRestricted)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_y_continuous(trans="log10") +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  labs(title="Translated brainExpressed & brainRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted_lengthAA_genetype.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted_lengthAA_genetype.pdf"), height=4.69, width=5.4)
+##---------- composition differences ----------##
+## log2ratio to see if ncORFs are relatively enriched in any aminoacid
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+
+## select ncORFs - no brainRestricted
+ncORFs_no_seqs = brainExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(brainRestricted == "no")
+ncORFs_no_seqs = as.character(ncORFs_no_seqs$ORFpep)
+## select ncORFs - brainRestricted
+ncORFs_yes_seqs = brainExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(brainRestricted == "yes")
+ncORFs_yes_seqs = as.character(ncORFs_yes_seqs$ORFpep)
+
+## select ORFs - no brainRestricted
+ORFs_no_seqs = brainExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(brainRestricted == "no")
+ORFs_no_seqs = as.character(ORFs_no_seqs$ORFpep)
+## select ORFs - brainRestricted
+ORFs_yes_seqs = brainExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(brainRestricted == "yes")
+ORFs_yes_seqs = as.character(ORFs_yes_seqs$ORFpep)
+
+## compute log2ratio per letter - brainRestricted
+log2ratios_yes = calculate_log2ratio_df(ncORFs_yes_seqs, ORFs_yes_seqs)
+print(log2ratios_yes)
+names(log2ratios_yes)[2] = "log2ratio_yes_ncORFs_vs_ORFs"
+log2ratios_yes = log2ratios_yes %>% subset(log2ratio_yes_ncORFs_vs_ORFs != 0)
+
+## compute log2ratio per letter - no brainRestricted
+log2ratios_no = calculate_log2ratio_df(ncORFs_no_seqs, ORFs_no_seqs)
+names(log2ratios_no)[2] = "log2ratio_no_ncORFs_vs_ORFs"
+log2ratios_no = log2ratios_no %>% subset(log2ratio_no_ncORFs_vs_ORFs != 0)
+
+## compute log2ratio per letter - yes vs no brainRestricted independently of genetype
+log2ratios_yes_vs_no = calculate_log2ratio_df(paste(ncORFs_no_seqs, ORFs_no_seqs), paste(ncORFs_yes_seqs, ORFs_yes_seqs))
+names(log2ratios_yes_vs_no)[2] = "log2ratio_yes_vs_no"
+print(log2ratios_yes_vs_no)
+log2ratios_yes_vs_no = log2ratios_yes_vs_no %>% subset(log2ratio_yes_vs_no != 0)
+
+
+
+hph=c("A","V","L","I","M","F","Y","W")
+polar=c("S","T","N","Q")
+positively_charged=c("R","H","K")
+negatively_charged=c("D","E")
+special_cases=c("C","G","P")
+
+
+log2ratios = list(log2ratios_yes, log2ratios_no, log2ratios_yes_vs_no) %>% reduce(full_join, by='Aminoacid')
+log2ratios = log2ratios %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% 
+  drop_na()
+
+log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no","log2ratio_no_ncORFs_vs_ORFs","log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type", values_to = "log2ratio")
+
+# ggthemr("dust")
+ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in ncORFs",
+       fill="Aminoacid type") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  facet_grid(type ~ aa_type, scales="free_x", space="free_x")
+ggsave(file.path(plots_wd,"PNG/log2ratio_severalconditions.png"), height=7.05, width=8.46)
+ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, width=8.46)
+
+
+##---------- translation efficiency ----------##
+mean_brain_TE = read.csv(file.path(save_wd, "mean_translationEfficiency_brain.csv"))
+names(mean_brain_TE)[5] = "orfType"
+brainExpressed_Restricted_Translated = merge(brainExpressed_Restricted_Translated,mean_brain_TE, by=c("orfID","gene_id", "gene_type", "gene_name", "orfType"))
+
+ggplot(brainExpressed_Restricted_Translated, aes(x=brainRestricted, y=mean_TE, fill=brainRestricted)) +
+  geom_boxplot() +
+  stat_compare_means() +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(trans="log10") +
+  labs(title="Translated BrainExpressed & BrainRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted_TE.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted_TE.pdf"), height=4.69, width=5.4)
+
+##---------- translation efficiency | gene_type ----------##
+ggplot(brainExpressed_Restricted_Translated, aes(x=gene_type, y=mean_TE, fill=brainRestricted)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_y_continuous(trans="log10") +
+  labs(title="Translated BrainExpressed & BrainRestricted ORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/brainExpressed_brainRestricted_TE_genetype.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainExpressed_brainRestricted_TE_genetype.pdf"), height=4.69, width=5.4)  
+```
+
+#### Brain-Specific with RiboSeq
+
+```{r translation_brainRestricted,echo=F}
+brainRestrictedGTEx_Translated = merge(subset_brain_GTEx_w_novels %>% select(gene_id, gene_type, gene_name), ribORF_humanBrain_in2_fastas, by=c("gene_id","gene_name","gene_type")) 
+write.csv(brainRestrictedGTEx_Translated, file.path(save_wd, "brainRestricted_GTEx_translatedINbrain.csv"), row.names = F, quote = F)
+
+## how many brain REstricted GTEx are translated?
+nrow(brainRestrictedGTEx_Translated)
+table(brainRestrictedGTEx_Translated$gene_type)
+brainRestrictedGTEx_Translated = brainRestrictedGTEx_Translated %>% select(-ORFseq)
+
+dim(brainRestrictedGTEx_Translated)
+to_plot = brainRestrictedGTEx_Translated %>% group_by(gene_type) %>% count()
+to_plot = as.data.frame(to_plot)
+ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out",   lab.font = c(5, "plain", "black"),
+      palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) +
+  ggtitle("ORFs from brain-Restricted GTEx genes translated in brain (2 samples at least)")
+ggsave(file.path(plots_wd,"PNG/brainRestrictedGTEx_Translated.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainRestrictedGTEx_Translated.pdf"), height=4.69, width=5.4)
+```
+
+Of the brain-restricted genes, which proportion of the ncORFs/canonical ORFs that are translated in at least 2 brain samples are **only translated** in brain? 
+
+```{r tbrainTranslated_in_tissues, echo=F}
+## ---------- TESTIS -----------##
+ribORF_humanTestis_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_humanTestis_translated.csv"))
+ribORF_humanTestis_simplified = ribORF_humanTestis_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
+  group_by(orfID, gene_type, gene_id) %>% count()
+names(ribORF_humanTestis_simplified)[4] = "num_samples"
+ribORF_humanTestis_simplified$tissue = "testis"
+
+## ---------- LIVER -----------##
+ribORF_humanLiver_Annotated_biotypes = read.csv(file.path(save_wd, "ribORF_humanLiver_translated.csv"))
+ribORF_humanLiver_simplified = ribORF_humanLiver_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
+  group_by(orfID, gene_type, gene_id) %>% count()
+names(ribORF_humanLiver_simplified)[4] = "num_samples"
+ribORF_humanLiver_simplified$tissue = "liver"
+
+ggvenn(list("brain"=brainRestrictedGTEx_Translated$orfID,
+                 "liver"=ribORF_humanLiver_simplified$orfID,
+                 "testis"=ribORF_humanTestis_simplified$orfID),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C57A2","#ABCD72","#82581F")) +
+  ggtitle("Translated ORFs per tissues")
+ggsave(file.path(plots_wd,"PNG/brainRestricted_translated_tissues.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainRestricted_translated_tissues.pdf"), height=4.69, width=5.4)
+
+brainRestrictedGTEx_Translated = brainRestrictedGTEx_Translated %>% mutate("TranslatedTestis" = case_when(orfID %in% ribORF_humanTestis_simplified$orfID ~ "yes",TRUE ~ "no")) %>% mutate("TranslatedLiver" = case_when(orfID %in% ribORF_humanLiver_simplified$orfID ~ "yes",TRUE ~ "no"))
+
+## select those only TRANSLATED in brain (in at least 2 samples) and no in any sample from liver or testis 
+brainRestrictedGTEx_Translated_onlyBrain = brainRestrictedGTEx_Translated %>% subset(TranslatedTestis == "no" & TranslatedLiver == "no")
+write.csv(brainRestrictedGTEx_Translated_onlyBrain, file.path(save_wd, "brainRestricted_GTEx_translatedONLYbrain.csv"), row.names = F, quote = F)
+table(brainRestrictedGTEx_Translated_onlyBrain$gene_type)
+
+to_plot_translatedOnlyBrain = brainRestrictedGTEx_Translated_onlyBrain %>% group_by(gene_type) %>% count()
+to_plot_translatedOnlyBrain = as.data.frame(to_plot_translatedOnlyBrain)
+
+###### ggpie
+labs <- paste0(to_plot_translatedOnlyBrain$gene_type, " (", to_plot_translatedOnlyBrain$n, ")")
+ggpie(to_plot_translatedOnlyBrain, "n", label="n", fill="gene_type", lab.pos = "out", palette=c("protein_coding"="#849DB1",
+                         "lncRNA" = "#B66353",
+                         "processed_pseudogene" = "#FBB04E",
+                                          "novel" = "#B09C85")) +
+  ggtitle("ORFs from brain-expressed genes translated ONLY in brain (2 samples at least)")
+ggsave(file.path(plots_wd,"PNG/brainRestricted_ORFs_onlyBrain.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/brainRestricted_ORFs_onlyBrain.pdf"), height=4.69, width=5.4)  
+```
+
