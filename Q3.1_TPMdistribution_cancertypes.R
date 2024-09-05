@@ -3,11 +3,10 @@ library(tidyr)
 library(dplyr)
 
 cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","LIHC","COAD")
-cancers = c("PRAD")
 
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
-other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","GSE89223_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE103001_BRCA","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
-# other_projects_per_sample=c("PRJEB2449_PRAD")
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+# deleted=c("GSE103001_BRCA","GSE89223_PRAD")
 
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)

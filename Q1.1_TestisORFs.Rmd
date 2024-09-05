@@ -15,7 +15,7 @@ library(ggvenn)
 library(ggpubr)
 library(ggside)
 library(bioseq)
-library(ggthemr)
+# library(ggthemr)
 library(ggbeeswarm)
 library(ggbreak)
 
@@ -36,7 +36,7 @@ save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_T
 
 - Only canonical ORFs are maintained for protein coding genes
 
-- Only reproducible results on translated ORFs are expected, so we only keep ORFs that are translated in 2 out of 3 testis samples
+- Only reproducible results on translated ORFs are expected, so we only keep ORFs that are translated in 1 out of 3 testis samples
 
 ```{r riboNovel_input, echo=F}
 ##-------------------------- SAMPLE 1 --------------------------##
@@ -114,6 +114,18 @@ ribORF_humanTestis_Annotated %>% subset(gene_type == "lncRNA" | gene_type == "pr
 ribORF_humanTestis_Annotated_biotypes = ribORF_humanTestis_Annotated %>%
   subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>%
   filter(!(gene_type == "protein_coding" & orfType != "canonical"))
+
+for(g in 1:length(unique(ribORF_humanTestis_Annotated_biotypes$gene_type))){
+  temp_to_plot = ribORF_humanTestis_Annotated_biotypes %>% subset(gene_type == unique(ribORF_humanTestis_Annotated_biotypes$gene_type)[g])
+  ggvenn(list("Sample1"=temp_to_plot %>% subset(sample == "Testis1") %>% pull(orfID),
+                 "Sample2"=temp_to_plot %>% subset(sample == "Testis2") %>% pull(orfID),
+                 "Sample3"=temp_to_plot %>% subset(sample == "Testis3") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle(paste0("Testis-expressed ",unique(ribORF_humanTestis_Annotated_biotypes$gene_type)[g]," ORFs"))
+ggsave(paste0(plots_wd,"/PNG/venn_TestisExpressedORFs_",unique(ribORF_humanTestis_Annotated_biotypes$gene_type)[g],".png"))
+ggsave(paste0(plots_wd,"/PDF/venn_TestisExpressedORFs_",unique(ribORF_humanTestis_Annotated_biotypes$gene_type)[g],".pdf"))
+}
+
 ```
 
 #### How many ORFs are translated in at least 2 out of the 3 testis samples?
