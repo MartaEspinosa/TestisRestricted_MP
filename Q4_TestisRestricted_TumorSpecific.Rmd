@@ -242,10 +242,10 @@ summary_stats <- TSA_testisSpecific %>%
   summarise(
     # min_length = min(n, na.rm = TRUE),
     # q1_length = quantile(n, 0.25, na.rm = TRUE),
-    median_length = median(n, na.rm = TRUE),
-    mean_length = mean(n, na.rm = TRUE),
+    median_n_patients = median(n, na.rm = TRUE),
+    mean_n_patients = mean(n, na.rm = TRUE),
     # q3_length = quantile(n, 0.75, na.rm = TRUE),
-    max_length = max(n, na.rm = TRUE),
+    max_n_patients = max(n, na.rm = TRUE),
     .groups = 'drop'
   )
 

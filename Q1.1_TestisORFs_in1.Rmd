@@ -18,8 +18,6 @@ library(bioseq)
 # library(ggthemr)
 library(ggbeeswarm)
 library(ggbreak)
-library(GGally)
-library(tidyr)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 # names(gene_transcript) = c("gene_id","gene_type","gene_name")
@@ -172,7 +170,6 @@ num_ORFs_per_transcript = ribORF_humanTestis_in1 %>%
 ```{r ORFs_per_biotype, echo=F}
 num_ORFs_per_biotype = num_ORFs_per_transcript %>% group_by(gene_type, n_ORFs) %>% count()
 num_ORFs_per_biotype %>% head
-print(num_ORFs_per_transcript %>% group_by(gene_type) %>% summarise(mean_n_ORFs = mean(n_ORFs), sd_n_ORFs = sd(n_ORFs)))
 
 num_ORFs_per_biotype = num_ORFs_per_biotype %>% mutate(num_ORFs_modif = case_when(n_ORFs >= 10 ~ "morethan10", TRUE ~ as.character(n_ORFs)))
 ggplot(num_ORFs_per_biotype, aes(x=num_ORFs_modif, y=n, fill=gene_type)) +
@@ -219,8 +216,6 @@ wilcox.test(ribORF_humanTestis_in1$length ~ ribORF_humanTestis_in1$orfType)
 
 ```{r length_2, echo=F}
 ribORF_humanTestis_in1$length_aa = ribORF_humanTestis_in1$length/3
-print(ribORF_humanTestis_in1 %>% group_by(gene_type) %>% summarise(median_length_aa = median(length_aa), mean_length_aa = mean(length_aa), sd_length_aa = sd(length_aa)))
-
 ggplot(ribORF_humanTestis_in1, aes(x=length_aa, fill=gene_type, color="black")) +
   geom_density(alpha=.5, color="black") +
   geom_xsideboxplot(orientation = "y", width=4, color="black") +
@@ -525,279 +520,6 @@ ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE.png"), height=4.72,
 ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE.pdf"), height=4.72, width=5.02)
 ```
 
-```{r mean_TE_brain, echo=F}
-# orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_1.tsv", sep="\t")
-# orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_2.tsv", sep="\t")
-# orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_3.tsv", sep="\t")
-# 
-# orf_TE = rbind(orf_TE_1, orf_TE_2, orf_TE_3)
-# 
-# ## get transcript_id
-# # orf_TE$transcript_id = gsub(":.*","",orf_TE$orfID)
-# # orf_TE$transcript_id = gsub("\\..*","",orf_TE$transcript_id)
-# # 
-# # ## we keep only those that are in the interesting subset
-# # nrow(ribORF_humanTestis_in1)
-# # orf_TE_in1 = orf_TE %>% 
-# #   select(orfID,ORF_type,transcript_id) %>% 
-# #   unique() %>% 
-# #   subset(orfID %in% ribORF_humanTestis_in1$orfID) %>% 
-# #   unique()
-# # nrow(orf_TE_in1)
-# # orf_TE_in1 = merge(orf_TE_in1, annot, by="transcript_id")
-# # nrow(orf_TE_in1)
-# 
-# TPMs_RNA = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv")
-# TPMs_RNA %>% head
-# brain_TPMs = TPMs_RNA %>% select(gene_id, Length, human_brain_rna_1, human_brain_rna_2, human_brain_rna_3)
-# names(brain_TPMs)[1] = "transcript_id"
-# brain_TPMs_with_ORFs = brain_TPMs %>% subset(transcript_id %in% orf_TE_in1$transcript_id)
-# 
-# #----------- sample 1 ---------#
-# ## riboseq
-# orf_brain_1 = orf_TE %>% subset(Sample == "testis_1") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_brain_1)[4] = "Ribo_TPM"
-# orf_brain_1 = merge(orf_brain_1, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_brain_1 = brain_TPMs_with_ORFs %>% select(transcript_id, human_brain_rna_1)
-# names(rna_brain_1)[2] = "RNA_TPM"
-# 
-# brain_1 = merge(rna_brain_1, orf_brain_1, by=c("transcript_id"))
-# 
-# ## TE
-# brain_1$TE = testis_1$Ribo_TPM / testis_1$RNA_TPM
-# brain_1$sample = "Brain_1"
-# 
-# #----------- sample 2 ---------#
-# ## riboseq
-# orf_brain_2 = orf_TE %>% subset(Sample == "brain_2") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_brain_2)[4] = "Ribo_TPM"
-# orf_brain_2 = merge(orf_brain_2, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_brain_2 = brain_TPMs_with_ORFs %>% select(transcript_id, human_brain_rna_2)
-# names(rna_brain_2)[2] = "RNA_TPM"
-# 
-# brain_2 = merge(rna_brain_2, orf_brain_2, by=c("transcript_id"))
-# 
-# ## TE
-# brain_2$TE = brain_2$Ribo_TPM / brain_2$RNA_TPM
-# brain_2$sample = "Brain_2"
-# 
-# #----------- sample 3 ---------#
-# ## riboseq
-# orf_brain_3 = orf_TE %>% subset(Sample == "brain_3") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_brain_3)[4] = "Ribo_TPM"
-# orf_brain_3 = merge(orf_brain_3, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_brain_3 = brain_TPMs_with_ORFs %>% select(transcript_id, human_brain_rna_3) 
-# names(rna_testis_3)[2] = "RNA_TPM"
-# 
-# brain_3 = merge(rna_brain_3, orf_brain_3, by=c("transcript_id"))
-# 
-# ## TE
-# brain_3$TE = brain_3$Ribo_TPM / brain_3$RNA_TPM
-# brain_3$sample = "Brain_3"
-# #--------------- merging ---------------#
-# brain_TE = rbind(brain_1, brain_2, brain_3)
-# write.csv(brain_TE, file.path(save_wd, "translationEfficiency_brain.csv"), row.names=F)
-# brain_TE = brain_TE %>% subset(Ribo_TPM > 0 & RNA_TPM > 0)
-# write.csv(brain_TE, file.path(save_wd, "translationEfficiency_brain.withoutZeros.csv"), row.names=F)
-# 
-# ggplot(brain_TE, aes(x=sample, y=TE, fill=gene_type)) +
-#   geom_boxplot() +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                                                "novel" = "#B09C85")) +
-#   labs(x="Sample",
-#   y="Translation Efficiency",
-#   title="Translation Efficiency") +
-#   scale_y_continuous(trans="log10") +
-#   theme_classic()
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_persample_brain.png"), height=4.72, width=6.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_persample_brain.pdf"), height=4.72, width=6.02)
-# 
-# ## if an ORF is translated in more than 1 sample, compute the mean
-# mean_brain_TE = brain_TE %>%
-#   group_by(orfID, gene_type, gene_id, gene_name, ORF_type) %>%
-#   summarize(mean_TE = ifelse(n() > 1, mean(TE), TE))
-# write.csv(mean_brain_TE, file.path(save_wd, "mean_translationEfficiency_brain.csv"), row.names=F)
-# 
-# 
-# ggplot(mean_brain_TE, aes(x=gene_type, y=log10(mean_TE))) +
-#   # geom_violin(aes(fill=gene_type), alpha=.2) +
-#   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
-#   geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   scale_color_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   labs(x="Biotype",
-#   y="Translation Efficiency (log10TE)",
-#   title="Translation Efficiency") +
-#   # scale_y_continuous(trans="log10") +
-#   theme_classic() +
-#   theme(legend.position="none")
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE_brain.log10.png"), height=4.72, width=5.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE_brain.log10.pdf"), height=4.72, width=5.02)
-# 
-# ggplot(mean_brain_TE, aes(x=gene_type, y=mean_TE)) +
-#   # geom_violin(aes(fill=gene_type), alpha=.2) +
-#   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
-#   geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   scale_color_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   labs(x="Biotype",
-#   y="Translation Efficiency",
-#   title="Translation Efficiency") +
-#   scale_y_continuous(trans="log10") +
-#   theme_classic() +
-#   theme(legend.position="none")
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE_brain.png"), height=4.72, width=5.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE_brain.pdf"), height=4.72, width=5.02)
-```
-
-```{r mean_TE_liver, echo=F}
-# liver_TPMs = TPMs_RNA %>% select(gene_id, Length, human_liver_rna_1, human_liver_rna_2, human_liver_rna_3)
-# names(liver_TPMs)[1] = "transcript_id"
-# liver_TPMs_with_ORFs = liver_TPMs %>% subset(transcript_id %in% orf_TE_in1$transcript_id)
-# 
-# #----------- sample 1 ---------#
-# ## riboseq
-# orf_liver_1 = orf_TE %>% subset(Sample == "testis_1") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_liver_1)[4] = "Ribo_TPM"
-# orf_liver_1 = merge(orf_liver_1, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_liver_1 = testis_TPMs_with_ORFs %>% select(transcript_id, human_liver_rna_1)
-# names(rna_liver_1)[2] = "RNA_TPM"
-# 
-# liver_1 = merge(rna_liver_1, orf_liver_1, by=c("transcript_id"))
-# 
-# ## TE
-# liver_1$TE = testis_1$Ribo_TPM / testis_1$RNA_TPM
-# liver_1$sample = "Liver_1"
-# 
-# #----------- sample 2 ---------#
-# ## riboseq
-# orf_liver_2 = orf_TE %>% subset(Sample == "liver_2") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_liver_2)[4] = "Ribo_TPM"
-# orf_liver_2 = merge(orf_liver_2, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_liver_2 = liver_TPMs_with_ORFs %>% select(transcript_id, human_liver_rna_2)
-# names(rna_liver_2)[2] = "RNA_TPM"
-# 
-# liver_2 = merge(rna_liver_2, orf_liver_2, by=c("transcript_id"))
-# 
-# ## TE
-# liver_2$TE = liver_2$Ribo_TPM / liver_2$RNA_TPM
-# liver_2$sample = "Liver_2"
-# 
-# #----------- sample 3 ---------#
-# ## riboseq
-# orf_liver_3 = orf_TE %>% subset(Sample == "liver_3") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-# names(orf_liver_3)[4] = "Ribo_TPM"
-# orf_liver_3 = merge(orf_liver_3, annot, by="transcript_id")
-# 
-# ## rnaseq
-# rna_liver_3 = liver_TPMs_with_ORFs %>% select(transcript_id, human_liver_rna_3) 
-# names(rna_testis_3)[2] = "RNA_TPM"
-# 
-# liver_3 = merge(rna_liver_3, orf_liver_3, by=c("transcript_id"))
-# 
-# ## TE
-# liver_3$TE = liver_3$Ribo_TPM / liver_3$RNA_TPM
-# liver_3$sample = "Liver_3"
-# #--------------- merging ---------------#
-# liver_TE = rbind(liver_1, liver_2, liver_3)
-# write.csv(liver_TE, file.path(save_wd, "translationEfficiency_liver.csv"), row.names=F)
-# liver_TE = liver_TE %>% subset(Ribo_TPM > 0 & RNA_TPM > 0)
-# write.csv(liver_TE, file.path(save_wd, "translationEfficiency_liver.withoutZeros.csv"), row.names=F)
-# 
-# ggplot(liver_TE, aes(x=sample, y=TE, fill=gene_type)) +
-#   geom_boxplot() +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                                                "novel" = "#B09C85")) +
-#   labs(x="Sample",
-#   y="Translation Efficiency",
-#   title="Translation Efficiency") +
-#   scale_y_continuous(trans="log10") +
-#   theme_classic()
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_persample_liver.png"), height=4.72, width=6.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_persample_liver.pdf"), height=4.72, width=6.02)
-# 
-# ## if an ORF is translated in more than 1 sample, compute the mean
-# mean_liver_TE = liver_TE %>%
-#   group_by(orfID, gene_type, gene_id, gene_name, ORF_type) %>%
-#   summarize(mean_TE = ifelse(n() > 1, mean(TE), TE))
-# write.csv(mean_liver_TE, file.path(save_wd, "mean_translationEfficiency_liver.csv"), row.names=F)
-# 
-# 
-# ggplot(mean_liver_TE, aes(x=gene_type, y=log10(mean_TE))) +
-#   # geom_violin(aes(fill=gene_type), alpha=.2) +
-#   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
-#   geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   scale_color_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   labs(x="Biotype",
-#   y="Translation Efficiency (log10TE)",
-#   title="Translation Efficiency") +
-#   # scale_y_continuous(trans="log10") +
-#   theme_classic() +
-#   theme(legend.position="none")
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE_liver.log10.png"), height=4.72, width=5.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE_liver.log10.pdf"), height=4.72, width=5.02)
-# 
-# ggplot(mean_liver_TE, aes(x=gene_type, y=mean_TE)) +
-#   # geom_violin(aes(fill=gene_type), alpha=.2) +
-#   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=gene_type)) +
-#   geom_boxplot(width=0.25, aes(color = "black", fill=gene_type), alpha=.8) +
-#   scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   scale_color_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#   labs(x="Biotype",
-#   y="Translation Efficiency",
-#   title="Translation Efficiency") +
-#   scale_y_continuous(trans="log10") +
-#   theme_classic() +
-#   theme(legend.position="none")
-# 
-# ggsave(file.path(plots_wd,"PNG/translation_efficiency_meanTE_liver.png"), height=4.72, width=5.02)
-# ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE_liver.pdf"), height=4.72, width=5.02)
-```
-
 ## Of the translated, how many are NOT translated in liver or brain?
 
 ```{r translation_brain, echo=F}
@@ -916,131 +638,56 @@ ribORF_humanLiver_Annotated_biotypes = ribORF_humanLiver_Annotated %>%
 write.csv(ribORF_humanLiver_Annotated_biotypes, file.path(save_wd, "ribORF_humanLiver_translated.csv"), row.names=F) 
 ```
 
-## Control
-
-For those we consider as tissue specific (Testis-specific in this case), which is the RNASeq expression in the other tissues? We want to answer if there are genes expressed in all or both tissues but only translated in one.
-
-```{r control_rnaseq}
-TPMs_RNA_Testis_in1 = TPMs_RNA %>% subset(gene_id %in% ribORF_humanTestis_in1$transcript_id)
-TPMs_RNA_Testis_in1 = TPMs_RNA_Testis_in1 %>% pivot_longer(cols=-c(gene_id, Length), names_to="sample", values_to = "TPM")
-## get tissue
-TPMs_RNA_Testis_in1$tissue = str_match(TPMs_RNA_Testis_in1$sample, "_\\s*(.*?)\\s*_rna")[,2]
-## compute median
-medianTPMs_RNA_Testis_in1 = TPMs_RNA_Testis_in1 %>% group_by(gene_id,tissue) %>% summarise(meanTPM = mean(TPM))
-names(medianTPMs_RNA_Testis_in1)[1] = "transcript_id"
-medianTPMs_RNA_Testis_in1 = merge(medianTPMs_RNA_Testis_in1, annot, by="transcript_id")
-## log
-medianTPMs_RNA_Testis_in1$logmeanTPM = log(medianTPMs_RNA_Testis_in1$meanTPM)
-medianTPMs_RNA_Testis_in1 = medianTPMs_RNA_Testis_in1 %>% select(-meanTPM)
-## 1 column per tissue
-medianTPMs_RNA_Testis_in1_wide = medianTPMs_RNA_Testis_in1 %>% pivot_wider(names_from = tissue, values_from = logmeanTPM)
-
-ggplot(medianTPMs_RNA_Testis_in1_wide %>% select(-liver), aes(x=testis, y=brain)) +
-  geom_point(size=.4, aes(color=gene_type)) +
-  geom_hline(yintercept = 1, color="red") +
-  geom_vline(xintercept = 1, color="red") +
-    scale_color_manual(values=c("protein_coding"="#849DB1",
-                        "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E",
-                        "novel" = "#B09C85")) +
-  labs(title="RNA expression Testis vs Brain of genes with translated ORFs",
-       x="mean logTPM Testis",
-       y="mean logTPM Brain") +
-  theme_classic()
-
-## without protein coding
-ggplot(medianTPMs_RNA_Testis_in1_wide %>% select(-liver) %>% subset(gene_type != "protein_coding"), aes(x=testis, y=brain)) +
-  geom_point(size=.4, aes(color=gene_type)) +
-  geom_hline(yintercept = 1, color="red") +
-  geom_vline(xintercept = 1, color="red") +
-      scale_color_manual(values=c("protein_coding"="#849DB1",
-                        "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E",
-                        "novel" = "#B09C85")) +
-  labs(title="RNA expression Testis vs Brain of genes with translated ORFs",
-       x="mean logTPM Testis",
-       y="mean logTPM Brain") +
-  theme_classic()
-
-ggplot(medianTPMs_RNA_Testis_in1_wide %>% select(-brain), aes(x=testis, y=liver)) +
-  geom_point(size=.4, aes(color=gene_type)) +
-  geom_hline(yintercept = 1, color="red") +
-  geom_vline(xintercept = 1, color="red") +
-      scale_color_manual(values=c("protein_coding"="#849DB1",
-                        "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E",
-                        "novel" = "#B09C85")) +
-  labs(title="RNA expression Testis vs Liver of genes with translated ORFs",
-       x="mean logTPM Testis",
-       y="mean logTPM Liver") +
-  theme_classic()
-
-## without protein coding
-ggplot(medianTPMs_RNA_Testis_in1_wide %>% select(-brain) %>% subset(gene_type != "protein_coding"), aes(x=testis, y=liver)) +
-  geom_point(size=.4, aes(color=gene_type)) +
-  geom_hline(yintercept = 1, color="red") +
-  geom_vline(xintercept = 1, color="red") +
-      scale_color_manual(values=c("protein_coding"="#849DB1",
-                        "lncRNA" = "#B66353",
-                        "processed_pseudogene" = "#FBB04E",
-                        "novel" = "#B09C85")) +
-  labs(title="RNA expression Testis vs Liver of genes with translated ORFs",
-       x="mean logTPM Testis",
-       y="mean logTPM Liver") +
-  theme_classic()
-
-```
-
 ## Phylistratigraphy
 
 ```{r phylostratigraphy, echo=F}
-# library(tidyr)
-# all_genes = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.csv")
-# all_genes$Phylostratum = replace(all_genes$Phylostratum, all_genes$Phylostratum == "", "NA") 
-# summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/summary_all_genes_ages.csv")
-# summary = summary %>% pivot_longer(cols=c(n_PCGs, n_ncORFs), names_to = "type", values_to = "n")
-# ggplot(summary, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), y=n, fill=type)) +
-#   geom_bar(stat="identity", position="dodge") +
-#     # scale_y_break(c(2000, 6500)) +
-#   scale_fill_manual(values=c("n_PCGs"="#849DB1","n_ncORFs" = "#FD8F24"), labels = c("ncORFs","CDS")) +
-#   labs(x="Phylostratum",
-#        y="Number of genes",
-#        fill="Gene type",
-#        title="Evolutionary ages of all translated ORFs in testis") +
-#   theme_classic() +
-#   theme(axis.text.x = element_text(angle=90))
-# ggsave(file.path(plots_wd,"PNG/evoAge_translatedin1.png"), width=7.97, height=4.59)
-# ggsave(file.path(plots_wd,"PDF/evoAge_translatedin1.pdf"), width=7.97, height=4.59)
+library(tidyr)
+all_genes = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.csv")
+all_genes$Phylostratum = replace(all_genes$Phylostratum, all_genes$Phylostratum == "", "NA") 
+summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/summary_all_genes_ages.csv")
+summary = summary %>% pivot_longer(cols=c(n_PCGs, n_ncORFs), names_to = "type", values_to = "n")
+ggplot(summary, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), y=n, fill=type)) +
+  geom_bar(stat="identity", position="dodge") +
+    scale_y_break(c(2000, 6500)) +
+  scale_fill_manual(values=c("n_PCGs"="#849DB1","n_ncORFs" = "#FD8F24"), labels = c("ncORFs","CDS")) +
+  labs(x="Phylostratum",
+       y="Number of genes",
+       fill="Gene type",
+       title="Evolutionary ages of all translated ORFs in testis") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90))
+ggsave(file.path(plots_wd,"PNG/evoAge_translatedin1.png"), width=7.97, height=4.59)
+ggsave(file.path(plots_wd,"PDF/evoAge_translatedin1.pdf"), width=7.97, height=4.59)
 ```
 
 ```{r ncORFs_length, echo=F}
-# ncORFs = all_genes %>% subset(Phylostratum == "cellular organisms" | Phylostratum == "Homo sapiens")%>% subset(gene_type != "protein_coding")
-# ncORFs = ncORFs %>%
-#   mutate(length = str_match(orfID, "([0-9]+):([0-9]+)\\|") %>%
-#                   {as.numeric(.[,3]) - as.numeric(.[,2]) / 3})
-# 
-# ggplot(ncORFs, aes(y=length, x=Phylostratum, fill=Phylostratum, color=Phylostratum)) +
-#   geom_boxplot(width=.2, color="black") +
-#   geom_violin(fill=NA) +
-#   scale_y_continuous(trans="log10") +
-#   stat_compare_means() +
-#   scale_fill_manual(values=c("#800000","#9dc183","purple")) +
-#   scale_color_manual(values=c("#800000","#9dc183","purple")) +
-#   labs(x="Phylostratum",
-#        y="Length (AA)",
-#        title="Is length of the ncORFs correlated with the evolutionary age?") +
-#   theme_classic() +
-#   theme(legend.position = "none") +
-#   facet_wrap(~ gene_type)
-# ggsave(file.path(plots_wd,"PNG/evoAge_vs_length_translatedin1.png"), width=7.97, height=4.59)
-# ggsave(file.path(plots_wd,"PDF/evoAge_vs_length_translatedin1.pdf"), width=7.97, height=4.59)
+ncORFs = all_genes %>% subset(Phylostratum == "cellular organisms" | Phylostratum == "Homo sapiens")%>% subset(gene_type != "protein_coding")
+ncORFs = ncORFs %>%
+  mutate(length = str_match(orfID, "([0-9]+):([0-9]+)\\|") %>%
+                  {as.numeric(.[,3]) - as.numeric(.[,2]) / 3})
+
+ggplot(ncORFs, aes(y=length, x=Phylostratum, fill=Phylostratum, color=Phylostratum)) +
+  geom_boxplot(width=.2, color="black") +
+  geom_violin(fill=NA) +
+  scale_y_continuous(trans="log10") +
+  stat_compare_means() +
+  scale_fill_manual(values=c("#800000","#9dc183","purple")) +
+  scale_color_manual(values=c("#800000","#9dc183","purple")) +
+  labs(x="Phylostratum",
+       y="Length (AA)",
+       title="Is length of the ncORFs correlated with the evolutionary age?") +
+  theme_classic() +
+  theme(legend.position = "none") +
+  facet_wrap(~ gene_type)
+ggsave(file.path(plots_wd,"PNG/evoAge_vs_length_translatedin1.png"), width=7.97, height=4.59)
+ggsave(file.path(plots_wd,"PDF/evoAge_vs_length_translatedin1.pdf"), width=7.97, height=4.59)
 ```
 
 ```{r ncORFs_length_allPhylos, echo=F}
-# ncORFs_genes = all_genes %>% subset(gene_type != "protein_coding")
-# ncORFs_genes = ncORFs_genes %>%
-#   mutate(length = str_match(orfID, "([0-9]+):([0-9]+)\\|") %>%
-#                   {as.numeric(.[,3]) - as.numeric(.[,2]) / 3})
+ncORFs_genes = all_genes %>% subset(gene_type != "protein_coding")
+ncORFs_genes = ncORFs_genes %>%
+  mutate(length = str_match(orfID, "([0-9]+):([0-9]+)\\|") %>%
+                  {as.numeric(.[,3]) - as.numeric(.[,2]) / 3})
 
 # ggplot(ncORFs_genes, aes(y=length, x=factor(Phylostratum, levels = unique(Phylostratum)), fill=Phylostratum, color=Phylostratum)) +
 #   geom_boxplot(width=.2, color="black") +
@@ -1057,24 +704,24 @@ ggplot(medianTPMs_RNA_Testis_in1_wide %>% select(-brain) %>% subset(gene_type !=
 ```
 
 ```{r novel_phyl, echo=F}
-# novels_genes = all_genes %>% subset(gene_type == "novel")
-# table(novels_genes$Phylostratum)
+novels_genes = all_genes %>% subset(gene_type == "novel")
+table(novels_genes$Phylostratum)
 ```
 
 ```{r by_biotype, echo=F}
-# ggplot(all_genes, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=gene_type)) +
-#   geom_bar() +
-#     labs(x="Phylostratum",
-#        y="Number of genes",
-#        title="Evolutionary ages of all translated ORFs in testis") +
-#     scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
-#     theme_classic() +
-#   theme(axis.text.x = element_text(angle = 90),
-#         legend.position = "none") +
-#   facet_wrap(~ gene_type, nrow=4, scales = "free_y")
-# ggsave(file.path(plots_wd,"PNG/evoAge_translatedin1_biotype.png"), width=11.48, height=6.84)
-# ggsave(file.path(plots_wd,"PDF/evoAge_translatedin1_biotype.pdf"), width=11.48, height=6.84)
+ggplot(all_genes, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=gene_type)) +
+  geom_bar() +
+    labs(x="Phylostratum",
+       y="Number of genes",
+       title="Evolutionary ages of all translated ORFs in testis") +
+    scale_fill_manual(values=c("protein_coding"="#849DB1",
+                        "lncRNA" = "#B66353",
+                        "processed_pseudogene" = "#FBB04E",
+                        "novel" = "#B09C85")) +
+    theme_classic() +
+  theme(axis.text.x = element_text(angle = 90),
+        legend.position = "none") +
+  facet_wrap(~ gene_type, nrow=4, scales = "free_y")
+ggsave(file.path(plots_wd,"PNG/evoAge_translatedin1_biotype.png"), width=11.48, height=6.84)
+ggsave(file.path(plots_wd,"PDF/evoAge_translatedin1_biotype.pdf"), width=11.48, height=6.84)
 ```

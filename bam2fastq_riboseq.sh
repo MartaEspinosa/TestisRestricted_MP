@@ -7,11 +7,12 @@
 #SBATCH -o /users/genomics/marta/logs/bam2fastq_Wang_%A_%a.out    # File to which standard out will be written
 #SBATCH -e /users/genomics/marta/logs/bam2fastq_Wang_%A_%a.err    # File to which standard err will be written
 
+specie=$1
+# INDIR=/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/$specie/RiboSeq/bam
 INDIR=/datasets/marta/Wang2020/RiboSeq
-
 declare -a sample_array
 
-for file in $INDIR/macaca*bam; do
+for file in $INDIR/${specie}*bam; do
     sample=${file%%.bam*}
     sample=${sample##*/}
 
@@ -22,8 +23,9 @@ i=$(($SLURM_ARRAY_TASK_ID -1))
 
 sample=${sample_array[i]}
 
+# INDIR=/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/$specie/RiboSeq/bam
 INDIR=/datasets/marta/Wang2020/RiboSeq
-FQDIR=/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/macaca/RiboSeq/fastq
+FQDIR=/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/$specie/RiboSeq/fastq
 mkdir -p $FQDIR
 
 #### ---------------- BAM 2 FASTQ --------------- ###
