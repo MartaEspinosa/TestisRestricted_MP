@@ -1,0 +1,206 @@
+---
+title: "Q4.3_Heatmap_TTS_ctype"
+author: "Marta Espinosa"
+date: "2024-09-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(rcartocolor)
+require(QualityGraphs)
+require(RColorBrewer)
+require(stringr)
+library("pheatmap")
+library(ggpubr)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+chr_annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gene_transcript_chr.csv")
+chr_annot$gene_id = gsub("\\..*","",chr_annot$gene_id)
+chr_annot$gene_id = gsub("_PAR*","",chr_annot$gene_id)
+chr_annot$transcript_id = gsub("\\..*","",chr_annot$transcript_id)
+annot = merge(annot, chr_annot, by=c("gene_id", "transcript_id"))
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")#"KIRP"
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA","GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
+
+ctype_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC"),
+                            num_patients = c(109,38,179,142,49,75,182,144))
+
+save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
+   stopifnot(!missing(x))
+   stopifnot(!missing(filename))
+   pdf(filename, width=width, height=height)
+   grid::grid.newpage()
+   grid::grid.draw(x$gtable)
+   dev.off()
+}
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+```
+
+## HEATMAP with Testis/Tumor-Specific genes per cancer type
+
+```{r import, echo=F}
+data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
+```
+
+
+```{r force_zero, echo=TRUE}
+# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+# # ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
+# data_completed_TSA_forced = data_completed_TSA_wide %>% mutate(forced_tumor_expr = case_when(normal < 0.1 & tumor > 1 ~ tumor,
+#                                                                                   TRUE ~ 0))
+# write.csv(data_completed_TSA_forced, file.path(save_wd,"TTS_forcedTPM_patients.csv"), row.names=F)
+```
+
+```{r import_TTS, echo=F}
+data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
+```
+
+```{r heatmap_per_ctype, echo=F}
+for (ctype_var in cancers) {
+  print(ctype_var)
+  ## how many patients in that ctype?
+  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+  
+  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+  
+  ## in how many patients is the gene TS?
+  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+  df = merge(df, counting_1TPM, by="gene_name")
+  df$total_n = n_ctype
+  
+  ## calculate the percentage and keep only those TS in > 5% 
+  df$percentage_n = (df$n / n_ctype)* 100
+  df = df %>% unique()
+  df_5percent = df #%>% subset(percentage_n > 5) 
+  ## if dataframe not empty
+  if (dim(df_5percent)[1] > 0) {
+
+    df_5percent = df_5percent %>% unique()
+    to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+    print(table(to_table$gene_type))
+    
+    ## keep expression data to plot
+    df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+    df_5percent_expr = as.data.frame(df_5percent_expr)
+  
+    df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+    ## get log2TPM
+    df_log = log2(df_5percent_expr_values+1)
+  
+    ## convert to matrix
+    matrix = as.matrix(df_log)
+    rownames(matrix) = df_5percent_expr$gene_name
+    matrix = na.omit(matrix)
+    nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+    
+    
+    
+    ## row annotation
+    row_annot = annot %>% subset(gene_name %in% df_5percent_expr$gene_name)
+    row_annot = row_annot %>% select(gene_name, gene_type)
+    row_annot = unique(row_annot)
+    rownames(row_annot) = row_annot$gene_name
+    
+    row_annot_chr = merge(annot, row_annot, by="gene_name", all.y=T)
+    row_annot_chr = row_annot_chr %>% select(gene_name, chr) %>% unique()
+    rownames(row_annot_chr) = row_annot_chr$gene_name
+    row_annot_chr = row_annot_chr %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+                                                                TRUE ~ "nonX"))
+    row_annot_chr = row_annot_chr %>% select(X_nonX)
+    row_annot = row_annot %>% select(-c(gene_name))
+
+    row_annotation = data.frame("X_nonX" = row_annot_chr,
+                                "gene_type" = row_annot)
+    ## col annotation
+    col_annot = df_5percent %>% select(patient, project) %>% subset(patient %in% colnames(df_5percent_expr_values))
+    col_annot = unique(col_annot)
+    rownames(col_annot) = col_annot$patient
+    col_annot = col_annot %>% select(-c(patient))
+  
+    biotypecolors = list("gene_type" = c("protein_coding"="#849DB1",
+                               "lncRNA" = "#B66353",
+                               "processed_pseudogene" = "#FBB04E",
+                               "novel" = "#B09C85"),
+                           "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
+  
+    
+    ## heatmap_all_geneTypes
+    ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+           # treeheight_row = 0, treeheight_col = 0,
+           annotation_row = row_annotation,
+           annotation_col= col_annot,
+           annotation_names_col = FALSE,
+           annotation_names_row = FALSE,
+           show_colnames = FALSE,
+           # cutree_cols = 3,
+           annotation_colors = biotypecolors,
+           color=colorRampPalette(c("lightyellow", "red"))(50),
+           fontsize = 6,
+           main=paste0("Testis/Tumor Specific genes ", ctype_var))
+    col.order = ph$tree_col$order
+    # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
+    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,".pdf"))
+
+    
+    lncRNA = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name)
+    CTA = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name)
+  
+  
+    # ## CTA
+    # CTA_matrix = nozeros_matrix_log[CTA$gene_name, col.order]
+    # CTA_matrix_non_zero <- CTA_matrix[, apply(CTA_matrix, 2, function(x) any(x != 0))]
+    # 
+    # cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+    #        treeheight_row = 0, treeheight_col = 0,
+    #        annotation_row = row_annotation,
+    #        annotation_col= col_annot,
+    #        annotation_names_col = FALSE,
+    #        annotation_names_row = FALSE,
+    #        show_colnames = FALSE,
+    #        # cutree_cols = 3,
+    #        annotation_colors = biotypecolors,
+    #        color=colorRampPalette(c("lightyellow", "red"))(50),
+    #        fontsize = 6,
+    #        main=paste0("CTA Testis/Tumor Specific genes ", ctype_var))
+    # 
+    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,"_CTA.pdf"))
+    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,"_CTA.pdf"))
+
+
+    # ## lncRNA
+    # lncRNA_matrix = nozeros_matrix_log[lncRNA$gene_name, col.order]
+    # lncRNA_matrix_non_zero <- lncRNA_matrix[, apply(lncRNA_matrix, 2, function(x) any(x != 0))]
+    # 
+    # lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+    #        treeheight_row = 0, treeheight_col = 0,
+    #        annotation_row = row_annotation,
+    #        annotation_col= col_annot,
+    #        annotation_names_col = FALSE,
+    #        annotation_names_row = FALSE,
+    #        show_colnames = FALSE,
+    #        # cutree_cols = 3,
+    #        annotation_colors = biotypecolors,
+    #        color=colorRampPalette(c("lightyellow", "red"))(50),
+    #        fontsize = 6,
+    #        main=paste0("lncRNA Testis/Tumor Specific genes ", ctype_var))
+    # 
+    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,"_nonCTA.pdf"))
+    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,"_nonCTA.pdf"))
+
+  }
+}
+```

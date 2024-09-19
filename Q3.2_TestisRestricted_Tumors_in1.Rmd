@@ -33,6 +33,7 @@ library(bioseq)
 # library(ggthemr)
 library(ggbeeswarm)
 library(ggbreak)
+library(GGally)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 # names(gene_transcript) = c("gene_id","gene_type","gene_name")
@@ -112,5 +113,108 @@ table(TAA_translated$gene_type, TAA_translated$ctype)
 
 TAA_translated_genes = TAA_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") %>% select(transcript_id, gene_name, gene_type, ctype) %>% unique()
 table(TAA_translated_genes$gene_type, TAA_translated_genes$ctype)
+
+table(TAA_translated_genes$ctype)
+
+```
+
+```{r adjacents, echo=F}
+data_completed = data.frame(transcript_id = character(),
+                              Length = numeric(),
+                              sample = character(),
+                              TPM = numeric(),
+                              patient = factor(),
+                            normal_tumor = factor(),
+                            project = character(),
+                            ctype = character(),
+                              stringsAsFactors = F)
+
+
+for (ctype_var in cancers) {
+  print(ctype_var)
+  
+  ## table of counts
+  df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
+  ## pivot to make it easier to join
+  df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
+  df_long$sample = gsub("^X","", df_long$sample)
+  df_long$sample = gsub("\\.","-",df_long$sample)
+  
+  ## patients
+  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+  temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
+  
+  ## combine
+  complete_tableofcounts = merge(temp_patients, df_long, by="sample")
+  complete_tableofcounts$ctype = ctype_var
+  
+  ## select the tumor-associated per ctype
+  temp_TAA_translated_genes = TAA_translated_genes %>% subset(ctype == ctype_var)
+  TAA_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TAA_translated_genes$transcript_id)
+  
+  data_completed = rbind(data_completed, TAA_complete_tableofcounts)
+}
+
+data_completed = merge(data_completed, annot, by="transcript_id")
+data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+filtered_data_TAA = data_completed_wide %>% filter(tumor > 1)
+
+filtered_data_TAA_long = filtered_data_TAA %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
+filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$TPM)
+temporary = filtered_data_TAA_long %>% select(gene_name, ctype) %>% unique()
+table(temporary$ctype)
+
+ggplot(filtered_data_TAA_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes reactivated in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() 
+ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor.png"))
+ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor.pdf"))
+```
+
+
+```{r TSA_plot, echo=F}
+data_completed_TSA = data.frame(transcript_id = character(),
+                              Length = numeric(),
+                              sample = character(),
+                              TPM = numeric(),
+                              patient = factor(),
+                            normal_tumor = factor(),
+                            project = character(),
+                            ctype = character(),
+                              stringsAsFactors = F)
+
+TSA_testisSpecific_orfs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TSA_TestisRestrictedGTEx_Translated_Ctypes.csv")
+
+
+for (ctype_var in cancers) {
+  temp = data_completed %>% subset(ctype == ctype_var)
+  temp = temp %>% subset(transcript_id %in% TSA_testisSpecific_orfs$transcript_id)
+
+  data_completed_TSA = rbind(data_completed_TSA, temp)
+}
+
+data_completed_TSA_wide = data_completed_TSA %>% select(-c(logTPM, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+filtered_data = data_completed_TSA_wide %>% filter(normal < 0.1, tumor > 1)
+
+filtered_data_long = filtered_data %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
+filtered_data_long$logTPM = log(filtered_data_long$TPM)
+temporary = filtered_data_long %>% select(gene_name, ctype) %>% unique()
+table(temporary$ctype)
+ggplot(filtered_data_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis/Tumor Specific genes\nExpression in tumor and adjacent samples") +
+  theme_classic() 
+
+ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PNG/TestisTumorSpecific_AdjacentTumor.png")
+ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PDF/TestisTumorSpecific_AdjacentTumor.pdf")
 
 ```

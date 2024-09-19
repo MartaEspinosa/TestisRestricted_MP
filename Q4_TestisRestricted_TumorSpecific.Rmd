@@ -117,7 +117,7 @@ ggsave(file.path(plots_wd,"PNG/tumorspecific_ctype_numpatients.png"), width=6.32
 ggsave(file.path(plots_wd,"PDF/tumorspecific_ctype_numpatients.pdf"), width=6.32, height=7.86)
 ```
 
-```{r}
+```{r TestisRestricted_TumorSpecific, echo=F}
 TSA_testis = TSA_GTEX_all %>% mutate(testisRestricted_GTEx = case_when(gene_id %in% testisRestricted_GTEx$gene_id ~ "testisRestricted_GTEx",
                                                                        TRUE ~ "no"))
 
@@ -160,130 +160,55 @@ TSA_testis = TSA_testis %>% mutate(translatedONLYtestis = case_when(gene_id %in%
 ## only the specifics
 TSA_testisSpecific = TSA_testis %>% subset(testisRestricted_GTEx == "testisRestricted_GTEx" & translatedONLYtestis == "yes")
 table(TSA_testisSpecific$gene_type)
-acrossCancers_TSA_testisSpecific = TSA_testisSpecific %>% group_by(gene_name, gene_type) %>% count()
-acrossCancers_TSA_testisSpecific = acrossCancers_TSA_testisSpecific %>% group_by(gene_type, n) %>% count()
-names(acrossCancers_TSA_testisSpecific) = c("gene_type","n_cancertypes","num_genes")
-acrossCancers_TSA_testisSpecific$type = "specific"
+table(TSA_testisSpecific$gene_type, TSA_testisSpecific$ctype)
 
-acrossCancers_all = TSA_testis %>% group_by(gene_name, gene_type) %>% count()
-
-acrossCancers_all = acrossCancers_all %>% group_by(gene_type, n) %>% count()
-names(acrossCancers_all) = c("gene_type","n_cancertypes","num_genes")
-acrossCancers_all$type = "all"
-
-## normalize because non specific are more
-acrossCancers_normalized = acrossCancers %>%
-  group_by(type) %>%
-  mutate(total_genes = sum(num_genes),
-         normalized_num_genes = num_genes / total_genes)
-
-# acrossCancers = rbind(acrossCancers_TSA_testisSpecific, acrossCancers_all)
-
-ggplot(acrossCancers_normalized, aes(x=n_cancertypes, y=normalized_num_genes, color=type)) +
-  geom_point() +
-  geom_line() +
-  scale_color_manual(values=c("specific" = "#B1283A", "all"="#A8A6A7")) +
-  theme_classic() +
-  facet_wrap(~ gene_type)
-
-## statistical model
-model <- lm(num_genes ~ n_cancertypes * type, data = acrossCancers)
-summary(model)
-
-########## INTERPRETATION ##########
-# The coefficient for n_cancertypes is -174.49, which means that for each additional cancer type, the number of genes is expected to decrease by approximately 174.49, holding type constant. This coefficient is statistically significant (p-value < 0.001), suggesting a strong negative relationship between the number of cancer types and the number of genes.
-
-
-# In conclusion, rows with type == "specific" do tend to have more genes with higher n_cancertypes compared to other types, but the relationship is less negative due to the interaction effect. This means that while "specific" types generally have fewer genes when n_cancertypes is low, this trend diminishes as n_cancertypes increases.
-
-model_gene_type <- lm(num_genes ~ n_cancertypes * type * gene_type, data = acrossCancers)
-summary(model_gene_type)
-
-#Novel Genes: "Novel" gene types also see an increase in the number of genes with more cancer types, highlighting their unique behavior compared to other gene types.
+TSA_testisSpecific_orfs = translated_only_testis %>% subset(gene_id %in% TSA_testisSpecific$gene_id)
+TSA_testisSpecific_orfs = merge(TSA_testisSpecific_orfs, TSA_testisSpecific, by=c("gene_id", "gene_name", "gene_type", "transcript_id"))
+table(TSA_testisSpecific_orfs$gene_type, TSA_testisSpecific_orfs$ctype)
+write.csv(TSA_testisSpecific_orfs, file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"), row.names = F)
 ```
 
+```{r upset, echo=F}
+library(UpSetR)
 
-```{r plot_to_delete, echo=F}
-# shared_counts <- TSA_testis %>%
-#   group_by(transcript_id, gene_type, TestisINFO) %>%
-#   summarise(unique_ctypes = n_distinct(ctype)) %>%
-#   ungroup()
-# 
-# ggplot(shared_counts, aes(x=factor(TestisINFO, levels=c("no","TestisRestrictedUNTranslated","TestisRestrictedTranslated")), y=unique_ctypes, fill=TestisINFO)) +
-#   geom_boxplot() +
-#   scale_fill_manual(values=c("TestisRestrictedTranslated" = "#B1283A","TestisRestrictedUNTranslated"="#de97a0", "no"="#A8A6A7")) +
-#   theme_classic() +
-#   labs(title="Those testis-specific, do they tend to be\nmore shared across cancer types?",
-#        y="Number of cancer types",
-#        x="Testis information") +
-#   theme(axis.text.x=element_blank(),
-#         axis.ticks.x=element_blank(),
-#         legend.position = "top") +
-#   facet_wrap(~ gene_type) +
-#     stat_compare_means(comparisons = list(c("no", "TestisRestrictedUNTranslated"), 
-#                                         c("no", "TestisRestrictedTranslated"), 
-#                                         c("TestisRestrictedUNTranslated", "TestisRestrictedTranslated")),
-#                      method = "wilcox.test", 
-#                      label = "p.signif",
-#                      aes(label = ..p.adj..),
-#                      hide.ns = TRUE)
-# ggsave(file.path(plots_wd,"PNG/tumorspecific_testisrestricted_numctypes.png"), height=8.26, width=7.08)
-# ggsave(file.path(plots_wd,"PDF/tumorspecific_testisrestricted_numctypes.pdf"), height=8.26, width=7.08)  
+to_upset = TSA_testisSpecific %>% select(ctype, gene_name) %>% unique()
+to_upset$presence = 1
+to_upset = to_upset %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset[is.na(to_upset)] = 0
+to_upset = as.data.frame(to_upset)
+rownames(to_upset) = to_upset$gene_name
+to_upset$gene_name = NULL
+
+geneName_geneType = annot %>% subset(gene_name %in% rownames(to_upset)) %>% select(gene_name, gene_type)
+
+upset(to_upset, 
+      sets=colnames(to_upset)
+)
 ```
 
+```{r upset_CTA, echo=F}
+CTA_geneName_geneType = geneName_geneType %>% subset(gene_type == "protein_coding")
 
-##  How many patients express the tumor-specific transcripts ?
 
-```{r num_patients, echo=F}
-TSA_testisSpecific
+to_upset_CTA = to_upset %>% subset(rownames(to_upset) %in% CTA_geneName_geneType$gene_name)
+upset(to_upset_CTA, 
+      sets=colnames(to_upset_CTA))
+```
 
-summary_stats <- TSA_testisSpecific %>%
-  group_by(ctype, gene_type) %>%
-  summarise(
-    # min_length = min(n, na.rm = TRUE),
-    # q1_length = quantile(n, 0.25, na.rm = TRUE),
-    median_n_patients = median(n, na.rm = TRUE),
-    mean_n_patients = mean(n, na.rm = TRUE),
-    # q3_length = quantile(n, 0.75, na.rm = TRUE),
-    max_n_patients = max(n, na.rm = TRUE),
-    .groups = 'drop'
-  )
+```{r upset_nonCTA, echo=F}
+nonCTA_geneName_geneType = geneName_geneType %>% subset(gene_type != "protein_coding")
 
-print(summary_stats)
 
-# ggplot(TSA_testisSpecific, aes(x=n, color=gene_type)) +
-#   geom_point(stat="count", position="dodge") +
-# 
-#     scale_color_manual(values=c("protein_coding"="#849DB1",
-#                              "lncRNA" = "#B66353",
-#                              "processed_pseudogene" = "#FBB04E",
-#                              "novel" = "#B09C85")) +
-#   scale_y_continuous(trans="log10") +
-#   labs(title="Tumor-Specific genes translated in Testis",
-#        y="Number of genes",
-#        x="Number of patients") +
-#   theme_classic() +
-#   theme(legend.position = "top") +
-#   facet_wrap(~ ctype, scales="free", ncol=2)
-# ggsave(file.path(plots_wd,"PNG/tumorspecific_testistranslated_ctypes.png"), width=5.38, height=6.84)
-# ggsave(file.path(plots_wd,"PDF/tumorspecific_testistranslated_ctypes.pdf"), width=5.38, height=6.84)
+to_upset_nonCTA = to_upset %>% subset(rownames(to_upset) %in% nonCTA_geneName_geneType$gene_name)
+upset(to_upset_nonCTA, 
+      sets=colnames(to_upset_nonCTA)
+)
+```
 
-# TSA_testis_bigN = TSA_testis %>% subset(TestisINFO == "TestisRestrictedTranslated") %>% group_by(gene_name) %>% mutate(bigN = sum(n)) %>% select(gene_name, gene_type, bigN, TestisINFO) %>% unique() %>% mutate(bigN_proportion = (bigN/760)*100)
-# 
-# ggplot(TSA_testis_bigN, aes(x=gene_type, y=bigN_proportion, fill=gene_type)) +
-#   geom_violin() +
-#     scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                              "lncRNA" = "#B66353",
-#                              "processed_pseudogene" = "#FBB04E",
-#                              "novel" = "#B09C85")) +
-#   labs(y="Percentage of patients (out of 760)",
-#        x="",
-#        title="How many patients express the tumor-specific transcripts?") +
-#   theme_classic() +
-#   theme(legend.position = "none")
-# ggsave(file.path(plots_wd,"PNG/tumorspecificTranslated_percentagepatients.png"), width=5.38, height=4.26)
-# ggsave(file.path(plots_wd,"PDF/tumorspecificTranslated_percentagepatients.pdf"), width=5.38, height=4.26)
-#
-# summary(TSA_testis_bigN$bigN_proportion)
-# summary(TSA_testis_bigN$bigN)
+```{r upset_novel, echo=F}
+novel_geneName_geneType = geneName_geneType %>% subset(gene_type == "novel")
+
+to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_geneType$gene_name)
+upset(to_upset_novel, 
+      sets=cancers)
 ```
