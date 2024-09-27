@@ -185,6 +185,21 @@ ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
 ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.cancertype.png"), width=12.52, height=5.64)
 ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), width=12.52, height=5.64)
 
+
+# ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
+#   geom_point(size=.03) +
+#   geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+#   scale_x_continuous(trans="log10") +
+#   scale_y_continuous(trans="log10") +
+#   scale_color_manual(values=c("protein_coding"="#849DB1",
+#                              "lncRNA" = "#B66353",
+#                              "processed_pseudogene" = "#FBB04E",
+#                              "novel" = "#B09C85")) +
+#   labs(title="Correlation TPMs between tumor and testis") +
+#   theme_classic() +
+#   theme(legend.position = "top") +
+#   # facet_wrap(~ cancertype, nrow=2) +
+#   stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type, color = gene_type), size=3) 
 ```
 
 ## Phylistratigraphy

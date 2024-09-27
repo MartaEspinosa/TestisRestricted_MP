@@ -258,6 +258,64 @@ print("testis")
 print(table(testisspecific$gene_type))
 ```
 
+```{r plots_expr_restr, echo=F}
+## brain
+brain_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(brainexpr) - nrow(brainspecific), nrow(brainspecific)))
+a1 = ggpie(brain_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Brain") +  theme(legend.position = "none")
+
+
+brainsp_genetype_plot = as.data.frame(table(brainspecific$gene_type))
+a2 = ggpie(brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Brain Restricted") +  theme(legend.position = "none")
+
+
+## liver
+liver_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(liverexpr) - nrow(liverspecific), nrow(liverspecific)))
+b1 = ggpie(liver_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Liver")+  theme(legend.position = "none")
+
+liversp_genetype_plot = as.data.frame(table(liverspecific$gene_type))
+b2 =ggpie(liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Liver Restricted") +
+    theme(legend.position = "none")
+
+
+## testis
+testis_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(testisexpr) - nrow(testisspecific), nrow(testisspecific)))
+c1 = ggpie(testis_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Testis") +  theme(legend.position = "none")
+
+
+testissp_genetype_plot = as.data.frame(table(testisspecific$gene_type))
+c2 = ggpie(testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Testis Restricted") +
+  theme(legend.position = "none")
+
+top = ggarrange(a1,b1,c1, nrow=3)
+bottom = ggarrange(a2,b2,c2, nrow=3)
+
+ggarrange(top,bottom)
+ggsave(file.path(plots_wd,"PNG/expressed_specific_piecharts.png"))
+ggsave(file.path(plots_wd,"PDF/expressed_specific_piecharts.pdf"))
+``` 
+
+
 ### Testis-Restricted | RNASeq & GTEx filter
 
 We will use GTEx to filter those genes whose expression in other tissues is higher than 0.5.
@@ -448,6 +506,68 @@ nrow(subset_brain_GTEx_w_novels)
 tmp = subset_brain_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
 table(tmp$gene_type)
 ```
+
+
+```{r plots_expr_restr_GTex, echo=F}
+## brain
+brain_sp_gtex = read.csv(file.path(save_wd,"brainRestricted_GTEx.csv"))
+brain_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(brainexpr) - nrow(brainspecific), nrow(brainspecific)- nrow(brain_sp_gtex), nrow(brain_sp_gtex)))
+brain_expr_sp_gtex$tissue = "Brain"
+
+## liver
+liver_sp_gtex = read.csv(file.path(save_wd,"liverRestricted_GTEx.csv"))
+liver_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(liverexpr) - nrow(liverspecific), nrow(liverspecific)- nrow(liver_sp_gtex), nrow(liver_sp_gtex)))
+liver_expr_sp_gtex$tissue = "Liver"
+
+## testis
+testis_sp_gtex = read.csv(file.path(save_wd,"testisRestricted_GTEx.csv"))
+testis_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(testisexpr) - nrow(testisspecific), nrow(testisspecific)- nrow(testis_sp_gtex), nrow(testis_sp_gtex)))
+testis_expr_sp_gtex$tissue = "Testis"
+
+merged_spGTEx = rbind(testis_expr_sp_gtex, liver_expr_sp_gtex, brain_expr_sp_gtex)
+ggplot(merged_spGTEx, aes(x=tissue, fill=condition, y=values)) +
+  geom_bar(position="fill", stat="identity") +
+  labs(y="", title="Proportion of genes per condition and tissue") +
+  scale_fill_manual(values=c("Expressed" = "#5aae61","Restricted" = "#d9f0d3", "Restricted with GTEx" = "#00441b")) +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/condition_tissue_barplot.png"))
+ggsave(file.path(plots_wd,"PDF/condition_tissue_barplot.pdf"))
+
+## plots
+brainspgtex_genetype_plot = as.data.frame(table(brain_sp_gtex$gene_type))
+a3 = ggpie(brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Brain Restricted with GTEx") +  theme(legend.position = "none")
+
+
+## liver
+liverspgtex_genetype_plot = as.data.frame(table(liver_sp_gtex$gene_type))
+b3 = ggpie(liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Liver Restricted with GTEx") +
+    theme(legend.position = "none")
+
+
+## testis
+testisspgtex_genetype_plot = as.data.frame(table(testis_sp_gtex$gene_type))
+c3 = ggpie(testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Testis Restricted with GTEx") +
+  theme(legend.position = "none")
+
+ggarrange(a3,b3,c3, nrow=1)
+ggsave(file.path(plots_wd,"PNG/Restricted_with_GTEx_piecharts.png"))
+ggsave(file.path(plots_wd,"PDF/Restricted_with_GTEx_piecharts.pdf"))
+``` 
 
 
 ## Human Data | RiboSeq
@@ -838,8 +958,135 @@ ggsave(file.path(plots_wd,"PNG/testisRestricted_ORFs_onlyTestis.png"), height=4.
 ggsave(file.path(plots_wd,"PDF/testisREstricted_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  
 ```
 
+```{r plots_expr_sp_transl, echo=F}
+## brain
+transl_brainspecific = brainspecific %>% subset(gene_id %in% ribORF_humanBrain_Annotated_biotypes$gene_id)
+transl_brainexpr = brainexpr %>% subset(gene_id %in% ribORF_humanBrain_Annotated_biotypes$gene_id)
+transl_brain_sp_gtex = brain_sp_gtex %>% subset(gene_id %in% ribORF_humanBrain_Annotated_biotypes$gene_id)
+## liver
+transl_liverspecific = liverspecific %>% subset(gene_id %in% ribORF_humanLiver_Annotated_biotypes$gene_id)
+transl_liverexpr = liverexpr %>% subset(gene_id %in% ribORF_humanLiver_Annotated_biotypes$gene_id)
+transl_liver_sp_gtex = liver_sp_gtex %>% subset(gene_id %in% ribORF_humanLiver_Annotated_biotypes$gene_id)
+## testis
+transl_testisspecific = testisspecific %>% subset(gene_id %in% ribORF_humanTestis_in1_fastas$gene_id)
+transl_testisexpr = testisexpr %>% subset(gene_id %in% ribORF_humanTestis_in1_fastas$gene_id)
+transl_testis_sp_gtex = testis_sp_gtex %>% subset(gene_id %in% ribORF_humanTestis_in1_fastas$gene_id)
+
+
+## brain
+transl_brain_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(transl_brainexpr) - nrow(transl_brainspecific), nrow(transl_brainspecific)))
+a1 = ggpie(brain_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Brain (Translated)") +  theme(legend.position = "none")
+
+
+transl_brainsp_genetype_plot = as.data.frame(table(transl_brainspecific$gene_type))
+a2 = ggpie(transl_brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Brain Restricted (Translated)") +  theme(legend.position = "none")
+
+
+## liver
+transl_liver_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(transl_liverexpr) - nrow(transl_liverspecific), nrow(transl_liverspecific)))
+b1 = ggpie(transl_liver_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Liver (Translated)")+  theme(legend.position = "none")
+
+transl_liversp_genetype_plot = as.data.frame(table(transl_liverspecific$gene_type))
+b2 =ggpie(transl_liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Liver Restricted (Translated)") +
+    theme(legend.position = "none")
+
+
+## testis
+transl_testis_piechart_expr_sp = data.frame(condition = c("Expressed", "Restricted"),
+                                    values = c(nrow(transl_testisexpr) - nrow(transl_testisspecific), nrow(transl_testisspecific)))
+c1 = ggpie(transl_testis_piechart_expr_sp, x="values", fill="condition", palette=c("Expressed" = "#5aae61",
+                                                    "Restricted" = "#d9f0d3")) + 
+  ggtitle("Testis (Translated)") +  theme(legend.position = "none")
+
+
+transl_testissp_genetype_plot = as.data.frame(table(transl_testisspecific$gene_type))
+c2 = ggpie(transl_testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Testis Restricted (Translated)") +
+  theme(legend.position = "none")
+
+top = ggarrange(a1,b1,c1, nrow=3)
+bottom = ggarrange(a2,b2,c2, nrow=3)
+
+ggarrange(top,bottom)
+ggsave(file.path(plots_wd,"PNG/translated_expressed_specific_piecharts.png"))
+ggsave(file.path(plots_wd,"PDF/translated_expressed_specific_piecharts.pdf"))
+
+## brain
+transl_brain_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(transl_brainexpr) - nrow(transl_brainspecific), nrow(transl_brainspecific)- nrow(transl_brain_sp_gtex), nrow(transl_brain_sp_gtex)))
+transl_brain_expr_sp_gtex$tissue = "Brain"
+
+## liver
+transl_liver_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(transl_liverexpr) - nrow(transl_liverspecific), nrow(transl_liverspecific)- nrow(transl_liver_sp_gtex), nrow(transl_liver_sp_gtex)))
+transl_liver_expr_sp_gtex$tissue = "Liver"
+
+## testis
+transl_testis_expr_sp_gtex = data.frame(condition = c("Expressed", "Restricted", "Restricted with GTEx"),
+                                    values = c(nrow(transl_testisexpr) - nrow(transl_testisspecific), nrow(transl_testisspecific)- nrow(transl_testis_sp_gtex), nrow(transl_testis_sp_gtex)))
+transl_testis_expr_sp_gtex$tissue = "Testis"
+
+merged_spGTEx_transl = rbind(transl_testis_expr_sp_gtex, transl_liver_expr_sp_gtex, transl_brain_expr_sp_gtex)
+ggplot(merged_spGTEx_transl, aes(x=tissue, fill=condition, y=values)) +
+  geom_bar(position="fill", stat="identity") +
+  labs(y="", title="Proportion of genes translated per condition and tissue") +
+  scale_fill_manual(values=c("Expressed" = "#5aae61","Restricted" = "#d9f0d3", "Restricted with GTEx" = "#00441b")) +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/condition_tissue_barplot_translated.png"))
+ggsave(file.path(plots_wd,"PDF/condition_tissue_barplot_translated.pdf"))
+
+## plots
+transl_brainspgtex_genetype_plot = as.data.frame(table(transl_brain_sp_gtex$gene_type))
+a3 = ggpie(transl_brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Translated Brain Restricted with GTEx") +  theme(legend.position = "none")
+
+
+## liver
+transl_liverspgtex_genetype_plot = as.data.frame(table(transl_liver_sp_gtex$gene_type))
+b3 = ggpie(transl_liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Translated Liver Restricted with GTEx") +
+    theme(legend.position = "none")
+
+
+## testis
+transl_testisspgtex_genetype_plot = as.data.frame(table(transl_testis_sp_gtex$gene_type))
+c3 = ggpie(transl_testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#849DB1",
+                 "lncRNA" = "#B66353",
+                 "processed_pseudogene" = "#FBB04E",
+                 "novel" = "#B09C85")) + 
+  ggtitle("Translated Testis Restricted with GTEx") +
+  theme(legend.position = "none")
+
+ggarrange(a3,b3,c3, nrow=1)
+ggsave(file.path(plots_wd,"PNG/Translated_Restricted_with_GTEx_piecharts.png"))
+ggsave(file.path(plots_wd,"PDF/Translated_Restricted_with_GTEx_piecharts.pdf"))
+```
+
+
 ```{r differences_Expressed_GTEx, echo=F}
-testisRestrictedGTEx_Translated_onlyTestis
 testisExpressed_Restricted_Translated_GTEx = testisExpressed_Restricted_Translated %>% mutate(RestrictedGTEx = case_when(orfID %in% testisRestrictedGTEx_Translated_onlyTestis$orfID ~ "yes",
                                                                                                                     TRUE ~ "no"))
 ##---------- length differences ----------##

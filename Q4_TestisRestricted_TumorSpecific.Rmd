@@ -212,3 +212,29 @@ to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_gene
 upset(to_upset_novel, 
       sets=cancers)
 ```
+
+## Is there a correlation between the number of TTS and the number of patients per ctype?
+
+```{r num_patients_numTTS, echo=F}
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+total_burden_TTS = TSA_testisSpecific %>% select(ctype, gene_name, gene_type) %>% unique() %>%
+  group_by(ctype) %>% count()
+
+full_df = merge(total_burden_TTS, total_num_patients, by="ctype")
+
+ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
+  geom_point(shape = 21, size=5,stroke = 3) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#009E73", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="grey") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  labs(x="Number of patients per cancer type",
+       y="Number of genes",
+       title="Correlation between number of patients and TTS genes") +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/corr_patients_TTS.png"))
+ggsave(file.path(plots_wd,"PDF/corr_patients_TTS.pdf"))
+```

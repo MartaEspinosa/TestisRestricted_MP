@@ -198,7 +198,7 @@ for (ctype_var in cancers) {
   data_completed_TSA = rbind(data_completed_TSA, temp)
 }
 
-data_completed_TSA_wide = data_completed_TSA %>% select(-c(logTPM, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+data_completed_TSA_wide = data_completed_TSA %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
 filtered_data = data_completed_TSA_wide %>% filter(normal < 0.1, tumor > 1)
 
 filtered_data_long = filtered_data %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
@@ -216,5 +216,31 @@ ggplot(filtered_data_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
 
 ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PNG/TestisTumorSpecific_AdjacentTumor.png")
 ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PDF/TestisTumorSpecific_AdjacentTumor.pdf")
-
 ```
+
+## Is there a correlation between the number of Translated TestisRestrictedGTEx TumorAssociated and the number of patients per ctype?
+
+```{r num_patients_numTTS, echo=F}
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+total_burden_TestisRestrGTEx_TumorAss = TAA_translated_genes %>% select(ctype, gene_name, gene_type) %>% unique() %>%
+  group_by(ctype) %>% count()
+
+full_df = merge(total_burden_TestisRestrGTEx_TumorAss, total_num_patients, by="ctype")
+
+ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
+  geom_point(shape = 21, size=5,stroke = 3) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#009E73", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="grey") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  labs(x="Number of patients per cancer type",
+       y="Number of genes",
+       title="Correlation between number of patients and\nTranslated TestisRestrictedGTEx TumorAssociated genes") +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/corr_patients_TumorAss.png"))
+ggsave(file.path(plots_wd,"PDF/corr_patients_TumorAss.pdf"))
+```
+

@@ -24,6 +24,7 @@ library(cluster)
 library(factoextra)
 library(cluster)  # for silhouette score
 library(stats)    # for hclust and dist
+library(dynamicTreeCut)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 chr_annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gene_transcript_chr.csv")
@@ -72,6 +73,26 @@ save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
    dev.off()
 }
 
+# Extract the correlation coefficients
+# res2$r
+# Extract p-values
+# res2$P
+# A simple function to format the correlation matrix
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+# flattenCorrMatrix(res2$r, res2$P)
 ```
 
 ## Work with matrices
@@ -377,7 +398,7 @@ save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_lncRNA.pdf
 
 ```{r correlation, echo=F}
 library(Hmisc)
-transposed = t(matrix)
+transposed = t(nozeros_matrix_log)
 res2 <- rcorr(transposed)
 # Extract the correlation coefficients
 res2$r
@@ -508,14 +529,68 @@ summary(CTA_cormat_X$correlation)
 
 ```
 
+```{r correlation_X, echo=F}
+CTA_matrix_X = CTA_matrix[rownames(CTA_matrix) %in% unique(chr_X$gene_name),]
+
+CTAX_transposed = t(CTA_matrix_X)
+res2 <- rcorr(CTAX_transposed)
+# A simple function to format the correlation matrix
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+flattenCorrMatrix(res2$r, res2$P)
+
+
+CTAX_cormat <- round(cor(CTAX_transposed),2)
+dim(CTAX_cormat)
+corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
+         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+
+### non-X
+CTA_matrix_nonX = CTA_matrix[rownames(CTA_matrix) %in% unique(chr_nonX$gene_name),]
+CTAnonX_transposed = t(CTA_matrix_nonX)
+res2 <- rcorr(CTAnonX_transposed)
+# A simple function to format the correlation matrix
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+flattenCorrMatrix(res2$r, res2$P)
+
+
+CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
+dim(CTAnonX_cormat)
+corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
+         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+
+```
+
 ## Clusterization
 
 CTA tend to clusterize more than lncRNAs?
 
-```{r clustering, echo=F}
-CTA_matrix_X = CTA_matrix[rownames(CTA_matrix) %in% unique(chr_X$gene_name),]
-CTA_matrix_nonX = CTA_matrix[rownames(CTA_matrix) %in% unique(chr_nonX$gene_name),]
-
+```{r clustering_hclust, echo=F}
 ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
 hc_CTA = hclust(dist(CTA_matrix), method = "complete")
 hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
@@ -545,6 +620,324 @@ cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
 cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
 ```
 
+```{r hclust_per_ctype, echo=F}
+for(ctype_var in cancers) {
+  print(ctype_var)
+  ## how many patients in that ctype?
+  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+  
+  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+  
+  ## in how many patients is the gene TS?
+  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+  df = merge(df, counting_1TPM, by="gene_name")
+  df$total_n = n_ctype
+  
+  ## calculate the percentage and keep only those TS in > 5% 
+  df$percentage_n = (df$n / n_ctype)* 100
+  df = df %>% unique()
+  df_5percent = df #%>% subset(percentage_n > 5)
+
+  df_5percent = df_5percent %>% unique()
+  to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+  print(table(to_table$gene_type))
+  
+  ## keep expression data to plot
+  df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+  df_5percent_expr = as.data.frame(df_5percent_expr)
+
+  df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+  ## get log2TPM
+  df_log = log2(df_5percent_expr_values+1)
+
+  ## convert to matrix
+  matrix = as.matrix(df_log)
+  rownames(matrix) = df_5percent_expr$gene_name
+  matrix = na.omit(matrix)
+  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+
+
+  ####### 2. non-CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 3. CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 4. CTA-Xchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+
+  ####### 5. CTA-nonXchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 6. lncRNA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ##################################################
+  ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+  hc_all = hclust(dist(nozeros_matrix_log), method="complete")
+  hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
+  hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+  hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+  # plot(as.dendrogram(hc_CTAX), label = rownames(CTA_matrix_X), main = "Dendrogram of CTA Genes")
+  hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+  hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+  
+  ## Cut the dendrograms at the same height
+  ## Define the cut height (you can adjust the value depending on your needs)
+  cut_height = 5  # for example, 5; this is arbitrary and should be chosen based on your data's dendrogram scale
+  
+  ## Cut the tree and get the number of clusters
+  clusters_all = cutree(hc_all, h = cut_height)  # Cut the tree for matrix1 at the defined height
+  clusters_nonCTA = cutree(hc_nonCTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
+  clusters_CTA = cutree(hc_CTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
+  clusters_CTAX = cutree(hc_CTAX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+  clusters_CTAnonX = cutree(hc_CTAnonX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+  clusters_lncRNA = cutree(hc_lncRNA, h = cut_height)  # Cut the tree for matrix2 at the same height
+  
+  ## Count the number of clusters
+  num_clusters_all = length(unique(clusters_all))
+  num_clusters_nonCTA = length(unique(clusters_nonCTA))
+  num_clusters_CTA = length(unique(clusters_CTA))
+  num_clusters_CTAX = length(unique(clusters_CTAX))
+  num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
+  num_clusters_lncRNA = length(unique(clusters_lncRNA))
+  
+  cat("Number of clusters in all:", num_clusters_all, "\n")
+  cat("Number of clusters in nonCTA:", num_clusters_nonCTA, "\n")
+  cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
+  cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
+  cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
+  cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
+
+}
+```
+
+```{r dynamicTree, echo=F}
+for(ctype_var in cancers) {
+  print(ctype_var)
+  ## how many patients in that ctype?
+  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+  
+  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+  
+  ## in how many patients is the gene TS?
+  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+  df = merge(df, counting_1TPM, by="gene_name")
+  df$total_n = n_ctype
+  
+  ## calculate the percentage and keep only those TS in > 5% 
+  df$percentage_n = (df$n / n_ctype)* 100
+  df = df %>% unique()
+  df_5percent = df #%>% subset(percentage_n > 5)
+
+  df_5percent = df_5percent %>% unique()
+  to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+  print(table(to_table$gene_type))
+  
+  ## keep expression data to plot
+  df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+  df_5percent_expr = as.data.frame(df_5percent_expr)
+
+  df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+  ## get log2TPM
+  df_log = log2(df_5percent_expr_values+1)
+
+  ## convert to matrix
+  matrix = as.matrix(df_log)
+  rownames(matrix) = df_5percent_expr$gene_name
+  matrix = na.omit(matrix)
+  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+
+
+  ####### 2. non-CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 3. CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 4. CTA-Xchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+
+  ####### 5. CTA-nonXchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 6. lncRNA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ##################################################
+  ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+  hc_all = hclust(dist(nozeros_matrix_log), method="complete")
+  hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
+  hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+  hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+  hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+  hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+  
+  # Dynamic tree cut to automatically find clusters
+  clusters_all <- cutreeDynamic(dendro = hc_all, method = "tree", distM = as.dist(nozeros_matrix_log))
+  clusters_nonCTA <- cutreeDynamic(dendro = hc_nonCTA, method = "tree", distM = as.dist(nonCTA_matrix))
+  clusters_CTA <- cutreeDynamic(dendro = hc_CTA, method = "tree", distM = as.dist(CTA_matrix))
+  clusters_CTAX <- cutreeDynamic(dendro = hc_CTAX, method = "tree", distM = as.dist(CTA_matrix_X))
+  clusters_CTAnonX <- cutreeDynamic(dendro = hc_CTAnonX, method = "tree", distM = as.dist(CTA_matrix_nonX))
+  clusters_lncRNA <- cutreeDynamic(dendro = hc_lncRNA, method = "tree", distM = as.dist(lncRNA_matrix))
+
+  ## Count the number of clusters
+  num_clusters_all = length(unique(clusters_all))
+  num_clusters_nonCTA = length(unique(clusters_nonCTA))
+  num_clusters_CTA = length(unique(clusters_CTA))
+  num_clusters_CTAX = length(unique(clusters_CTAX))
+  num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
+  num_clusters_lncRNA = length(unique(clusters_lncRNA))
+  
+  cat("Number of clusters in all:", num_clusters_all, "\n")
+  cat("Number of clusters in nonCTA:", num_clusters_nonCTA, "\n")
+  cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
+  cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
+  cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
+  cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
+}
+```
+
+```{r elbowmethod, echo=F}
+wss <- function(data, clusters) {
+  cluster_means <- tapply(1:nrow(data), clusters, function(rows) colMeans(data[rows, , drop = FALSE]))
+  wss_total <- 0
+  for (i in 1:length(cluster_means)) {
+    cluster_rows <- data[clusters == i, , drop = FALSE]
+    cluster_center <- cluster_means[[i]]
+    wss_total <- wss_total + sum(rowSums((cluster_rows - cluster_center) ^ 2))
+  }
+  return(wss_total)
+}
+
+for(ctype_var in c("LIHC")) {
+  print(ctype_var)
+  ## how many patients in that ctype?
+  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+  
+  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+  
+  ## in how many patients is the gene TS?
+  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+  df = merge(df, counting_1TPM, by="gene_name")
+  df$total_n = n_ctype
+  
+  ## calculate the percentage and keep only those TS in > 5% 
+  df$percentage_n = (df$n / n_ctype)* 100
+  df = df %>% unique()
+  df_5percent = df #%>% subset(percentage_n > 5)
+
+  df_5percent = df_5percent %>% unique()
+  to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+  print(table(to_table$gene_type))
+  
+  ## keep expression data to plot
+  df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+  df_5percent_expr = as.data.frame(df_5percent_expr)
+
+  df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+  ## get log2TPM
+  df_log = log2(df_5percent_expr_values+1)
+
+  ## convert to matrix
+  matrix = as.matrix(df_log)
+  rownames(matrix) = df_5percent_expr$gene_name
+  matrix = na.omit(matrix)
+  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+
+
+  ####### 2. non-CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 3. CTA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 4. CTA-Xchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+
+  ####### 5. CTA-nonXchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+  
+  ####### 6. lncRNA ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  ##################################################
+  ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+  # hc_all = hclust(dist(nozeros_matrix_log), method="complete")
+  hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
+  hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+  hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+  hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+  hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+  
+  k_max <- 10  # Define the maximum number of clusters to check
+  
+#   wss_values_all <- sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_all, k)
+#   wss(nozeros_matrix_log, clusters)
+# })
+  wss_values_nonCTA <-  sapply(2:k_max, function(k) {
+  clusters <- cutree(hc_nonCTA, k)
+  wss(nonCTA_matrix, clusters)
+})
+  wss_values_CTA <-  sapply(2:k_max, function(k) {
+  clusters <- cutree(hc_CTA, k)
+  wss(CTA_matrix, clusters)
+})
+  wss_values_CTAX <-  sapply(2:k_max, function(k) {
+  clusters <- cutree(hc_CTAX, k)
+  wss(CTA_matrix_X, clusters)
+})
+  wss_values_CTAnonX <- sapply(2:k_max, function(k) {
+  clusters <- cutree(hc_CTAnonX, k)
+  wss(CTA_matrix_nonX, clusters)
+})
+  wss_values_lncRNA <-  sapply(2:k_max, function(k) {
+  clusters <- cutree(hc_lncRNA, k)
+  wss(lncRNA_matrix, clusters)
+})
+
+  # plot(2:k_max, wss_values_all, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("all",ctype_var))
+  plot(2:k_max, wss_values_nonCTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("non-CT ",ctype_var))
+  plot(2:k_max, wss_values_CTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT ",ctype_var))
+  plot(2:k_max, wss_values_CTAX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-X ",ctype_var))
+  plot(2:k_max, wss_values_CTAnonX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-nonX ",ctype_var))
+  plot(2:k_max, wss_values_lncRNA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("lncRNA ",ctype_var))
+
+  ## Count the number of clusters
+  # num_clusters_all = length(unique(clusters_all))
+  # num_clusters_nonCTA = length(unique(clusters_nonCTA))
+  # num_clusters_CTA = length(unique(clusters_CTA))
+  # num_clusters_CTAX = length(unique(clusters_CTAX))
+  # num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
+  # num_clusters_lncRNA = length(unique(clusters_lncRNA))
+  
+  # cat("Number of clusters in all:", num_clusters_all, "\n")
+  # cat("Number of clusters in nonCTA:", num_clusters_nonCTA, "\n")
+  # cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
+  # cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
+  # cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
+  # cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
+  
+  ## we could check the quality of such clusters by using silhouette score
+}
+```
+
 ## Measuring that tendency
 
 ```{r tendency_to_cluster, echo=F}
@@ -559,8 +952,6 @@ matrix = data.matrix(to_cluster_values)
 rownames(matrix) = to_cluster$gene_name
 matrix = na.omit(matrix)
 to_cluster_matrix = matrix[,colSums(matrix) > 0]
-
-
 ##### 1. Silhouette Coefficient (Clustering Quality)
 # The silhouette coefficient measures how well each point in a cluster is similar to its own cluster compared to other clusters. It ranges from -1 to 1:
 # 
@@ -897,22 +1288,31 @@ calculate_CDI <- function(data_matrix) {
 CDI_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name,]
 CDI_CTA <- calculate_CDI(CDI_matrix_CTA)
 CDI_CTA$CDI
+CDI_CTA$avg_silhouette_width
 
 ## lncRNA ##
 CDI_matrix_lnCRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name,]
 CDI_lncRNA <- calculate_CDI(CDI_matrix_lnCRNA)
 CDI_lncRNA$CDI
+CDI_lncRNA$avg_silhouette_width
 
 ## CT-X ##
 CDI_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name,]
 CDI_CTX <- calculate_CDI(CDI_matrix_CTX)
 CDI_CTX$CDI
+CDI_CTX$avg_silhouette_width
 
 ## CT-nonX ##
 CDI_matrix_nonCTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name,]
 CDI_nonCTX <- calculate_CDI(CDI_matrix_nonCTX)
 CDI_nonCTX$CDI
+CDI_nonCTX$avg_silhouette_width
 
+## non-CT ##
+CDI_matrix_nonCT = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name,]
+CDI_nonCT <- calculate_CDI(CDI_matrix_nonCT)
+CDI_nonCT$CDI
+CDI_nonCT$avg_silhouette_width
 
 CDI_dataframe_ctype = data.frame(CDI = numeric(),
                                  ctype = factor(),
@@ -960,19 +1360,52 @@ for (ctype_value in unique_ctypes) {
 }
 CDI_dataframe_ctype_wide = CDI_dataframe_ctype %>% pivot_wider(names_from = "ctype", values_from = "CDI")
 
-ggplot(CDI_dataframe_ctype, aes(x=ctype, y=CDI, color=type, group=type)) +
+ggplot(CDI_dataframe_ctype %>% subset(type != "non-CT") %>% subset(type != "CT"), aes(x=ctype, y=CDI, color=type, group=type)) +
   # geom_line() +
   geom_point(size=3) +
+  scale_color_manual(values = c("lncRNA" = "#bcbddc",
+                                "CT-nonX" = "#807dba",
+                                "CT-X" = "#3f007d")) +
   scale_y_continuous(trans="log10") +
+  labs(y="CDI",
+  title="highCDI = highly clustered\nlowCDI = tendency to dispersion",
+       x="Cancer type")+
   theme_classic()
+ggsave(file.path(plots_wd,"PNG/lowCDI_highCDI_scatter.png"))
+ggsave(file.path(plots_wd,"PDF/lowCDI_highCDI_scatter.pdf"))
 ```
 
 ## Burden of CT per ctype (CTAB)
 
 ```{r CTAB, echo=F}
 ## How many CT of the defined in CTdatabase are expressed > 1 TPM in at least 10% of the patients - tumor samples?
-# names(tables_of_counts)[1] = "transcript_id"
-# tables_of_counts = merge(tables_of_counts, annot, by="transcript_id")
-# TPMs_CTDB = merge(tables_of_counts, CTDB, by="transcript_id")
+burden_TTS = data_completed_TSA_forced %>% 
+  select(ctype, gene_name, gene_type, forced_tumor_expr, patient) %>% 
+  subset (forced_tumor_expr > 0) %>% 
+  mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                      TRUE ~ "noncoding")) %>% 
+  group_by(ctype, coding_noncoding, patient) %>%
+  count()
+
+burden_TTS_coding_noncoding = burden_TTS %>% pivot_wider(names_from = "coding_noncoding", values_from = "n")
+burden_TTS_coding_noncoding[is.na(burden_TTS_coding_noncoding)] = 0
+burden_TTS_coding_noncoding$coding = as.numeric(burden_TTS_coding_noncoding$coding)
+burden_TTS_coding_noncoding$noncoding = as.numeric(burden_TTS_coding_noncoding$noncoding)
+
+ggplot(burden_TTS_coding_noncoding, aes(x = coding, y=noncoding)) +
+  geom_point() +
+  stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="red") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  labs(x="Burden of codingTTS",
+       y="Burden of non-codingTTS",
+       title="Correlation between coding and non-coding TTS burden?") +
+  theme_minimal() +
+  facet_wrap(~ ctype, scales="free", nrow=2)
+ggsave(file.path(plots_wd, "PNG/TTSburden_coding_vs_noncoding.png"))
+ggsave(file.path(plots_wd, "PDF/TTSburden_coding_vs_noncoding.pdf"))
+
+
 ## How many CT of the defined in CTdatabase are tumor-specific in at least 10% of the patients?
 ```
