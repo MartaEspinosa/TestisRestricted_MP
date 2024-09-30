@@ -20,9 +20,9 @@ library(ggthemr)
 library(ggbeeswarm)
 library(ggrepel)
 
-gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txt",sep=",", header=T)
-names(gene_transcript) = c("gene_id","gene_type","gene_name")
-gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+gene_transcript = read.table("/genomics/users/marta/genomes/1transcript_1gene.txtsep= header=T)
+names(gene_transcript) = c("gene_id"gene_type"gene_name")
+gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
 
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/plots"
 save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction"
@@ -30,28 +30,28 @@ save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_T
 
 ```{r annotation, echo=F}
 ## novels
-novels = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/novel_temp_biomart.csv", header=F, sep=",")
-names(novels) = c("transcript_id","gene_id","gene_type")
+novels = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/novel_temp_biomart.csv header=F, sep=")
+names(novels) = c("transcript_id"gene_id"gene_type")
 novels$gene_name = novels$gene_id
 
 
 ## annotated
-annotated = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/annotated_1transcript_1gene.csv", header=F, sep=",")
-names(annotated) = c("gene_id","transcript_id","gene_type","gene_name")
-annotated$gene_id = gsub("\\..*","", annotated$gene_id)
-annotated$transcript_id = gsub("\\..*","", annotated$transcript_id)
+annotated = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/annotated_1transcript_1gene.csv header=F, sep=")
+names(annotated) = c("gene_id"transcript_id"gene_type"gene_name")
+annotated$gene_id = gsub("\\..*" annotated$gene_id)
+annotated$transcript_id = gsub("\\..*" annotated$transcript_id)
 
 annotation = rbind(annotated, novels)
-write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F, quote = F)
+write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv row.names = F, quote = F)
 head(annotation)
 
 
-# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid", all.x=T))
+# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid all.x=T))
 # head(t_e_g)
-# t_e_g <- subset(t_e_g, !grepl("ENST00000654848", transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000609202", transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000669393", transcriptID)) 
-# t_e_g <- subset(t_e_g, !grepl("ENST00000512989", transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000654848 transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000609202 transcriptID))
+# t_e_g <- subset(t_e_g, !grepl("ENST00000669393 transcriptID)) 
+# t_e_g <- subset(t_e_g, !grepl("ENST00000512989 transcriptID))
 # dim(t_e_g)
 ```
 
@@ -63,28 +63,28 @@ Obtained using STAR to align and featureCounts to quantify.
 
 ```{r input, echo=FALSE}
 ## Load counts data
-# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
-toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
+toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv header=TRUE)
 
 ## For novels, remove those shorter than 300 pb
 toc_TPMs = toc_TPMs %>%
   filter(!(startsWith(gene_id, "TCONS") & Length < 300))
 names(toc_TPMs)[1] = "transcript_id"
 
-toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
+toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id all.x=T)
 toc_TPMs = toc_TPMs %>% unique()
 
 ggplot(toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel"), aes(x=Length, fill=gene_type)) +
   geom_density(alpha=0.6) +
   geom_vline(xintercept = 300) +
   scale_x_continuous(trans="log10") +
-    labs(x="Length (nt)",
-       fill="Biotype",
+    labs(x="Length (nt)
+       fill="Biotype
        title="Gene length distribution per biotype") +
-  scale_fill_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+  scale_fill_manual(values=c("protein_coding"="#CC79A7
+                             "lncRNA" = "#
+                             "processed_pseudogene" = "#0090B2
+                             "novel" = "#E69F00")) +
   theme_classic() +
   theme(legend.position = "top")
 ggsave(file.path(plots_wd,"PNG/length_density.png"), height=4.45, width=5.30)
@@ -116,12 +116,12 @@ The expression counts data is normalized in transcript per million (TPM).
 ```
 
 ```{r TPM_distribution, echo=F}
-# toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample", values_to = "TPM")
+# toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, Length, gene_type), names_to = "sample values_to = "TPM")
 ## get patient number
-toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type), names_to = "sample", values_to = "TPM")
+toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type), names_to = "sample values_to = "TPM")
 
 toc_TPMs_long$patient = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[length(x)])
-toc_TPMs_long$patient = paste0("Patient",toc_TPMs_long$patient)
+toc_TPMs_long$patient = paste0("Patienttoc_TPMs_long$patient)
 ## get tissue data
 toc_TPMs_long$tissue = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[2])
 ## log2TPM
@@ -131,11 +131,11 @@ toc_TPMs_long$log2TPM = log2(toc_TPMs_long$TPM)
 #-------------- log2TPM boxplots per tissue --------------#
 ggplot(toc_TPMs_long, aes(x=patient, y=log2TPM, fill=tissue))+
   geom_boxplot() +
-  labs(x="Patient",
-       fill="Tissue",
+  labs(x="Patient
+       fill="Tissue
        title="Gene expression distribution per tissue") +
-  scale_fill_manual(values=c("liver"="#ABCD72",
-                             "brain" = "#8C57A2",
+  scale_fill_manual(values=c("liver"="#ABCD72
+                             "brain" = "#8C57A2
                              "testis" = "#82581F")) +
   theme_classic() + 
   theme(axis.text.x = element_text(angle=90),
@@ -147,13 +147,13 @@ ggsave(file.path(plots_wd,"PDF/TPM_boxplot_tissue.pdf"), height=4.45, width=4.30
 #-------------- log2TPM boxplots per genetype --------------#
 ggplot(toc_TPMs_long %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel"), aes(x=patient, y=log2TPM, fill=gene_type))+
   geom_boxplot() +
-  labs(x="Patient",
-       fill="Biotype",
+  labs(x="Patient
+       fill="Biotype
        title="Gene expression distribution per biotype") +
-  scale_fill_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+  scale_fill_manual(values=c("protein_coding"="#CC79A7
+                             "lncRNA" = "#
+                             "processed_pseudogene" = "#0090B2
+                             "novel" = "#E69F00")) +
   theme_classic() + 
   theme(axis.text.x = element_text(angle=90),
         legend.position = "none") +
@@ -173,7 +173,7 @@ toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "proc
 ## they should be brain-expressed in at least 2 patients
 brainexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(2:4)] > 1) > 1, ]
 ## merge with all info
-brainexpr_full = merge(brainexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+brainexpr_full = merge(brainexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 brainexpr_full = brainexpr_full %>% unique()
 
 write.csv(brainexpr_full, file.path(save_wd,"brainExpressed.csv"), row.names = F)
@@ -183,7 +183,7 @@ write.csv(brainexpr_full, file.path(save_wd,"brainExpressed.csv"), row.names = F
 ## they should be liver-expressed in at least 2 patients
 liverexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(5:7)] > 1) > 1, ]
 ## merge with all info
-liverexpr_full = merge(liverexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+liverexpr_full = merge(liverexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 liverexpr_full = liverexpr_full %>% unique()
 
 write.csv(liverexpr_full, file.path(save_wd,"liverExpressed.csv"), row.names = F)
@@ -193,7 +193,7 @@ write.csv(liverexpr_full, file.path(save_wd,"liverExpressed.csv"), row.names = F
 testisexpr = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(8:10)] > 1) > 1, ]
 
 ## merge with all info
-testisexpr_full = merge(testisexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+testisexpr_full = merge(testisexpr, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 testisexpr_full = testisexpr_full %>% unique()
 
 write.csv(testisexpr_full, file.path(save_wd,"testisExpressed.csv"), row.names = F)
@@ -222,7 +222,7 @@ toc_TPMs_subset = toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "proc
 ## they should be brain-restricted in at least 2 patients
 brainspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(2:4)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(5:10)] < 0.5) == 6, ]
 ## merge with all info
-brainspecific_full = merge(brainspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+brainspecific_full = merge(brainspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 brainspecific_full = brainspecific_full %>% unique()
 
 # brainspecific_full_in2 = brainspecific_full[rowSums(brainspecific_full[, c(5:7)] > 1) > 1,]
@@ -233,7 +233,7 @@ write.csv(brainspecific_full, file.path(save_wd,"brainRestricted.csv"), row.name
 ## they should be liver-restricted in at least 2 patients
 liverspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(5:7)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(2:4,8:10)] < 0.5) == 6, ]
 ## merge with all info
-liverspecific_full = merge(liverspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+liverspecific_full = merge(liverspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 liverspecific_full = liverspecific_full %>% unique()
 
 # liverspecific_full_in2 = liverspecific_full[rowSums(liverspecific_full[, c(8:10)] > 1) > 1,]
@@ -244,7 +244,7 @@ write.csv(liverspecific_full, file.path(save_wd,"liverRestricted.csv"), row.name
 testisspecific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(8:10)] > 1) > 1 & rowSums(toc_TPMs_subset[, c(2:7)] < 0.5) == 6, ]
 
 ## merge with all info
-testisspecific_full = merge(testisspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+testisspecific_full = merge(testisspecific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id"gene_type"gene_name")) 
 testisspecific_full = testisspecific_full %>% unique()
 
 # testisspecific_full_in2 = testisspecific_full[rowSums(testisspecific_full[, c(11:13)] > 1) > 1,]
@@ -265,10 +265,10 @@ We will use GTEx to filter those genes whose expression in other tissues is high
 In cases where several "sub-tissues" are available, we kept the highest value.
 
 ```{r, reading_GTEx, echo=F}
-gtex = read.table("/genomics/users/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+gtex = read.table("/genomics/users/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv sep= header=T)
 names(gtex)[1] = "gene_id"
 nrow(gtex)
-gtex$gene_id = gsub("\\..*","",gtex$gene_id)
+gtex$gene_id = gsub("\\..*"gtex$gene_id)
 ```
 
 ```{r testis_GTEx, echo=F}
@@ -278,7 +278,7 @@ dim(testis_gtex)
 
 ## germline 
 germline = testis_gtex %>% select(gene_id, Testis, Ovary) 
-germline_05 = germline %>% mutate(GTEx_testis = case_when(Testis > 0.5~ "> 0.5", Testis < 0.5 ~ "< 0.5"))
+germline_05 = germline %>% mutate(GTEx_testis = case_when(Testis > 0.5~ "> 0.5 Testis < 0.5 ~ "< 0.5"))
 dim(germline_05)
 ## non-reproductive tissues
 NOgermline = testis_gtex %>% select(-c(Testis, Ovary))
@@ -288,7 +288,7 @@ dim(NOgermline)
 
 ## get maximum value
 NOgermline$max <- apply(NOgermline, 1, max, na.rm=TRUE)
-NOgermline_05 = NOgermline %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
+NOgermline_05 = NOgermline %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5 max < 0.5 ~ "< 0.5"))
 NOgermline_05$gene_id = rownames(NOgermline_05)
 dim(NOgermline_05)
 ## join both criteria
@@ -318,24 +318,24 @@ table(tmp$gene_type)
 **Of the expressed, how many are restricted based on Wang and based on GTEx?**
 
 ```{r expr_restr, echo=F}
-testisExpressed = testisexpr_full %>% mutate("testisRestricted" = case_when(gene_id %in% testisspecific_full$gene_id ~ "yes", TRUE ~ "no")) %>%
-  mutate("testisRestricted_GTEx" = case_when(gene_id %in% subset_testis_GTEx$gene_id ~ "yes", TRUE ~ "no"))
+testisExpressed = testisexpr_full %>% mutate("testisRestricted" = case_when(gene_id %in% testisspecific_full$gene_id ~ "yes TRUE ~ "no")) %>%
+  mutate("testisRestricted_GTEx" = case_when(gene_id %in% subset_testis_GTEx$gene_id ~ "yes TRUE ~ "no"))
 table(testisExpressed$gene_type)
 ##-------------- WANG et al.--------------##
 table(testisExpressed$gene_type, testisExpressed$testisRestricted)
 Wang_expressed_restricted = as.data.frame(table(testisExpressed$gene_type, testisExpressed$testisRestricted))
-names(Wang_expressed_restricted) = c("gene_type","testisRestricted","n")
+names(Wang_expressed_restricted) = c("gene_type"testisRestricted"n")
 Wang_expressed_restricted = Wang_expressed_restricted %>% 
   group_by(gene_type) %>% 
   mutate(perc = round((n/sum(n)*100),2))
 
 ggplot(Wang_expressed_restricted, aes(x=gene_type, y=n, fill=testisRestricted)) +
-  geom_bar(stat="identity", position="fill") +
+  geom_bar(stat="identity position="fill") +
   geom_text(aes(label=paste0(perc, "%")), position=position_fill(vjust=0.5)) +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   scale_y_continuous(labels = scales::percent) +
-  labs(x="Biotype",
-        y="Number of genes",
+  labs(x="Biotype
+        y="Number of genes
         title="How many of the testisExpressed genes\nare testisRestricted (Wang et al.)?") +
   theme_classic() +
   theme(legend.position="top")
@@ -346,19 +346,19 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted.pdf"), height=5.
 
 ##-------------- GTEx et al.--------------##
 GTEx_expressed_restricted = as.data.frame(table(testisExpressed$gene_type, testisExpressed$testisRestricted_GTEx))
-names(GTEx_expressed_restricted) = c("gene_type","testisRestricted_GTEx","n")
+names(GTEx_expressed_restricted) = c("gene_type"testisRestricted_GTEx"n")
 GTEx_expressed_restricted = GTEx_expressed_restricted %>% 
   group_by(gene_type) %>% 
   mutate(perc = round((n/sum(n)*100),2))
 
 ## novels excluded cause they cannot be checked
 ggplot(GTEx_expressed_restricted %>% subset(gene_type != "novel"), aes(x=gene_type, y=n, fill=testisRestricted_GTEx)) +
-  geom_bar(stat="identity", position="fill") +
+  geom_bar(stat="identity position="fill") +
   geom_text(aes(label=paste0(perc, "%")), position=position_fill(vjust=0.5)) +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   scale_y_continuous(labels = scales::percent) +
-  labs(x="Biotype",
-        y="Number of genes",
+  labs(x="Biotype
+        y="Number of genes
         title="How many of the testisExpressed genes\nare testisRestricted GTEx?") +
   theme_classic() +
   theme(legend.position="top")
@@ -374,7 +374,7 @@ liver_gtex = gtex %>% subset(gene_id %in% liverspecific$gene_id)
 
 ## liver 
 liver = liver_gtex %>% select(gene_id, Liver) 
-liver_05 = liver %>% mutate(GTEx_liver = case_when(Liver > 0.5~ "> 0.5", Liver < 0.5 ~ "< 0.5"))
+liver_05 = liver %>% mutate(GTEx_liver = case_when(Liver > 0.5~ "> 0.5 Liver < 0.5 ~ "< 0.5"))
 
 ## all other tissues
 all_others = liver_gtex %>% select(-c(Liver))
@@ -382,7 +382,7 @@ rownames(all_others) = all_others$gene_id
 all_others$gene_id = NULL
 ## get maximum value
 all_others$max <- apply(all_others, 1, max, na.rm=TRUE)
-all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
+all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5 max < 0.5 ~ "< 0.5"))
 all_others_05$gene_id = rownames(all_others_05)
 
 ## join both criteria
@@ -415,7 +415,7 @@ brain_gtex = gtex %>% subset(gene_id %in% brainspecific$gene_id)
 
 ## brain 
 brain = brain_gtex %>% select(gene_id, Brain) 
-brain_05 = brain %>% mutate(GTEx_brain = case_when(Brain > 0.5~ "> 0.5", Brain < 0.5 ~ "< 0.5"))
+brain_05 = brain %>% mutate(GTEx_brain = case_when(Brain > 0.5~ "> 0.5 Brain < 0.5 ~ "< 0.5"))
 
 ## all other tissues
 all_others = brain_gtex %>% select(-c(Brain))
@@ -423,7 +423,7 @@ rownames(all_others) = all_others$gene_id
 all_others$gene_id = NULL
 ## get maximum value
 all_others$max <- apply(all_others, 1, max, na.rm=TRUE)
-all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
+all_others_05 = all_others %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5 max < 0.5 ~ "< 0.5"))
 all_others_05$gene_id = rownames(all_others_05)
 
 ## join both criteria
@@ -462,7 +462,7 @@ table(ribORF_humanTestis_in2_fastas$gene_type)
 nrow(testisExpressed)
 table(testisExpressed$gene_type)
 ## how many of the testis expressed are translated?
-testisExpressed_Restricted_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type"))
+testisExpressed_Restricted_Translated = merge(testisExpressed %>% select(gene_id, gene_type, gene_name, testisRestricted), ribORF_humanTestis_in2_fastas, by=c("gene_id"gene_name"gene_type"))
 nrow(testisExpressed_Restricted_Translated)
 table(testisExpressed_Restricted_Translated$gene_type)
 table(testisExpressed_Restricted_Translated$testisRestricted, testisExpressed_Restricted_Translated$gene_type)
@@ -470,11 +470,11 @@ testisExpressed_Restricted_Translated = testisExpressed_Restricted_Translated %>
 
 to_plot = testisExpressed_Restricted_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
-ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out", lab.font = c(3, "plain", "black"),
-      palette=c("protein_coding"="#849DB1",
-                 "lncRNA" = "#B66353",
-                 "processed_pseudogene" = "#FBB04E",
-                 "novel" = "#B09C85")) +
+ggpie(to_plot, "n label="n fill="gene_type lab.pos = "out lab.font = c(3, "plain "black"),
+      palette=c("protein_coding"="#CC79A7
+                 "lncRNA" = "#
+                 "processed_pseudogene" = "#0090B2
+                 "novel" = "#E69F00")) +
   ggtitle("ORFs from testis-Expressed genes only translated in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisExpressed_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisExpressed_translated.pdf"), height=4.69, width=5.4)
@@ -487,7 +487,7 @@ ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=length_a
   geom_boxplot() +
   stat_compare_means() +
   scale_y_continuous(trans="log10") +
-    scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+    scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA.png"), height=4.69, width=5.4)
@@ -498,7 +498,7 @@ ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=length_aa, fill
   geom_boxplot() +
   stat_compare_means(label="p.signif") +
   scale_y_continuous(trans="log10") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA_genetype.png"), height=4.69, width=5.4)
@@ -507,7 +507,7 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA_genetyp
 ## log2ratio to see if ncORFs are relatively enriched in any aminoacid
 # Function to calculate log2ratio of relative frequency
 calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
-  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  all_amino_acids <- c("A"R"N"D"C"Q"E"G"H"U"L"K"M"F"P"S"T"W"Y"V "*")
   log2ratios <- numeric(length(all_amino_acids))
   
   for (aa in all_amino_acids) {
@@ -557,35 +557,35 @@ log2ratios_yes_vs_no = log2ratios_yes_vs_no %>% subset(log2ratio_yes_vs_no != 0)
 
 
 
-hph=c("A","V","L","I","M","F","Y","W")
-polar=c("S","T","N","Q")
-positively_charged=c("R","H","K")
-negatively_charged=c("D","E")
-special_cases=c("C","G","P")
+hph=c("A"V"L"I"M"F"Y"W")
+polar=c("S"T"N"Q")
+positively_charged=c("R"H"K")
+negatively_charged=c("D"E")
+special_cases=c("C"G"P")
 
 
 log2ratios = list(log2ratios_yes, log2ratios_no, log2ratios_yes_vs_no) %>% reduce(full_join, by='Aminoacid')
 log2ratios = log2ratios %>% 
-  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
-                             Aminoacid %in% polar ~ "polar",
-                             Aminoacid %in% positively_charged ~ "positive",
-                             Aminoacid %in% negatively_charged ~ "negative",
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic
+                             Aminoacid %in% polar ~ "polar
+                             Aminoacid %in% positively_charged ~ "positive
+                             Aminoacid %in% negatively_charged ~ "negative
                              Aminoacid %in% special_cases ~ "special")) %>%
   subset(Aminoacid != "*") %>% 
   drop_na()
 
-log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no","log2ratio_no_ncORFs_vs_ORFs","log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type", values_to = "log2ratio")
+log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no"log2ratio_no_ncORFs_vs_ORFs"log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type values_to = "log2ratio")
 
 ggthemr("dust")
 ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
   geom_bar(stat = "identity") +
-  labs(y="Log2Ratio",
-       x="Aminoacid",
-       title="Relative enrichement of aminoacids in ncORFs",
+  labs(y="Log2Ratio
+       x="Aminoacid
+       title="Relative enrichement of aminoacids in ncORFs
        fill="Aminoacid type") +
   theme_classic() +
   theme(legend.position = "top") +
-  facet_grid(type ~ aa_type, scales="free_x", space="free_x")
+  facet_grid(type ~ aa_type, scales="free_x space="free_x")
 ggsave(file.path(plots_wd,"PNG/log2ratio_severalconditions.png"), height=7.05, width=8.46)
 ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, width=8.46)
 
@@ -593,12 +593,12 @@ ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, w
 ##---------- translation efficiency ----------##
 mean_testis_TE = read.csv(file.path(save_wd, "mean_translationEfficiency_testis.csv"))
 names(mean_testis_TE)[5] = "orfType"
-testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID","gene_id", "gene_type", "gene_name", "orfType"))
+testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID"gene_id "gene_type "gene_name "orfType"))
 
 ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=mean_TE, fill=testisRestricted)) +
   geom_boxplot() +
   stat_compare_means() +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   scale_y_continuous(trans="log10") +
   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
   theme_classic()
@@ -609,7 +609,7 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE.pdf"), height
 ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=mean_TE, fill=testisRestricted)) +
   geom_boxplot() +
   stat_compare_means(label="p.signif") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+  scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
   scale_y_continuous(trans="log10") +
   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
   theme_classic()
@@ -620,7 +620,7 @@ ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_genetype.pdf"
 #### Testis-Specific with RiboSeq
 
 ```{r translation_testisRestricted,echo=F}
-testisRestrictedGTEx_Translated = merge(subset_testis_GTEx_w_novels %>% select(gene_id, gene_type, gene_name), ribORF_humanTestis_in2_fastas, by=c("gene_id","gene_name","gene_type")) 
+testisRestrictedGTEx_Translated = merge(subset_testis_GTEx_w_novels %>% select(gene_id, gene_type, gene_name), ribORF_humanTestis_in2_fastas, by=c("gene_id"gene_name"gene_type")) 
 write.csv(testisRestrictedGTEx_Translated, file.path(save_wd, "testisRestricted_GTEx_translatedINtestis.csv"), row.names = F, quote = F)
 
 ## how many testis REstricted GTEx are translated?
@@ -631,11 +631,11 @@ testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% select(-OR
 dim(testisRestrictedGTEx_Translated)
 to_plot = testisRestrictedGTEx_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
-ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out",   lab.font = c(5, "plain", "black"),
-      palette=c("protein_coding"="#849DB1",
-                 "lncRNA" = "#B66353",
-                 "processed_pseudogene" = "#FBB04E",
-                 "novel" = "#B09C85")) +
+ggpie(to_plot, "n label="n fill="gene_type lab.pos = "out   lab.font = c(5, "plain "black"),
+      palette=c("protein_coding"="#CC79A7
+                 "lncRNA" = "#
+                 "processed_pseudogene" = "#0090B2
+                 "novel" = "#E69F00")) +
   ggtitle("ORFs from testis-Restricted GTEx genes translated in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestrictedGTEx_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.69, width=5.4)
@@ -648,7 +648,7 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 #   geom_boxplot() +
 #   stat_compare_means() +
 #   scale_y_continuous(trans="log10") +
-#     scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+#     scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
 #   labs(title="Translated TestisRestricted GTEx ORFs") +
 #   theme_classic()
 # ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestrictedGTEx_lengthAA.png"), height=4.69, width=5.4)
@@ -659,7 +659,7 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 #   geom_boxplot() +
 #   stat_compare_means(label="p.signif") +
 #   scale_y_continuous(trans="log10") +
-#   scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+#   scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
 #   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
 #   theme_classic()
 # ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA_genetype.png"), height=4.69, width=5.4)
@@ -668,7 +668,7 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 # ## log2ratio to see if ncORFs are relatively enriched in any aminoacid
 # # Function to calculate log2ratio of relative frequency
 # calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
-#   all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+#   all_amino_acids <- c("A"R"N"D"C"Q"E"G"H"U"L"K"M"F"P"S"T"W"Y"V "*")
 #   log2ratios <- numeric(length(all_amino_acids))
 #   
 #   for (aa in all_amino_acids) {
@@ -718,35 +718,35 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 # 
 # 
 # 
-# hph=c("A","V","L","I","M","F","Y","W")
-# polar=c("S","T","N","Q")
-# positively_charged=c("R","H","K")
-# negatively_charged=c("D","E")
-# special_cases=c("C","G","P")
+# hph=c("A"V"L"I"M"F"Y"W")
+# polar=c("S"T"N"Q")
+# positively_charged=c("R"H"K")
+# negatively_charged=c("D"E")
+# special_cases=c("C"G"P")
 # 
 # 
 # log2ratios = list(log2ratios_yes, log2ratios_no, log2ratios_yes_vs_no) %>% reduce(full_join, by='Aminoacid')
 # log2ratios = log2ratios %>% 
-#   mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
-#                              Aminoacid %in% polar ~ "polar",
-#                              Aminoacid %in% positively_charged ~ "positive",
-#                              Aminoacid %in% negatively_charged ~ "negative",
+#   mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic
+#                              Aminoacid %in% polar ~ "polar
+#                              Aminoacid %in% positively_charged ~ "positive
+#                              Aminoacid %in% negatively_charged ~ "negative
 #                              Aminoacid %in% special_cases ~ "special")) %>%
 #   subset(Aminoacid != "*") %>% 
 #   drop_na()
 # 
-# log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no","log2ratio_no_ncORFs_vs_ORFs","log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type", values_to = "log2ratio")
+# log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no"log2ratio_no_ncORFs_vs_ORFs"log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type values_to = "log2ratio")
 # 
 # ggthemr("dust")
 # ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
 #   geom_bar(stat = "identity") +
-#   labs(y="Log2Ratio",
-#        x="Aminoacid",
-#        title="Relative enrichement of aminoacids in ncORFs",
+#   labs(y="Log2Ratio
+#        x="Aminoacid
+#        title="Relative enrichement of aminoacids in ncORFs
 #        fill="Aminoacid type") +
 #   theme_classic() +
 #   theme(legend.position = "top") +
-#   facet_grid(type ~ aa_type, scales="free_x", space="free_x")
+#   facet_grid(type ~ aa_type, scales="free_x space="free_x")
 # ggsave(file.path(plots_wd,"PNG/log2ratio_severalconditions.png"), height=7.05, width=8.46)
 # ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, width=8.46)
 # 
@@ -754,12 +754,12 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 # ##---------- translation efficiency ----------##
 # mean_testis_TE = read.csv(file.path(save_wd, "mean_translationEfficiency_testis.csv"))
 # names(mean_testis_TE)[5] = "orfType"
-# testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID","gene_id", "gene_type", "gene_name", "orfType"))
+# testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID"gene_id "gene_type "gene_name "orfType"))
 # 
 # ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=mean_TE, fill=testisRestricted)) +
 #   geom_boxplot() +
 #   stat_compare_means() +
-#   scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+#   scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
 #   scale_y_continuous(trans="log10") +
 #   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
 #   theme_classic()
@@ -770,7 +770,7 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 # ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=mean_TE, fill=testisRestricted)) +
 #   geom_boxplot() +
 #   stat_compare_means(label="p.signif") +
-#   scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
+#   scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
 #   scale_y_continuous(trans="log10") +
 #   labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
 #   theme_classic()
@@ -799,12 +799,12 @@ ribORF_humanBrain_simplified$tissue = "brain"
 ggvenn(list("brain"=ribORF_humanBrain_simplified$orfID,
                  "liver"=ribORF_humanLiver_simplified$orfID,
                  "testis"=testisRestrictedGTEx_Translated$orfID),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C57A2","#ABCD72","#82581F")) +
+       fill_alpha=0.5, stroke_color="gray set_name_size = 4, text_size=3, fill_color = c("#8C57A2"#ABCD72"#82581F")) +
   ggtitle("Translated ORFs per tissues")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_translated_tissues.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestricted_translated_tissues.pdf"), height=4.69, width=5.4)
 
-testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% mutate("TranslatedLiver" = case_when(orfID %in% ribORF_humanLiver_simplified$orfID ~ "yes",TRUE ~ "no")) %>% mutate("TranslatedBrain" = case_when(orfID %in% ribORF_humanBrain_simplified$orfID ~ "yes",TRUE ~ "no"))
+testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% mutate("TranslatedLiver" = case_when(orfID %in% ribORF_humanLiver_simplified$orfID ~ "yesTRUE ~ "no")) %>% mutate("TranslatedBrain" = case_when(orfID %in% ribORF_humanBrain_simplified$orfID ~ "yesTRUE ~ "no"))
 
 ## select those only TRANSLATED in testis (in at least 2 samples) and no in any sample from brain or liver 
 testisRestrictedGTEx_Translated_onlyTestis = testisRestrictedGTEx_Translated %>% subset(TranslatedLiver == "no" & TranslatedBrain == "no")
@@ -815,11 +815,11 @@ to_plot_translatedOnlyTestis = testisRestrictedGTEx_Translated_onlyTestis %>% gr
 to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)
 
 ###### ggpie
-labs <- paste0(to_plot_translatedOnlyTestis$gene_type, " (", to_plot_translatedOnlyTestis$n, ")")
-ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "out", palette=c("protein_coding"="#849DB1",
-                         "lncRNA" = "#B66353",
-                         "processed_pseudogene" = "#FBB04E",
-                                          "novel" = "#B09C85")) +
+labs <- paste0(to_plot_translatedOnlyTestis$gene_type, " ( to_plot_translatedOnlyTestis$n, ")")
+ggpie(to_plot_translatedOnlyTestis, "n label="n fill="gene_type lab.pos = "out palette=c("protein_coding"="#CC79A7
+                         "lncRNA" = "#
+                         "processed_pseudogene" = "#0090B2
+                                          "novel" = "#E69F00")) +
   ggtitle("ORFs from testis-expressed genes translated ONLY in testis (2 samples at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_ORFs_onlyTestis.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisREstricted_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  

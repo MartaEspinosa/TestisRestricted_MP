@@ -7,8 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# packages <- c("dplyr", "tidyr", "ggplot2", "stringr", "purrr", "ggvenn", "ggpubr", 
-#               "ggside", "bioseq", "ggthemr", "ggbeeswarm", "ggbreak")
+# packages <- c("dplyr "tidyr "ggplot2 "stringr "purrr "ggvenn "ggpubr 
+#               "ggside "bioseq "ggthemr "ggbeeswarm "ggbreak")
 # 
 # # Install packages that are not already installed
 # installed_packages <- installed.packages()
@@ -36,8 +36,8 @@ library(ggbreak)
 library(GGally)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
-# names(gene_transcript) = c("gene_id","gene_type","gene_name")
-# gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+# names(gene_transcript) = c("gene_id"gene_type"gene_name")
+# gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
 
 pre_save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human"
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/plots"
@@ -47,7 +47,7 @@ cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
-# deleted_projects=c("GSE103001_BRCA","GSE89223_PRAD")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
@@ -98,15 +98,15 @@ for(c in 1:length(cancers)) {
 
 ggplot(TAA_10percent %>% group_by(gene_type, ctype) %>% count(), aes(x=n, y=ctype, fill=gene_type)) +
   geom_bar(stat="identity") +
-    scale_fill_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+    scale_fill_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
   ggtitle("Tumor-Expressed genes per cancer type (> 1 TPM in > 10% patients)") +
   theme_classic()
 ```
 
-```{r}
+```{r inputs, echo=F}
 TAA_translated = merge(TAA_10percent, translated_IN_testis, by=c("transcript_id","gene_name","gene_id","gene_type"))
 TAA_translated = TAA_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") 
 table(TAA_translated$gene_type, TAA_translated$ctype)
@@ -231,7 +231,7 @@ full_df = merge(total_burden_TestisRestrGTEx_TumorAss, total_num_patients, by="c
 
 ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
   geom_point(shape = 21, size=5,stroke = 3) +
-  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#009E73", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
   stat_smooth(method = "lm", 
               formula = y ~ x, 
               geom = "smooth", color="grey") +

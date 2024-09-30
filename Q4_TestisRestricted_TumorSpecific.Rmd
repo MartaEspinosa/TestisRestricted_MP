@@ -21,8 +21,8 @@ library(ggbeeswarm)
 library(ggbreak)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
-# names(gene_transcript) = c("gene_id","gene_type","gene_name")
-# gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+# names(gene_transcript) = c("gene_id"gene_type"gene_name")
+# gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
 
 Q2_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human"
 
@@ -34,7 +34,7 @@ cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
-# deleted_projects=c("GSE103001_BRCA","GSE89223_PRAD")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
@@ -90,10 +90,10 @@ table(TSA_GTEX_all$ctype, TSA_GTEX_all$gene_type)
 
 ggplot(TSA_GTEX_all %>% unique() %>% group_by(gene_type, ctype) %>% count(), aes(x=n, y=ctype, fill=gene_type)) +
   geom_bar(stat="identity", position="dodge") +
-    scale_fill_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+    scale_fill_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
   ggtitle("Tumor-Specific genes") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/tumorspecific_ctype.png"), width=5.41, height=4.66)
@@ -102,10 +102,10 @@ ggsave(file.path(plots_wd,"PDF/tumorspecific_ctype.pdf"), width=5.41, height=4.6
 ggplot(TSA_GTEX_all %>% unique() %>% group_by(gene_type, ctype, n) %>% count(), aes(x=n, y=nn, color=gene_type)) +
   geom_point(stat="identity", position="dodge") +
   geom_line() +
-  scale_color_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+  scale_color_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
   scale_y_continuous(trans="log10") +
   labs(title="Tumor-Specific genes",
        y="Number of genes",
@@ -206,11 +206,11 @@ upset(to_upset_nonCTA,
 ```
 
 ```{r upset_novel, echo=F}
-novel_geneName_geneType = geneName_geneType %>% subset(gene_type == "novel")
-
-to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_geneType$gene_name)
-upset(to_upset_novel, 
-      sets=cancers)
+# novel_geneName_geneType = geneName_geneType %>% subset(gene_type == "novel")
+# 
+# to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_geneType$gene_name)
+# upset(to_upset_novel, 
+#       sets=cancers)
 ```
 
 ## Is there a correlation between the number of TTS and the number of patients per ctype?
@@ -226,7 +226,7 @@ full_df = merge(total_burden_TTS, total_num_patients, by="ctype")
 
 ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
   geom_point(shape = 21, size=5,stroke = 3) +
-  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#009E73", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
   stat_smooth(method = "lm", 
               formula = y ~ x, 
               geom = "smooth", color="grey") +

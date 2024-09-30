@@ -28,17 +28,15 @@ annot = merge(annot, chr_annot, by=c("gene_id", "transcript_id"))
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots"
 save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human"
 
-cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")#"KIRP"
+cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
-# deleted_projects=c("GSE103001_BRCA","GSE89223_PRAD")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
-
-cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
-
 ctype_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC"),
                             num_patients = c(109,38,179,142,49,75,182,144))
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
 
 save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
    stopifnot(!missing(x))
@@ -81,7 +79,7 @@ data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
 
 
 ```{r force_zero, echo=TRUE}
-# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor values_from = "TPM")
 # # ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
 # data_completed_TSA_forced = data_completed_TSA_wide %>% mutate(forced_tumor_expr = case_when(normal < 0.1 & tumor > 1 ~ tumor,
 #                                                                                   TRUE ~ 0))
@@ -155,10 +153,10 @@ for (ctype_var in cancers) {
     rownames(col_annot) = col_annot$patient
     col_annot = col_annot %>% select(-c(patient))
   
-    biotypecolors = list("gene_type" = c("protein_coding"="#849DB1",
-                               "lncRNA" = "#B66353",
-                               "processed_pseudogene" = "#FBB04E",
-                               "novel" = "#B09C85"),
+    biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2",
+                               "novel" = "#E69F00"),
                            "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
   
     
@@ -174,10 +172,10 @@ for (ctype_var in cancers) {
            annotation_colors = biotypecolors,
            color=colorRampPalette(c("lightyellow", "red"))(50),
            fontsize = 6,
-           main=paste0("Testis/Tumor Specific genes ", ctype_var))
+           main=paste0("Testis/Tumor Specific genes",  ctype_var))
     col.order = ph$tree_col$order
     save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
-    # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,".pdf"))
+    # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,".pdf"))
 
     
     lncRNA = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name)
@@ -188,7 +186,7 @@ for (ctype_var in cancers) {
     # CTA_matrix = nozeros_matrix_log[CTA$gene_name, col.order]
     # CTA_matrix_non_zero <- CTA_matrix[, apply(CTA_matrix, 2, function(x) any(x != 0))]
     # 
-    # cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+    # cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlationclustering_distance_rows = "euclidean clustering_method = "complete
     #        treeheight_row = 0, treeheight_col = 0,
     #        annotation_row = row_annotation,
     #        annotation_col= col_annot,
@@ -197,19 +195,19 @@ for (ctype_var in cancers) {
     #        show_colnames = FALSE,
     #        # cutree_cols = 3,
     #        annotation_colors = biotypecolors,
-    #        color=colorRampPalette(c("lightyellow", "red"))(50),
+    #        color=colorRampPalette(c("lightyellow "red"))(50),
     #        fontsize = 6,
-    #        main=paste0("CTA Testis/Tumor Specific genes ", ctype_var))
+    #        main=paste0("CTA Testis/Tumor Specific genes  ctype_var))
     # 
-    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,"_CTA.pdf"))
-    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,"_CTA.pdf"))
+    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,"_CTA.pdf"))
+    # save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_ctype_var,"_CTA.pdf"))
 
 
     # ## lncRNA
     # lncRNA_matrix = nozeros_matrix_log[lncRNA$gene_name, col.order]
     # lncRNA_matrix_non_zero <- lncRNA_matrix[, apply(lncRNA_matrix, 2, function(x) any(x != 0))]
     # 
-    # lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+    # lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correlationclustering_distance_rows = "euclidean clustering_method = "complete
     #        treeheight_row = 0, treeheight_col = 0,
     #        annotation_row = row_annotation,
     #        annotation_col= col_annot,
@@ -218,12 +216,12 @@ for (ctype_var in cancers) {
     #        show_colnames = FALSE,
     #        # cutree_cols = 3,
     #        annotation_colors = biotypecolors,
-    #        color=colorRampPalette(c("lightyellow", "red"))(50),
+    #        color=colorRampPalette(c("lightyellow "red"))(50),
     #        fontsize = 6,
-    #        main=paste0("lncRNA Testis/Tumor Specific genes ", ctype_var))
+    #        main=paste0("lncRNA Testis/Tumor Specific genes  ctype_var))
     # 
-    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,"_nonCTA.pdf"))
-    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,"_nonCTA.pdf"))
+    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,"_nonCTA.pdf"))
+    # save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_5percent_ctype_var,"_nonCTA.pdf"))
 
     
     ##### correlations
@@ -235,7 +233,7 @@ for (ctype_var in cancers) {
       ##### ----> CORRPLOT 1 - ALL GENES <----- #####
       p <- {
         corrplot(cormat, type = "lower", order = "hclust", method="circle",
-               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation all TTS genes ", ctype_var),  mar=c(0,0,1,0));
+               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation all TTS genes",  ctype_var),  mar=c(0,0,1,0));
         recordPlot() 
       }
       
@@ -290,7 +288,7 @@ for (ctype_var in cancers) {
       ##### ----> CORRPLOT 2 - NON-CTA <----- #####
         p <- {
       corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes ", ctype_var),  mar=c(0,0,1,0));
+               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
         recordPlot() 
       }
       
@@ -323,7 +321,7 @@ for (ctype_var in cancers) {
     ##### ----> CORRPLOT 3 - CTA <----- #####
         p <- {
     corrplot(CTA_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA TTS genes ", ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -381,7 +379,7 @@ for (ctype_var in cancers) {
     ##### ----> CORRPLOT 4 - CTA-X chr <----- #####
           p <- {
     corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-X chr TTS genes ", ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -415,7 +413,7 @@ for (ctype_var in cancers) {
     ##### ----> CORRPLOT 5 - CTA-nonX chr <----- #####
     p <- {
     corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-nonX chr TTS genes ", ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -447,7 +445,7 @@ for (ctype_var in cancers) {
     ##### ----> CORRPLOT 6 - lncRNA <----- #####
     p <- {
     corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation lncRNA TTS genes ", ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation lncRNA TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -525,10 +523,10 @@ for (ctype_var in cancers) {
     rownames(col_annot) = col_annot$patient
     col_annot = col_annot %>% select(-c(patient))
   
-    biotypecolors = list("gene_type" = c("protein_coding"="#849DB1",
-                               "lncRNA" = "#B66353",
-                               "processed_pseudogene" = "#FBB04E",
-                               "novel" = "#B09C85"),
+    biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2",
+                               "novel" = "#E69F00"),
                            "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
   
     
@@ -544,7 +542,7 @@ for (ctype_var in cancers) {
            annotation_colors = biotypecolors,
            color=colorRampPalette(c("lightyellow", "red"))(50),
            fontsize = 6,
-           main=paste0("Testis/Tumor Specific genes ", ctype_var))
+           main=paste0("Testis/Tumor Specific genes",  ctype_var))
     col.order = ph$tree_col$order
     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
     save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,".pdf"))

@@ -6,14 +6,14 @@ library(ggplot2)
 wd="~/Downloads/IMIM"
 
 biomart = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/newReference_Resconstructed/transcript_gene.csv"))
-biomart$gene_id = gsub("\\..*","",biomart$gene_id)
-biomart$transcript_id = gsub("\\..*","",biomart$transcript_id)
+biomart$gene_id = gsub("\\..*"biomart$gene_id)
+biomart$transcript_id = gsub("\\..*"biomart$transcript_id)
 
 TPMs = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs.csv"))
 names(TPMs)[1] = "transcript_id"
 
 TPMs_complete = merge(TPMs, biomart, by="transcript_id")
-TPMs_complete = TPMs_complete %>% pivot_longer(cols=-c(gene_id, transcript_id, gene_name, gene_type), names_to = "sample", values_to = "TPM")
+TPMs_complete = TPMs_complete %>% pivot_longer(cols=-c(gene_id, transcript_id, gene_name, gene_type), names_to = "sample values_to = "TPM")
 TPMs_complete$logTPM = log(TPMs_complete$TPM)
 
 ggplot(TPMs_complete %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "novel" | gene_type == "protein_coding"), aes(x=logTPM, fill=gene_type)) +
@@ -29,19 +29,19 @@ ggplot(TPMs_complete %>% subset(gene_type == "lncRNA" | gene_type == "processed_
   geom_boxplot() +
   geom_vline(xintercept = 0) +
   theme_classic() +
-  theme(legend.position = "top",
+  theme(legend.position = "top
         axis.text.x = element_text(angle=45, vjust=.75)) +
   facet_wrap(~ sample, ncol=3)
 ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.png"), width=6.64, height=8.78)
 ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PDF/TPM_boxplot.pdf"), width=6.64, height=8.78)
 
 ## length distribution
-toc = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/featureCounts_gffcompare/gffcompare_stranded_featureCounts.txt"), sep="\t", skip = 1)
+toc = read.csv(file.path(wd,"with_TranscriptomeReconstruction/human/featureCounts_gffcompare/gffcompare_stranded_featureCounts.txt"), sep="\t skip = 1)
 names(toc)[1] = "transcript_id"
-toc$transcript_id = gsub("\\..*","",toc$transcript_id)
+toc$transcript_id = gsub("\\..*"toc$transcript_id)
 toc = toc %>% select(transcript_id, Chr, Length)
 TPMs_length = merge(TPMs_complete, toc, by="transcript_id")
-TPMs_length = TPMs_length %>% subset(grepl("chr", Chr))
+TPMs_length = TPMs_length %>% subset(grepl("chr Chr))
 # unique(TPMs_length$Chr)
 
 ggplot(TPMs_length %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "novel" | gene_type == "protein_coding"), aes(x=Length, fill=gene_type)) +
@@ -80,7 +80,7 @@ ggplot(TPMs_length_300 %>% subset(gene_type == "lncRNA" | gene_type == "processe
   geom_boxplot() +
   geom_vline(xintercept = 0) +
   theme_classic() +
-  theme(legend.position = "top",
+  theme(legend.position = "top
         axis.text.x = element_text(angle=45, vjust=.75)) +
   facet_wrap(~ sample, ncol=3)
 ggsave(file.path(wd,"with_TranscriptomeReconstruction/human/plots/PNG/TPM_boxplot.300.png"), width=6.64, height=8.78)

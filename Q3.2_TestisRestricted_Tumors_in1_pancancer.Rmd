@@ -7,8 +7,8 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-# packages <- c("dplyr", "tidyr", "ggplot2", "stringr", "purrr", "ggvenn", "ggpubr", 
-#               "ggside", "bioseq", "ggthemr", "ggbeeswarm", "ggbreak")
+# packages <- c("dplyr "tidyr "ggplot2 "stringr "purrr "ggvenn "ggpubr 
+#               "ggside "bioseq "ggthemr "ggbeeswarm "ggbreak")
 # 
 # # Install packages that are not already installed
 # installed_packages <- installed.packages()
@@ -30,13 +30,13 @@ library(ggvenn)
 library(ggpubr)
 library(ggside)
 library(bioseq)
-# library(ggthemr)
+library(rcartocolor)
 library(ggbeeswarm)
 library(ggbreak)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
-# names(gene_transcript) = c("gene_id","gene_type","gene_name")
-# gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+# names(gene_transcript) = c("gene_id"gene_type"gene_name")
+# gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
 
 pre_save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human"
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/plots"
@@ -46,8 +46,9 @@ cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
-# deleted_projects=c("GSE103001_BRCA","GSE89223_PRAD")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
 ```
@@ -81,10 +82,10 @@ table(translated_IN_testis$ONLYtranslation_testis, translated_IN_testis$gene_typ
 TAA_pancancer_10percent = read.csv(paste0(cancers_dir,"/tumorexpressed/cancertypes/tumor_1FPKM_n10percent_pancancer.csv"))
 ggplot(TAA_pancancer_10percent %>% group_by(gene_type, ctype) %>% count(), aes(x=n, y=ctype, fill=gene_type)) +
   geom_bar(stat="identity") +
-    scale_fill_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+    scale_fill_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
   ggtitle("Tumor-Expressed genes (> 1 TPM in > 10% patients)") +
   theme_classic()
 ```
@@ -116,7 +117,7 @@ compute_stats <- function(row) {
 
 ```{r TPMS_testis, echo=F}
 ## Load counts data
-# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt", header=TRUE)
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
 testis_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
 
 ## For novels, remove those shorter than 300 pb
@@ -173,10 +174,10 @@ ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
   geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
   scale_x_continuous(trans="log10") +
   scale_y_continuous(trans="log10") +
-  scale_color_manual(values=c("protein_coding"="#849DB1",
-                             "lncRNA" = "#B66353",
-                             "processed_pseudogene" = "#FBB04E",
-                             "novel" = "#B09C85")) +
+  scale_color_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
   labs(title="Correlation TPMs between tumor and testis") +
   theme_classic() +
   theme(legend.position = "top") +
@@ -188,13 +189,13 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 
 # ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
 #   geom_point(size=.03) +
-#   geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+#   geom_smooth(method = "lm se = FALSE, aes(color=gene_type)) +
 #   scale_x_continuous(trans="log10") +
 #   scale_y_continuous(trans="log10") +
-#   scale_color_manual(values=c("protein_coding"="#849DB1",
-#                              "lncRNA" = "#B66353",
-#                              "processed_pseudogene" = "#FBB04E",
-#                              "novel" = "#B09C85")) +
+#   scale_color_manual(values=c("protein_coding"="#CC79A7
+#                              "lncRNA" = "#
+#                              "processed_pseudogene" = "#0090B2
+#                              "novel" = "#E69F00")) +
 #   labs(title="Correlation TPMs between tumor and testis") +
 #   theme_classic() +
 #   theme(legend.position = "top") +
@@ -206,17 +207,17 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 
 ```{r phylostratigraphy, echo=F}
 # all_genes_tumorexpressed = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.tumorexpressed.csv")
-# all_genes_tumorexpressed$Phylostratum = replace(all_genes_tumorexpressed$Phylostratum, all_genes_tumorexpressed$Phylostratum == "", "NA") 
-# all_genes_tumorexpressed = all_genes_tumorexpressed %>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS",
+# all_genes_tumorexpressed$Phylostratum = replace(all_genes_tumorexpressed$Phylostratum, all_genes_tumorexpressed$Phylostratum == " "NA") 
+# all_genes_tumorexpressed = all_genes_tumorexpressed %>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS
 #                                                                                   TRUE ~ "ncORF"))
 # 
 # ggplot(all_genes_tumorexpressed, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=ORFtype)) +
-#   geom_bar(stat="count", position="dodge") +
+#   geom_bar(stat="count position="dodge") +
 #   scale_y_break(c(2000, 6500)) +  # Make sure this is a valid range
-#   scale_fill_manual(values=c("CDS"="#849DB1","ncORF" = "#FD8F24"), labels = c("ncORFs","CDS")) +
-#   labs(x="Phylostratum",
-#        y="Number of genes",
-#        fill="Gene type",
+#   scale_fill_manual(values=c("CDS"="#CC79A7"ncORF" = "#FD8F24"), labels = c("ncORFs"CDS")) +
+#   labs(x="Phylostratum
+#        y="Number of genes
+#        fill="Gene type
 #        title="Evolutionary ages of all translated ORFs in testis reactivated in cancer") +
 #   theme_classic() +
 #   theme(axis.text.x = element_text(angle=90))
@@ -232,13 +233,13 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 ```{r by_biotype, echo=F}
 # ggplot(all_genes_tumorexpressed, aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=gene_type)) +
 #   geom_bar() +
-#     labs(x="Phylostratum",
-#        y="Number of genes",
+#     labs(x="Phylostratum
+#        y="Number of genes
 #        title="Evolutionary ages of all translated ORFs in testis reactivated in tumor") +
-#     scale_fill_manual(values=c("protein_coding"="#849DB1",
-#                         "lncRNA" = "#B66353",
-#                         "processed_pseudogene" = "#FBB04E",
-#                         "novel" = "#B09C85")) +
+#     scale_fill_manual(values=c("protein_coding"="#CC79A7
+#                         "lncRNA" = "#
+#                         "processed_pseudogene" = "#0090B2
+#                         "novel" = "#E69F00")) +
 #     theme_classic() +
 #   theme(axis.text.x = element_text(angle = 90),
 #         legend.position = "none") +
@@ -249,35 +250,35 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 
 ```{r comparison, echo=F}
 # all_genes_tumorexpressed = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.tumorexpressed.csv")
-# all_genes_tumorexpressed$Phylostratum = replace(all_genes_tumorexpressed$Phylostratum, all_genes_tumorexpressed$Phylostratum == "", "NA") 
-# all_genes_tumorexpressed = all_genes_tumorexpressed%>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS",
+# all_genes_tumorexpressed$Phylostratum = replace(all_genes_tumorexpressed$Phylostratum, all_genes_tumorexpressed$Phylostratum == " "NA") 
+# all_genes_tumorexpressed = all_genes_tumorexpressed%>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS
 #                                                                                   TRUE ~ "ncORF"))
 # 
 # 
 # all_genes = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/Phylostratigraphy/all_genes_phyostratum.csv")
-# all_genes$Phylostratum = replace(all_genes$Phylostratum, all_genes$Phylostratum == "", "NA") 
-# all_genes = all_genes %>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS",
+# all_genes$Phylostratum = replace(all_genes$Phylostratum, all_genes$Phylostratum == " "NA") 
+# all_genes = all_genes %>% mutate(ORFtype = case_when(gene_type == "protein_coding" ~ "CDS
 #                                                                              TRUE ~ "ncORF"))
-# all_genes = all_genes %>% mutate(tumorexpressed = case_when(gene_name %in% all_genes_tumorexpressed$gene_name ~ "yes",
+# all_genes = all_genes %>% mutate(tumorexpressed = case_when(gene_name %in% all_genes_tumorexpressed$gene_name ~ "yes
 #                                                             TRUE ~ "no"))
 # 
 # CDS = ggplot(all_genes %>% subset(ORFtype == "CDS"), aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=tumorexpressed)) +
-#   geom_bar(stat="count", position="dodge") +
+#   geom_bar(stat="count position="dodge") +
 #     scale_y_break(c(2000, 6500)) +
-#   # scale_fill_manual(values=c("CDS"="#849DB1","ncORF" = "#FD8F24"), labels = c("ncORFs","CDS")) +
-#   labs(x="",
-#        y="Number of genes",
+#   # scale_fill_manual(values=c("CDS"="#CC79A7"ncORF" = "#FD8F24"), labels = c("ncORFs"CDS")) +
+#   labs(x="
+#        y="Number of genes
 #        title="CDSs in testis") +
 #   theme_classic() +
 #   theme(axis.text.x = element_blank())
 # 
 # 
 # ncORF = ggplot(all_genes %>% subset(ORFtype == "ncORF"), aes(x=factor(Phylostratum, levels = unique(Phylostratum)), fill=tumorexpressed)) +
-#   geom_bar(stat="count", position="dodge") +
+#   geom_bar(stat="count position="dodge") +
 #     # scale_y_break(c(2000, 6500)) +
-#   # scale_fill_manual(values=c("CDS"="#849DB1","ncORF" = "#FD8F24"), labels = c("ncORFs","CDS")) +
-#   labs(x="Phylostratum",
-#        y="Number of genes",
+#   # scale_fill_manual(values=c("CDS"="#CC79A7"ncORF" = "#FD8F24"), labels = c("ncORFs"CDS")) +
+#   labs(x="Phylostratum
+#        y="Number of genes
 #        title="Translated ncORFs in testis") +
 #   theme_classic() +
 #   theme(axis.text.x = element_text(angle=90))
@@ -295,15 +296,15 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 #   ungroup()
 # 
 # # Plot the proportions
-# ggplot(normalized_df, aes(x = factor(Phylostratum, levels = c("cellular organisms", "Eukaryota", "Opisthokonta", "Metazoa", "Eumetazoa",
-#     "Bilateria", "Deuterostomia", "Chordata", "Vertebrata","Gnathostomata", "Teleostomi", "Euteleostomi", "Sarcopterygii",
-#     "Dipnotetrapodomorpha", "Tetrapoda", "Amniota", "Mammalia", "Theria","Eutheria", "Boreoeutheria", "Euarchontoglires", "Primates",
-#     "Simiiformes", "Catarrhini", "Hominoidea", "Hominidae", "Homininae", "Homo sapiens","NA")), y = proportion, fill = tumorexpressed)) +
-#   geom_bar(stat = "identity", position = "dodge") +
-#     scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-#   labs(title = "Are younger ORFs more easily reactivated?",
-#        x = "Phylostratum",
-#        y = "Proportion",
+# ggplot(normalized_df, aes(x = factor(Phylostratum, levels = c("cellular organisms "Eukaryota "Opisthokonta "Metazoa "Eumetazoa
+#     "Bilateria "Deuterostomia "Chordata "Vertebrata"Gnathostomata "Teleostomi "Euteleostomi "Sarcopterygii
+#     "Dipnotetrapodomorpha "Tetrapoda "Amniota "Mammalia "Theria"Eutheria "Boreoeutheria "Euarchontoglires "Primates
+#     "Simiiformes "Catarrhini "Hominoidea "Hominidae "Homininae "Homo sapiens"NA")), y = proportion, fill = tumorexpressed)) +
+#   geom_bar(stat = "identity position = "dodge") +
+#     scale_fill_manual(values=c("yes" = "#B1283A "no"="#A8A6A7")) +
+#   labs(title = "Are younger ORFs more easily reactivated?
+#        x = "Phylostratum
+#        y = "Proportion
 #        fill = "Tumor Expressed") +
 #   theme_classic() +
 #     theme(axis.text.x = element_text(angle=90))
@@ -323,7 +324,7 @@ ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), wid
 # #### LOGISTIC REGRESSION ####
 # # Convert Phylostratum to a factor with ordered levels if not already
 # all_genes$Phylostratum <- factor(all_genes$Phylostratum, levels = unique(all_genes$Phylostratum))
-# all_genes$tumorexpressed_binary <- ifelse(all_genes$tumorexpressed == "yes", 1, 0)
+# all_genes$tumorexpressed_binary <- ifelse(all_genes$tumorexpressed == "yes 1, 0)
 # 
 # # Fit logistic regression model
 # logistic_model <- glm(tumorexpressed_binary ~ Phylostratum, data = all_genes, family = binomial)
