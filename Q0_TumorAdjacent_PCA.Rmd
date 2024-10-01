@@ -1,0 +1,133 @@
+---
+title: "Tumor samples | Adjacent controls"
+author: "Marta Espinosa"
+date: "2024-10-01"
+output: ''
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+library(rcartocolor)
+library(ggbeeswarm)
+library(ggbreak)
+library(pheatmap)
+library(stats)
+library(ggfortify)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+# names(gene_transcript) = c("gene_id"gene_type"gene_name")
+# gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q0_TumorAdjacent/human/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q0_TumorAdjacent/human"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
+```
+
+```{r input, echo=F}
+# expression_data = data.frame("transcript_id" = character(),
+#                              "Length" = numeric(),
+#                              "sample" = character(),
+#                              "TPM"= numeric(),
+#                              "ctype" = character(),
+#                              "project" = character(),
+#                              "normal_tumor" = character(),
+#                              stringsAsFactors = F)
+
+# patient_data = data.frame("project" = character(),
+#                           "ctype" = character(),
+#                           "normal_tumor" = character(),
+#                           "sample" = character(),
+#                           stringsAsFactors = F)
+
+for(ctype_var in cancers) {
+  print(ctype_var)
+  fc = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
+  fc = fc %>% pivot_longer(cols=-c(transcript_id, Length), names_to = "sample", values_to = "TPM")
+  fc$sample = gsub("^X","", fc$sample)
+  fc$sample = gsub("\\.","-",fc$sample)
+  fc$ctype = ctype_var
+  fc = merge(fc, annot, by="transcript_id")
+
+  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+  temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
+
+  fc = merge(fc, temp_patients, by="sample")
+  
+  ####### PCA #######
+  tpm = fc %>% select(gene_name, sample, TPM) %>% unique() %>% pivot_wider(names_from = "sample", values_from = "TPM")
+  
+  V <- apply(tpm, 1, var)
+  # sort the results by variance in decreasing order 
+  # and select the top 100 genes 
+  selectedGenes <- names(V[order(V, decreasing = T)][1:100])
+  pheatmap(tpm[selectedGenes,], scale = 'row', show_rownames = FALSE)
+  
+  # transpose the matrix
+  M <- t(tpm[selectedGenes,])
+  # transform the counts to log2 scale
+  M <- log2(M + 1)
+  # compute PCA
+  pcaResults <- prcomp(M, scale=T)
+  
+  pcaResults$samples<-rownames(M)
+  # ggfortify is needed to let ggplot2 know about PCA data structure.
+  ggplot(data.frame(PC1=pcaResults$x[,1], PC2=pcaResults$x[,2]), aes(x=PC1, y=PC2, color=normal_tumor)) +
+    geom_point() +
+    labs(x="PC1",
+         y="PC2")
+    
+}
+```
+
+## PCA
+
+
+```{r pca, echo=FALSE}
+for(ctype_var in cancers) {
+  
+  expression_ctype = expression_data %>% subset(ctype == ctype_var)
+  ## add patient data
+  expression_ctype = merge(patient_data, expression_ctype, by="sample")
+  
+  expression_ctype_matrix = expression_ctype %>% select(gene_name, sample, TPM) %>% unique() %>% pivot_wider(names_from = "sample", values_from = "TPM")
+  
+  V <- apply(expression_ctype, 1, var)
+  # sort the results by variance in decreasing order 
+  # and select the top 100 genes 
+  selectedGenes <- names(V[order(V, decreasing = T)][1:100])
+  pheatmap(expression_ctype[selectedGenes,], scale = 'row', show_rownames = FALSE)
+  
+  # transpose the matrix
+  M <- t(expression_ctype[selectedGenes,])
+  # transform the counts to log2 scale
+  M <- log2(M + 1)
+  # compute PCA
+  pcaResults <- prcomp(M, scale=T)
+  
+  pcaResults$samples<-rownames(M)
+  # ggfortify is needed to let ggplot2 know about PCA data structure.
+  ggplot(data.frame(PC1=pcaResults$x[,1], PC2=pcaResults$x[,2]), aes(x=PC1, y=PC2, color=normal_tumor)) +
+    geom_point() +
+    labs(x="PC1",
+         y="PC2")
+}
+```
+
+
