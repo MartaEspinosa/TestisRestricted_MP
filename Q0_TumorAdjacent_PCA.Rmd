@@ -38,96 +38,328 @@ manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
-```
 
-```{r input, echo=F}
-# expression_data = data.frame("transcript_id" = character(),
-#                              "Length" = numeric(),
-#                              "sample" = character(),
-#                              "TPM"= numeric(),
-#                              "ctype" = character(),
-#                              "project" = character(),
-#                              "normal_tumor" = character(),
-#                              stringsAsFactors = F)
-
-# patient_data = data.frame("project" = character(),
-#                           "ctype" = character(),
-#                           "normal_tumor" = character(),
-#                           "sample" = character(),
-#                           stringsAsFactors = F)
-
-for(ctype_var in cancers) {
-  print(ctype_var)
-  fc = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
-  fc = fc %>% pivot_longer(cols=-c(transcript_id, Length), names_to = "sample", values_to = "TPM")
-  fc$sample = gsub("^X","", fc$sample)
-  fc$sample = gsub("\\.","-",fc$sample)
-  fc$ctype = ctype_var
-  fc = merge(fc, annot, by="transcript_id")
-
-  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
-  temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-
-  fc = merge(fc, temp_patients, by="sample")
-  
-  ####### PCA #######
-  tpm = fc %>% select(gene_name, sample, TPM) %>% unique() %>% pivot_wider(names_from = "sample", values_from = "TPM")
-  
-  V <- apply(tpm, 1, var)
-  # sort the results by variance in decreasing order 
-  # and select the top 100 genes 
-  selectedGenes <- names(V[order(V, decreasing = T)][1:100])
-  pheatmap(tpm[selectedGenes,], scale = 'row', show_rownames = FALSE)
-  
-  # transpose the matrix
-  M <- t(tpm[selectedGenes,])
-  # transform the counts to log2 scale
-  M <- log2(M + 1)
-  # compute PCA
-  pcaResults <- prcomp(M, scale=T)
-  
-  pcaResults$samples<-rownames(M)
-  # ggfortify is needed to let ggplot2 know about PCA data structure.
-  ggplot(data.frame(PC1=pcaResults$x[,1], PC2=pcaResults$x[,2]), aes(x=PC1, y=PC2, color=normal_tumor)) +
-    geom_point() +
-    labs(x="PC1",
-         y="PC2")
-    
+save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
+   stopifnot(!missing(x))
+   stopifnot(!missing(filename))
+   pdf(filename, width=width, height=height)
+   grid::grid.newpage()
+   grid::grid.draw(x$gtable)
+   dev.off()
 }
+
 ```
 
 ## PCA
 
+```{r input, echo=F}
+cancers_fc = data.frame("transcript_id" = character(),
+                             "Length" = numeric(),
+                             "sample" = character(),
+                             "TPM"= numeric(),
+                             "ctype" = character(),
+                             "project" = character(),
+                             "normal_tumor" = character(),
+                             stringsAsFactors = F)
 
-```{r pca, echo=FALSE}
 for(ctype_var in cancers) {
+  print(ctype_var)
   
-  expression_ctype = expression_data %>% subset(ctype == ctype_var)
-  ## add patient data
-  expression_ctype = merge(patient_data, expression_ctype, by="sample")
+  ## table of counts input ##
+  fc = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
+  names(fc) = gsub("\\.","-",names(fc))
+  fc = merge(fc, annot, by="transcript_id")
+  fc_long = fc %>% pivot_longer(cols=-c(transcript_id,gene_id, gene_name, gene_type, Length), names_to = "sample", values_to = "TPM") %>% unique()
+  fc_long$ctype = ctype_var
+
+  fc_long = fc_long %>% subset(gene_type == "protein_coding" | gene_type == "lncRNA")# | gene_type == "novel" | gene_type == "lncRNA" | gene_type == "processed_pseudogene")
+  ## patients info ##
+  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+  temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
+
+  fc_complete = merge(fc_long, temp_patients, by="sample")
+  fc_complete = fc_complete %>% unique() 
   
-  expression_ctype_matrix = expression_ctype %>% select(gene_name, sample, TPM) %>% unique() %>% pivot_wider(names_from = "sample", values_from = "TPM")
+  cancers_fc = rbind(cancers_fc, fc_complete)
   
-  V <- apply(expression_ctype, 1, var)
+  ####### PCA #######
+  tpm = fc_complete %>% select(gene_id, sample, TPM) %>% unique() %>% pivot_wider(names_from = "sample", values_from = "TPM") 
+
+  
+  # Remove gene_id column and ensure it's numeric
+  tpm_matrix <- as.matrix(tpm %>% select(-gene_id))
+  # Set rownames to gene_ids
+  rownames(tpm_matrix) <- tpm$gene_id
+  V <- apply(tpm_matrix, 1, var)
+
+  ######## normal-tumor
+  col_annot = fc_complete %>% select(sample, normal_tumor) %>% unique()
+  rownames(col_annot) = col_annot$sample
+  col_annot$sample = NULL
+  colors_annot = list("normal_tumor" = c("normal" = "blue","tumor" = "red"))
+  # Extract the color information from col_annot
+  point_colors <- colors_annot$normal_tumor[col_annot$normal_tumor]
+  
+  ######## project
+  col_annot2 = fc_complete %>% select(sample, project) %>% unique()
+  rownames(col_annot2) = col_annot2$sample
+  col_annot2$sample = NULL
+  
+  
+
+  # Automatically assign shapes to projects based on their unique values
+  unique_projects <- unique(col_annot2$project)
+  # Assign shapes from a predefined set of `pch` values (you can extend this if needed)
+  shape_mapping <- setNames(seq(1, length(unique_projects)), unique_projects)
+  # Create a vector of shapes based on the project in col_annot2
+  point_shapes <- shape_mapping[col_annot2$project]
+
+
   # sort the results by variance in decreasing order 
   # and select the top 100 genes 
   selectedGenes <- names(V[order(V, decreasing = T)][1:100])
-  pheatmap(expression_ctype[selectedGenes,], scale = 'row', show_rownames = FALSE)
+  ph = pheatmap(tpm_matrix[selectedGenes,], 
+           scale = 'row', 
+           show_rownames = FALSE, 
+           annotation_col= col_annot,
+           annotation_colors = colors_annot)
+  save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_normal_tumor_",ctype_var,".pdf"))
   
   # transpose the matrix
-  M <- t(expression_ctype[selectedGenes,])
+  M <- t(tpm_matrix[selectedGenes,])
   # transform the counts to log2 scale
   M <- log2(M + 1)
   # compute PCA
   pcaResults <- prcomp(M, scale=T)
   
   pcaResults$samples<-rownames(M)
-  # ggfortify is needed to let ggplot2 know about PCA data structure.
-  ggplot(data.frame(PC1=pcaResults$x[,1], PC2=pcaResults$x[,2]), aes(x=PC1, y=PC2, color=normal_tumor)) +
-    geom_point() +
-    labs(x="PC1",
-         y="PC2")
-}
+  png(filename= paste0(plots_wd,"/PNG/pca_normal_tumor_",ctype_var,".png"))
+  plot(pcaResults$x[,1], pcaResults$x[,2],
+       col = point_colors,  # Color points based on normal/tumor status,
+       pch = point_shapes,            # Shape of points based on project
+       xlab = "PC1", 
+       ylab = "PC2", 
+       main = "PCA Plot Colored by Normal/Tumor Status")
+  
+  legend("bottomright", legend = names(shape_mapping),
+       pch = shape_mapping, title = "Projects")
+  dev.off()
+  }
 ```
+
+```{r BRCA, echo=F}
+BRCA = c("BRCA1","BRCA2","PTEN")
+# 10.3390/ijms23073754
+######################## BRCA ######################
+ctype_var = "BRCA"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% BRCA)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8), alpha=.7) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=2) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="BRCA BIOMARKERS") +
+  theme_classic() +
+   facet_wrap(~ gene_name, scales="free", ncol=3)
+
+ggsave(file.path(plots_wd,"PNG/BRCA_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/BRCA_biomarkers.pdf"))
+```
+
+```{r HCC, echo=F}
+LIHC = c("TERT","THBS4","AFP","MTM1")
+# https://www.science.org/doi/10.1126/sciadv.adn3628
+######################## BRCA ######################
+ctype_var = "LIHC"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% LIHC)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3.5) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="LIHC BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=1)
+
+ggsave(file.path(plots_wd,"PNG/LIHC_biomarkers.png"), width=7, height=7)
+ggsave(file.path(plots_wd,"PDF/LIHC_biomarkers.pdf"), width=7, height=7)
+
+```
+
+```{r BLCA, echo=F}
+BLCA = c("PLK1", "CDK1","CNN1")
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5363876/
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8918393/
+######################## BRCA ######################
+ctype_var = "BLCA"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% BLCA)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3.5) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="BLCA BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=1)
+
+ggsave(file.path(plots_wd,"PNG/BLCA_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/BLCA_biomarkers.pdf"))
+
+```
+
+```{r LUAD, echo=F}
+LUAD = c("ABCA8","ADAMTS8","CEP55","PYCR1")
+# https://www.nature.com/articles/s41598-022-21050-5/figures/5
+######################## BRCA ######################
+ctype_var = "LUAD"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% LUAD)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3.5) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="LUAD BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=2)
+
+ggsave(file.path(plots_wd,"PNG/LUAD_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/LUAD_biomarkers.pdf"))
+
+```
+
+```{r LUSC, echo=F}
+LUSC = c("ABCA8","ADAMTS8","CEP55","PYCR1")
+# https://www.nature.com/articles/s41598-022-21050-5/figures/5
+######################## BRCA ######################
+ctype_var = "LUSC"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% LUSC)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3.5) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="LUSC BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=4)
+
+ggsave(file.path(plots_wd,"PNG/LUSC_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/LUSC_biomarkers.pdf"))
+```
+
+```{r COAD, echo=F}
+COAD = c("TRIB3","STMN4","FAM135B")
+# https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9130243/
+######################## BRCA ######################
+ctype_var = "COAD"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% COAD)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="COAD BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=4)
+
+ggsave(file.path(plots_wd,"PNG/COAD_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/COAD_biomarkers.pdf"))
+```
+
+```{r PRAD, echo=F}
+PRAD = c("AR","GOLM1","PCA3")
+# https://www.nature.com/articles/s41598-022-21050-5/figures/5
+######################## BRCA ######################
+ctype_var = "PRAD"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% PRAD)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="PRAD BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=4)
+
+ggsave(file.path(plots_wd,"PNG/PRAD_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/PRAD_biomarkers.pdf"))
+```
+
+```{r KIRC, echo=F}
+KIRC = c("CAV1","ALB","VEGFA")
+# https://www.nature.com/articles/s41598-022-21050-5/figures/5
+######################## BRCA ######################
+ctype_var = "KIRC"
+temp_fc = cancers_fc %>% subset(ctype == ctype_var)
+
+biomarkers_expr = temp_fc %>% subset(gene_name %in% KIRC)
+biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
+ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3) +
+  labs(x="Dataset",
+       y="logTPM",
+       title="KIRC BIOMARKERS") +
+  theme_classic() +
+  theme(legend.position = "top") +
+   facet_wrap(~ gene_name, scales="free", ncol=4)
+
+ggsave(file.path(plots_wd,"PNG/KIRC_biomarkers.png"))
+ggsave(file.path(plots_wd,"PDF/KIRC_biomarkers.pdf"))
+```
+
+
+
+
 
 

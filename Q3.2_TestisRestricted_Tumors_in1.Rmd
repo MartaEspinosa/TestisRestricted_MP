@@ -190,6 +190,29 @@ ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor_perpro
 
 ```
 
+```{r explore_TCGA, echo=F}
+TCGAdata = filtered_data_TAA_long %>% subset(grepl("TCGA", project)) %>% select(-TPM)
+
+for(proj in unique(TCGAdata$project)) {
+  temp_TCGAdata = TCGAdata %>% subset(project == proj)
+
+  ggplot(temp_TCGAdata, aes(x=patient, y=logTPM, fill=normal_tumor)) +
+    geom_boxplot(position = position_dodge(width=.8)) +
+    scale_fill_manual(values=c("#FFB900","#5773CC")) +
+    geom_hline(yintercept=log(0.1)) +
+    geom_hline(yintercept=log(1)) +
+    labs(x="",
+         title="Testis-Restricted genes reactivated in cancer\nExpression in tumor and adjacent samples") +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle=90),
+          legend.position = "top") +
+    facet_wrap(~ctype, scales="free_x",ncol=1)
+  ggsave(paste0(plots_wd,"/PNG/TestisRestricted_Reactivated_AdjacentTumor_",proj,".png"), width=14)
+  ggsave(paste0(plots_wd,"/PDF/TestisRestricted_Reactivated_AdjacentTumor_",proj,".pdf"), width=14)
+
+}
+```
+
 
 ```{r TSA_plot, echo=F}
 data_completed_TSA = data.frame(transcript_id = character(),
