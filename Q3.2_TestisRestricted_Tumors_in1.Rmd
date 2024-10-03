@@ -129,7 +129,15 @@ data_completed = data.frame(transcript_id = character(),
                             ctype = character(),
                               stringsAsFactors = F)
 
-
+unfiltered_allfc = data.frame(transcript_id = character(),
+                              Length = numeric(),
+                              sample = character(),
+                              TPM = numeric(),
+                              patient = factor(),
+                            normal_tumor = factor(),
+                            project = character(),
+                            ctype = character(),
+                              stringsAsFactors = F)
 for (ctype_var in cancers) {
   print(ctype_var)
   
@@ -148,19 +156,29 @@ for (ctype_var in cancers) {
   complete_tableofcounts = merge(temp_patients, df_long, by="sample")
   complete_tableofcounts$ctype = ctype_var
   
+  unfiltered_allfc = rbind(unfiltered_allfc, complete_tableofcounts)
   ## select the tumor-associated per ctype
   temp_TAA_translated_genes = TAA_translated_genes %>% subset(ctype == ctype_var)
   TAA_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TAA_translated_genes$transcript_id)
-  
+  TAA_complete_tableofcounts = merge(TAA_complete_tableofcounts, annot, by="transcript_id")
+
   data_completed = rbind(data_completed, TAA_complete_tableofcounts)
 }
+write.csv(unfiltered_allfc, file.path(save_wd,"unfiltered_tablesofcounts_long.csv"), row.names=F)
 
-data_completed = merge(data_completed, annot, by="transcript_id")
+# data_completed = merge(data_completed, annot, by="transcript_id")
 data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
 filtered_data_TAA = data_completed_wide %>% filter(tumor > 1)
 
 filtered_data_TAA_long = filtered_data_TAA %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
-filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$TPM)
+filtered_data_TAA_long = filtered_data_TAA_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10, 
+                                                                                  TRUE ~ TPM))
+filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$forced_TPM)
+write.csv(filtered_data_TAA_long, file.path(save_wd,"TAAdata_long.csv"), row.names=F)
+```
+
+```{r plots, echo=F}
+# filtered_data_TAA_long = read.csv(file.path(save_wd,"TAAdata_long.csv"))
 temporary = filtered_data_TAA_long %>% select(gene_name, ctype) %>% unique()
 table(temporary$ctype)
 
@@ -172,8 +190,8 @@ ggplot(filtered_data_TAA_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
   labs(x="",
        title="Testis-Restricted genes reactivated in cancer\nExpression in tumor and adjacent samples") +
   theme_classic() 
-ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor.png"))
-ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor.pdf"))
+ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor.zeros.pdf"))
 
 ggplot(filtered_data_TAA_long, aes(x=project, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
@@ -185,8 +203,8 @@ ggplot(filtered_data_TAA_long, aes(x=project, y=logTPM, fill=normal_tumor)) +
   theme_classic() +
   theme(axis.text.x = element_text(angle=90)) +
   facet_wrap(~ctype, scales="free_x",nrow=1)
-ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor_perproject.png"))
-ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor_perproject.pdf"))
+ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
 
 ```
 
@@ -211,6 +229,10 @@ for(proj in unique(TCGAdata$project)) {
   ggsave(paste0(plots_wd,"/PDF/TestisRestricted_Reactivated_AdjacentTumor_",proj,".pdf"), width=14)
 
 }
+```
+
+```{r CTA, echo=F}
+
 ```
 
 
