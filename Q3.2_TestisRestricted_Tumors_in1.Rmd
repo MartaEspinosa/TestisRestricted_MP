@@ -51,6 +51,9 @@ manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC
 all_projects = c(tcga_projects,other_projects,manuscript_projects)
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+
 ```
 
 ## Testis-Specific Translated ORFs
@@ -119,66 +122,68 @@ table(TAA_translated_genes$ctype)
 ```
 
 ```{r adjacents, echo=F}
-data_completed = data.frame(transcript_id = character(),
-                              Length = numeric(),
-                              sample = character(),
-                              TPM = numeric(),
-                              patient = factor(),
-                            normal_tumor = factor(),
-                            project = character(),
-                            ctype = character(),
-                              stringsAsFactors = F)
-
-unfiltered_allfc = data.frame(transcript_id = character(),
-                              Length = numeric(),
-                              sample = character(),
-                              TPM = numeric(),
-                              patient = factor(),
-                            normal_tumor = factor(),
-                            project = character(),
-                            ctype = character(),
-                              stringsAsFactors = F)
-for (ctype_var in cancers) {
-  print(ctype_var)
-  
-  ## table of counts
-  df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
-  ## pivot to make it easier to join
-  df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
-  df_long$sample = gsub("^X","", df_long$sample)
-  df_long$sample = gsub("\\.","-",df_long$sample)
-  
-  ## patients
-  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
-  temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-  
-  ## combine
-  complete_tableofcounts = merge(temp_patients, df_long, by="sample")
-  complete_tableofcounts$ctype = ctype_var
-  
-  unfiltered_allfc = rbind(unfiltered_allfc, complete_tableofcounts)
-  ## select the tumor-associated per ctype
-  temp_TAA_translated_genes = TAA_translated_genes %>% subset(ctype == ctype_var)
-  TAA_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TAA_translated_genes$transcript_id)
-  TAA_complete_tableofcounts = merge(TAA_complete_tableofcounts, annot, by="transcript_id")
-
-  data_completed = rbind(data_completed, TAA_complete_tableofcounts)
-}
-write.csv(unfiltered_allfc, file.path(save_wd,"unfiltered_tablesofcounts_long.csv"), row.names=F)
-
-# data_completed = merge(data_completed, annot, by="transcript_id")
-data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
-filtered_data_TAA = data_completed_wide %>% filter(tumor > 1)
-
-filtered_data_TAA_long = filtered_data_TAA %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
-filtered_data_TAA_long = filtered_data_TAA_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10, 
-                                                                                  TRUE ~ TPM))
-filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$forced_TPM)
-write.csv(filtered_data_TAA_long, file.path(save_wd,"TAAdata_long.csv"), row.names=F)
+# data_completed = data.frame(transcript_id = character(),
+#                               Length = numeric(),
+#                               sample = character(),
+#                               TPM = numeric(),
+#                               patient = factor(),
+#                             normal_tumor = factor(),
+#                             project = character(),
+#                             ctype = character(),
+#                               stringsAsFactors = F)
+# 
+# unfiltered_allfc = data.frame(transcript_id = character(),
+#                               Length = numeric(),
+#                               sample = character(),
+#                               TPM = numeric(),
+#                               patient = factor(),
+#                             normal_tumor = factor(),
+#                             project = character(),
+#                             ctype = character(),
+#                               stringsAsFactors = F)
+# for (ctype_var in cancers) {
+#   print(ctype_var)
+#   
+#   ## table of counts
+#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
+#   ## pivot to make it easier to join
+#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
+#   df_long$sample = gsub("^X","", df_long$sample)
+#   df_long$sample = gsub("\\.","-",df_long$sample)
+#   
+#   ## patients
+#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
+#   
+#   ## combine
+#   complete_tableofcounts = merge(temp_patients, df_long, by="sample")
+#   complete_tableofcounts$ctype = ctype_var
+#   
+#   unfiltered_allfc = rbind(unfiltered_allfc, complete_tableofcounts)
+#   ## select the tumor-associated per ctype
+#   temp_TAA_translated_genes = TAA_translated_genes %>% subset(ctype == ctype_var)
+#   TAA_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TAA_translated_genes$transcript_id)
+#   TAA_complete_tableofcounts = merge(TAA_complete_tableofcounts, annot, by="transcript_id")
+# 
+#   data_completed = rbind(data_completed, TAA_complete_tableofcounts)
+# }
+# write.csv(unfiltered_allfc, file.path(save_wd,"unfiltered_tablesofcounts_long.csv"), row.names=F)
+# 
+# # data_completed = merge(data_completed, annot, by="transcript_id")
+# data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+# filtered_data_TAA = data_completed_wide %>% filter(tumor > 1)
+# 
+# filtered_data_TAA_long = filtered_data_TAA %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
+# filtered_data_TAA_long = filtered_data_TAA_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10, 
+#                                                                                   TRUE ~ TPM))
+# filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$forced_TPM)
+# write.csv(filtered_data_TAA_long, file.path(save_wd,"TAAdata_long.csv"), row.names=F)
 ```
 
 ```{r plots, echo=F}
-# filtered_data_TAA_long = read.csv(file.path(save_wd,"TAAdata_long.csv"))
+filtered_data_TAA_long = read.csv(file.path(save_wd,"TAAdata_long.csv"))
+# filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$TPM)
+
 temporary = filtered_data_TAA_long %>% select(gene_name, ctype) %>% unique()
 table(temporary$ctype)
 
@@ -232,9 +237,134 @@ for(proj in unique(TCGAdata$project)) {
 ```
 
 ```{r CTA, echo=F}
+CTA_filtered_TAA = filtered_data_TAA_long %>% subset(gene_type == "protein_coding")
+ggplot(CTA_filtered_TAA, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes reactivated in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() 
+ggsave(file.path(plots_wd,"PNG/CT_TAA_Reactivated_AdjacentTumor.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CT_TAA_Reactivated_AdjacentTumor.zeros.pdf"))
 
+ggplot(CTA_filtered_TAA, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes reactivated in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90)) +
+  facet_wrap(~ctype, scales="free_x",nrow=1)
+ggsave(file.path(plots_wd,"PNG/CT_TAA_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CT_TAA_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
 ```
 
+## CTAB from database
+
+```{r CTAB_list, echo=F}
+unfiltered_allfc = read.csv(file.path(save_wd,"unfiltered_tablesofcounts_long.csv"))
+
+annot_CTDB = merge(CTDB, annot, by="gene_name")
+
+CTDB_fc = unfiltered_allfc %>% subset(transcript_id %in% annot_CTDB$transcript_id)
+CTDB_fc = merge(CTDB_fc, annot_CTDB, by="transcript_id")
+
+CTDB_fc = CTDB_fc %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10, TRUE ~ TPM))
+CTDB_fc$logTPM = log(CTDB_fc$forced_TPM)
+CTDB_fc$chr = gsub("p.*", "", CTDB_fc$chr)
+CTDB_fc$chr = gsub("q.*", "", CTDB_fc$chr)
+CTDB_fc = CTDB_fc %>% mutate(chr_X = case_when(chr == "X" ~ "X", TRUE ~ "nonX"))
+length(unique(CTDB_fc$gene_name))
+
+ggplot(CTDB_fc, aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_violin(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="CT from list\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90)) +
+  facet_wrap(~ctype, scales="free_x",nrow=1)
+ggsave(file.path(plots_wd,"PNG/CTDB_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CTDB_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
+
+ggplot(CTDB_fc %>% subset(grepl("AGE", gene_name)), aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_violin(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="CT from list\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90), legend.position = "top") +
+  facet_wrap(~ctype, scales="free_x",nrow=1)
+ggsave(file.path(plots_wd,"PNG/CTDB_AGE_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CTDB_AGE_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
+
+ggplot(CTDB_fc %>% subset(chr_X == "X"), aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_violin(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="CT-X from list\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90), legend.position = "top") +
+  facet_wrap(~ctype, scales="free_x",nrow=1)
+ggsave(file.path(plots_wd,"PNG/CTDB_Xchr_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CTDB_Xchr_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
+
+ggplot(CTDB_fc %>% subset(chr_X == "nonX"), aes(x=project, y=logTPM, fill=normal_tumor)) +
+  geom_violin(position = position_dodge(width=.8)) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(0.1)) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="CT non-X from list\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90), legend.position = "top") +
+  facet_wrap(~ctype, scales="free_x",nrow=1)
+ggsave(file.path(plots_wd,"PNG/CTDB_nonXchr_Reactivated_AdjacentTumor_perproject.zeros.png"))
+ggsave(file.path(plots_wd,"PDF/CTDB_nonXchr_Reactivated_AdjacentTumor_perproject.zeros.pdf"))
+
+
+for(proj in all_projects) {
+ print(proj)
+ temp = CTDB_fc %>% subset(ctype == ctype_var)
+
+ ggplot(temp %>% subset(chr_X == "nonX"), aes(x=gene_family, y=logTPM, color=normal_tumor)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
+   scale_color_manual(values=c("#FFB900","#5773CC")) +
+   geom_hline(yintercept=log(0.1)) +
+   geom_hline(yintercept=log(1)) +
+   labs(title=paste0(proj,"CT non-X from list\nExpression in tumor and adjacent samples")) +
+   theme_classic() +
+   theme(axis.text.x = element_text(angle=90), legend.position = "top") 
+#   facet_wrap(~project, scales="free_x",ncol=1)
+ ggsave(paste0(plots_wd,"/PNG/",proj,"_CTDB_nonXchr_Reactivated_AdjacentTumor_geneName.zeros.png"), width=14)
+ ggsave(paste0(plots_wd,"/PDF/",proj,"_CTDB_nonXchr_Reactivated_AdjacentTumor_geneName.zeros.pdf"), width=14)
+
+  ggplot(temp %>% subset(chr_X == "X"), aes(x=gene_family, y=logTPM, color=normal_tumor)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
+   scale_color_manual(values=c("#FFB900","#5773CC")) +
+   geom_hline(yintercept=log(0.1)) +
+   geom_hline(yintercept=log(1)) +
+   labs(title=paste0(proj,"CT-X from list\nExpression in tumor and adjacent samples")) +
+   theme_classic() +
+   theme(axis.text.x = element_text(angle=90), legend.position = "top") 
+#   facet_wrap(~gene_family, scales="free_x")
+ ggsave(paste0(plots_wd,"/PNG/",proj,"_CTDB_Xchr_Reactivated_AdjacentTumor_geneName.zeros.png"), width=14)
+ ggsave(paste0(plots_wd,"/PDF/",proj,"_CTDB_Xchr_Reactivated_AdjacentTumor_geneName.zeros.pdf"), width=14)
+}
+
+
+
+```
 
 ```{r TSA_plot, echo=F}
 data_completed_TSA = data.frame(transcript_id = character(),
