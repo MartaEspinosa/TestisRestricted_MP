@@ -101,51 +101,52 @@ flattenCorrMatrix <- function(cormat, pmat) {
 ## Work with matrices
 
 ```{r import_data, echo=F}
-TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"))
+# TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"))
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv"))
 
-tables_of_counts = data.frame(transcript_id = character(),
-                              Length = numeric(),
-                              sample = character(),
-                              TPM = numeric(),
-                              ctype = factor(),
-                              stringsAsFactors = F)
-
-patients = data.frame(patient = character(),
-                      normal = character(),
-                      tumor = character(),
-                      project = character(),
-                      ctype = factor(),
-                      stringsAsFactors = F)
-
-
-for (ctype in cancers) {
-  print(ctype)
-
-  ## table of counts
-  df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype,".csv"))
-  ## pivot to make it easier to join
-  df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
-  df_long$ctype = ctype
-  tables_of_counts = rbind(tables_of_counts, df_long)
-
-  ## patients
-  temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype,".csv"))
-  temp_patients$ctype = ctype
-  patients = rbind(patients, temp_patients)
-}
+# tables_of_counts = data.frame(transcript_id = character(),
+#                               Length = numeric(),
+#                               sample = character(),
+#                               TPM = numeric(),
+#                               ctype = factor(),
+#                               stringsAsFactors = F)
+# 
+# patients = data.frame(patient = character(),
+#                       normal = character(),
+#                       tumor = character(),
+#                       project = character(),
+#                       ctype = factor(),
+#                       stringsAsFactors = F)
+# 
+# 
+# for (ctype in cancers) {
+#   print(ctype)
+# 
+#   ## table of counts
+#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype,".csv"))
+#   ## pivot to make it easier to join
+#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
+#   df_long$ctype = ctype
+#   tables_of_counts = rbind(tables_of_counts, df_long)
+# 
+#   ## patients
+#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype,".csv"))
+#   temp_patients$ctype = ctype
+#   patients = rbind(patients, temp_patients)
+# }
 ```
 
 ## Matrix for patients
 
 ```{r patients_matrix_ctype, echo=F}
-TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% mutate(n_percent = case_when(ctype == "BRCA" ~ n/109,
-                                                                                       ctype == "BLCA" ~ n/38,
-                                                                                       ctype == "LUAD" ~ n/179,
-                                                                                       ctype == "KIRC" ~ n/142,
-                                                                                       ctype == "LUSC" ~ n/49,
-                                                                                       ctype == "PRAD" ~ n/75,
-                                                                                       ctype == "LIHC" ~ n/182,
-                                                                                       ctype == "COAD" ~ n/144))
+TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% mutate(n_percent = case_when(ctype == "BRCA" ~ num_patients_overexpr/109,
+                                                                                       ctype == "BLCA" ~ num_patients_overexpr/38,
+                                                                                       ctype == "LUAD" ~ num_patients_overexpr/179,
+                                                                                       ctype == "KIRC" ~ num_patients_overexpr/142,
+                                                                                       ctype == "LUSC" ~ num_patients_overexpr/49,
+                                                                                       ctype == "PRAD" ~ num_patients_overexpr/75,
+                                                                                       ctype == "LIHC" ~ num_patients_overexpr/182,
+                                                                                       ctype == "COAD" ~ num_patients_overexpr/144))
 
 
 
@@ -227,8 +228,8 @@ ph_patients = pheatmap(patient_ctype_mat_lncRNA_wide,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "red"))(50),
          fontsize = 6,
-         main="TSA lncRNA | percentage of patients (at least 5% in one cancer type)")
-save_pheatmap_pdf(ph_patients, paste0(plots_wd,"/PDF/TTS_pheatmap_patients_5percent_lncRNA.pdf"))
+         main="TOv3x lncRNA | percentage of patients (at least 5% in one cancer type)")
+save_pheatmap_pdf(ph_patients, paste0(plots_wd,"/PDF/TOv3x_pheatmap_patients_5percent_lncRNA.pdf"))
 
 ```
 
@@ -263,8 +264,8 @@ ph_CTA_patients = pheatmap(patient_ctype_mat_CTA_wide,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "red"))(50),
          fontsize = 6,
-         main="TSA CTA | percentage of patients (at least 5% in one cancer type)")
-save_pheatmap_pdf(ph_CTA_patients, paste0(plots_wd,"/PDF/TTS_pheatmap_patients_5percent_CTA.pdf"))
+         main="TOv3x CTA | percentage of patients (at least 5% in one cancer type)")
+save_pheatmap_pdf(ph_CTA_patients, paste0(plots_wd,"/PDF/TOv3x_pheatmap_patients_5percent_CTA.pdf"))
 
 ```
 
@@ -272,8 +273,8 @@ save_pheatmap_pdf(ph_CTA_patients, paste0(plots_wd,"/PDF/TTS_pheatmap_patients_5
 ## Matrix for expression
 
 ```{r TPMs_matrix_ctype_lncRNA, echo=F}
-# TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"))
-# 
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv"))
+
 # data_completed_TSA = data.frame(transcript_id = character(),
 #                               Length = numeric(),
 #                               sample = character(),
@@ -290,15 +291,15 @@ save_pheatmap_pdf(ph_CTA_patients, paste0(plots_wd,"/PDF/TTS_pheatmap_patients_5
 #   temp_TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype == ctype_var)
 # 
 #   ## table of counts
-#   df = read.csv(paste0(cancers_dir,"/merged_fc_ctype_var,".csv"))
+#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
 #   ## pivot to make it easier to join
-#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM names_to = "sample")
-#   df_long$sample = gsub("\\."-df_long$sample)
-#   df_long$sample = gsub("^X"df_long$sample)
+#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
+#   df_long$sample = gsub("\\.","-", df_long$sample)
+#   df_long$sample = gsub("^X","",df_long$sample)
 # 
 #   ## patients
-#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_ctype_var,".csv"))
-#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal"tumor"), names_to = "normal_tumor values_to = "sample")
+#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
 # 
 #   data_completed = merge(temp_patients, df_long, by="sample")
 #   data_completed$ctype = ctype_var
@@ -318,11 +319,11 @@ save_pheatmap_pdf(ph_CTA_patients, paste0(plots_wd,"/PDF/TTS_pheatmap_patients_5
 
 
 ```{r read_data, echo=F}
-data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
-data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+data_completed_TSA_forced = read.csv(file.path(save_wd,"TOv3x_forcedTPM_patients.csv"))
+data_completed_TSA_wide = data_completed_TSA_forced %>% subset(forced_tumor_expr > 0)
 ## select only the patients for which the gene is TSA
 ## we compute the median of the patients that express the gene in a tumor-specific manner
-data_completed_TSA_wide = data_completed_TSA_wide %>% filter(normal < 0.1 & tumor > 1) %>% select(-normal) %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(tumor)) %>% ungroup()
+data_completed_TSA_wide = data_completed_TSA_wide %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(forced_tumor_expr)) %>% ungroup()
 ```
 
 ```{r median_heatmap, echo=F}
@@ -353,8 +354,8 @@ ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clust
        annotation_colors = mycolors,
        color=colorRampPalette(c("lightyellow", "red"))(50),
        fontsize = 6,
-       main=paste0("Median logTPM of Testis/Tumor Specific genes"))
-save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_all.pdf"))
+       main=paste0("Median logTPM of Testis/Tumor Specific genes (TOv3x)"))
+save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_all_TOv3x5percent.pdf"))
 col.order = ph$tree_col$order
 
 lncRNA = data_completed_TSA_wide %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
@@ -375,8 +376,8 @@ cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlation",
        annotation_colors = mycolors,
        color=colorRampPalette(c("lightyellow", "red"))(50),
        fontsize = 6,
-       main="Median logTPM of Testis/Tumor Specific genes | CTA")
-save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_CTA.pdf"))
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | CTA")
+save_pheatmap_pdf(cta_ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_CTA_TOv3x5percent.pdf"))
 
 ## lncRNA
 lncRNA_matrix = nozeros_matrix_log[lncRNA$gene_name, ]
@@ -393,8 +394,8 @@ lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correla
        annotation_colors = mycolors,
        color=colorRampPalette(c("lightyellow", "red"))(50),
        fontsize = 6,
-       main="Median logTPM of Testis/Tumor Specific genes | lncRNA")
-save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_lncRNA.pdf"))
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | lncRNA")
+save_pheatmap_pdf(lncRNA_ph, paste0(plots_wd,"/PDF/pheatmap_medianTPM_lncRNA_TOv3x5percent.pdf"))
 ```
 
 ## Correlation
@@ -592,132 +593,132 @@ corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
 CTA tend to clusterize more than lncRNAs?
 
 ```{r clustering_hclust, echo=F}
-## Perform hierarchical clustering for rows (you can also do this for columns if needed)
-hc_CTA = hclust(dist(CTA_matrix), method = "complete")
-hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
-# plot(as.dendrogram(hc_CTAX), label = rownames(CTA_matrix_X), main = "Dendrogram of CTA Genes")
-hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
-hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
-
-## Cut the dendrograms at the same height
-## Define the cut height (you can adjust the value depending on your needs)
-cut_height = 5  # for example, 5; this is arbitrary and should be chosen based on your data's dendrogram scale
-
-## Cut the tree and get the number of clusters
-clusters_CTA = cutree(hc_CTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
-clusters_CTAX = cutree(hc_CTAX, h = cut_height)  # Cut the tree for matrix1 at the defined height
-clusters_CTAnonX = cutree(hc_CTAnonX, h = cut_height)  # Cut the tree for matrix1 at the defined height
-clusters_lncRNA = cutree(hc_lncRNA, h = cut_height)  # Cut the tree for matrix2 at the same height
-
-## Count the number of clusters
-num_clusters_CTA = length(unique(clusters_CTA))
-num_clusters_CTAX = length(unique(clusters_CTAX))
-num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
-num_clusters_lncRNA = length(unique(clusters_lncRNA))
-
-cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
-cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
-cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
-cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
+# ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+# hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+# hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+# # plot(as.dendrogram(hc_CTAX), label = rownames(CTA_matrix_X), main = "Dendrogram of CTA Genes")
+# hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+# hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+# 
+# ## Cut the dendrograms at the same height
+# ## Define the cut height (you can adjust the value depending on your needs)
+# cut_height = 5  # for example, 5; this is arbitrary and should be chosen based on your data's dendrogram scale
+# 
+# ## Cut the tree and get the number of clusters
+# clusters_CTA = cutree(hc_CTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
+# clusters_CTAX = cutree(hc_CTAX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+# clusters_CTAnonX = cutree(hc_CTAnonX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+# clusters_lncRNA = cutree(hc_lncRNA, h = cut_height)  # Cut the tree for matrix2 at the same height
+# 
+# ## Count the number of clusters
+# num_clusters_CTA = length(unique(clusters_CTA))
+# num_clusters_CTAX = length(unique(clusters_CTAX))
+# num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
+# num_clusters_lncRNA = length(unique(clusters_lncRNA))
+# 
+# cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
+# cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
+# cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
+# cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
 ```
 
 ```{r hclust_per_ctype, echo=F}
-data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
-
-for(ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
-  print(ctype_var)
-  ## how many patients in that ctype?
-  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
-  
-  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
-  
-  ## in how many patients is the gene TS?
-  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
-  df = merge(df, counting_1TPM, by="gene_name")
-  df$total_n = n_ctype
-  
-  ## calculate the percentage and keep only those TS in > 5% 
-  df$percentage_n = (df$n / n_ctype)* 100
-  df = df %>% unique()
-  df_5percent = df #%>% subset(percentage_n > 5)
-
-  df_5percent = df_5percent %>% unique()
-  to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
-  print(table(to_table$gene_type))
-  
-  ## keep expression data to plot
-  df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
-  df_5percent_expr = as.data.frame(df_5percent_expr)
-
-  df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
-  ## get log2TPM
-  df_log = log2(df_5percent_expr_values+1)
-
-  ## convert to matrix
-  matrix = as.matrix(df_log)
-  rownames(matrix) = df_5percent_expr$gene_name
-  matrix = na.omit(matrix)
-  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
-
-
-  ####### 2. non-CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 3. CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 4. CTA-Xchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
-
-  ####### 5. CTA-nonXchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 6. lncRNA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ##################################################
-  ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
-  hc_all = hclust(dist(nozeros_matrix_log), method="complete")
-  hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
-  hc_CTA = hclust(dist(CTA_matrix), method = "complete")
-  hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
-  # plot(as.dendrogram(hc_CTAX), label = rownames(CTA_matrix_X), main = "Dendrogram of CTA Genes")
-  hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
-  hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
-  
-  ## Cut the dendrograms at the same height
-  ## Define the cut height (you can adjust the value depending on your needs)
-  cut_height = 5  # for example, 5; this is arbitrary and should be chosen based on your data's dendrogram scale
-  
-  ## Cut the tree and get the number of clusters
-  clusters_all = cutree(hc_all, h = cut_height)  # Cut the tree for matrix1 at the defined height
-  clusters_nonCTA = cutree(hc_nonCTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
-  clusters_CTA = cutree(hc_CTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
-  clusters_CTAX = cutree(hc_CTAX, h = cut_height)  # Cut the tree for matrix1 at the defined height
-  clusters_CTAnonX = cutree(hc_CTAnonX, h = cut_height)  # Cut the tree for matrix1 at the defined height
-  clusters_lncRNA = cutree(hc_lncRNA, h = cut_height)  # Cut the tree for matrix2 at the same height
-  
-  ## Count the number of clusters
-  num_clusters_all = length(unique(clusters_all))
-  num_clusters_nonCTA = length(unique(clusters_nonCTA))
-  num_clusters_CTA = length(unique(clusters_CTA))
-  num_clusters_CTAX = length(unique(clusters_CTAX))
-  num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
-  num_clusters_lncRNA = length(unique(clusters_lncRNA))
-  
-  cat("Number of clusters in all:", num_clusters_all, "\n")
-  cat("Number of clusters in nonCTA:", num_clusters_nonCTA, "\n")
-  cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
-  cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
-  cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
-  cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
-
-}
+# data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
+# 
+# for(ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
+#   print(ctype_var)
+#   ## how many patients in that ctype?
+#   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+#   
+#   df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+#   
+#   ## in how many patients is the gene TS?
+#   counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+#   df = merge(df, counting_1TPM, by="gene_name")
+#   df$total_n = n_ctype
+#   
+#   ## calculate the percentage and keep only those TS in > 5% 
+#   df$percentage_n = (df$n / n_ctype)* 100
+#   df = df %>% unique()
+#   df_5percent = df #%>% subset(percentage_n > 5)
+# 
+#   df_5percent = df_5percent %>% unique()
+#   to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+#   print(table(to_table$gene_type))
+#   
+#   ## keep expression data to plot
+#   df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+#   df_5percent_expr = as.data.frame(df_5percent_expr)
+# 
+#   df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+#   ## get log2TPM
+#   df_log = log2(df_5percent_expr_values+1)
+# 
+#   ## convert to matrix
+#   matrix = as.matrix(df_log)
+#   rownames(matrix) = df_5percent_expr$gene_name
+#   matrix = na.omit(matrix)
+#   nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+# 
+# 
+#   ####### 2. non-CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 3. CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 4. CTA-Xchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+# 
+#   ####### 5. CTA-nonXchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 6. lncRNA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ##################################################
+#   ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+#   hc_all = hclust(dist(nozeros_matrix_log), method="complete")
+#   hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
+#   hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+#   hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+#   # plot(as.dendrogram(hc_CTAX), label = rownames(CTA_matrix_X), main = "Dendrogram of CTA Genes")
+#   hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+#   hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+#   
+#   ## Cut the dendrograms at the same height
+#   ## Define the cut height (you can adjust the value depending on your needs)
+#   cut_height = 5  # for example, 5; this is arbitrary and should be chosen based on your data's dendrogram scale
+#   
+#   ## Cut the tree and get the number of clusters
+#   clusters_all = cutree(hc_all, h = cut_height)  # Cut the tree for matrix1 at the defined height
+#   clusters_nonCTA = cutree(hc_nonCTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
+#   clusters_CTA = cutree(hc_CTA, h = cut_height)  # Cut the tree for matrix1 at the defined height
+#   clusters_CTAX = cutree(hc_CTAX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+#   clusters_CTAnonX = cutree(hc_CTAnonX, h = cut_height)  # Cut the tree for matrix1 at the defined height
+#   clusters_lncRNA = cutree(hc_lncRNA, h = cut_height)  # Cut the tree for matrix2 at the same height
+#   
+#   ## Count the number of clusters
+#   num_clusters_all = length(unique(clusters_all))
+#   num_clusters_nonCTA = length(unique(clusters_nonCTA))
+#   num_clusters_CTA = length(unique(clusters_CTA))
+#   num_clusters_CTAX = length(unique(clusters_CTAX))
+#   num_clusters_CTAnonX = length(unique(clusters_CTAnonX))
+#   num_clusters_lncRNA = length(unique(clusters_lncRNA))
+#   
+#   cat("Number of clusters in all:", num_clusters_all, "\n")
+#   cat("Number of clusters in nonCTA:", num_clusters_nonCTA, "\n")
+#   cat("Number of clusters in CTA:", num_clusters_CTA, "\n")
+#   cat("Number of clusters in CTA-X:", num_clusters_CTAX, "\n")
+#   cat("Number of clusters in CTA-nonX:", num_clusters_CTAnonX, "\n")
+#   cat("Number of clusters in lncRNA:", num_clusters_lncRNA, "\n")
+# 
+# }
 ```
 
 ```{r dynamicTree, echo=F}
@@ -812,167 +813,167 @@ for(ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
 ```
 
 ```{r elbowmethod, echo=F}
-wss <- function(data, clusters) {
-  cluster_means <- tapply(1:nrow(data), clusters, function(rows) colMeans(data[rows, , drop = FALSE]))
-  wss_total <- 0
-  for (i in 1:length(cluster_means)) {
-    cluster_rows <- data[clusters == i, , drop = FALSE]
-    cluster_center <- cluster_means[[i]]
-    wss_total <- wss_total + sum(rowSums((cluster_rows - cluster_center) ^ 2))
-  }
-  return(wss_total)
-}
-
-for(ctype_var in  c("BRCA","LUAD","LUSC","COAD","LIHC")) {
-  print(ctype_var)
-  ## how many patients in that ctype?
-  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
-  
-  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
-  
-  ## in how many patients is the gene TS?
-  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
-  df = merge(df, counting_1TPM, by="gene_name")
-  df$total_n = n_ctype
-  
-  ## calculate the percentage and keep only those TS in > 5% 
-  df$percentage_n = (df$n / n_ctype)* 100
-  df = df %>% unique()
-  df_5percent = df #%>% subset(percentage_n > 5)
-
-  df_5percent = df_5percent %>% unique()
-  to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
-  print(table(to_table$gene_type))
-  
-  ## keep expression data to plot
-  df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
-  df_5percent_expr = as.data.frame(df_5percent_expr)
-
-  df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
-  ## get log2TPM
-  df_log = log2(df_5percent_expr_values+1)
-
-  ## convert to matrix
-  matrix = as.matrix(df_log)
-  rownames(matrix) = df_5percent_expr$gene_name
-  matrix = na.omit(matrix)
-  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
-
-
-  ####### 2. non-CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 3. CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 4. CTA-Xchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
-
-  ####### 5. CTA-nonXchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
-  
-  ####### 6. lncRNA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  ##################################################
-  ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
-  # hc_all = hclust(dist(nozeros_matrix_log), method="complete")
-  hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
-  hc_CTA = hclust(dist(CTA_matrix), method = "complete")
-  hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
-  hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
-  hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
-  
-  k_max <- 10  # Define the maximum number of clusters to check
-  
-#   wss_values_all <- sapply(2:k_max, function(k) {
-#   clusters <- cutree(hc_all, k)
-#   wss(nozeros_matrix_log, clusters)
+# wss <- function(data, clusters) {
+#   cluster_means <- tapply(1:nrow(data), clusters, function(rows) colMeans(data[rows, , drop = FALSE]))
+#   wss_total <- 0
+#   for (i in 1:length(cluster_means)) {
+#     cluster_rows <- data[clusters == i, , drop = FALSE]
+#     cluster_center <- cluster_means[[i]]
+#     wss_total <- wss_total + sum(rowSums((cluster_rows - cluster_center) ^ 2))
+#   }
+#   return(wss_total)
+# }
+# 
+# for(ctype_var in  c("BRCA","LUAD","LUSC","COAD","LIHC")) {
+#   print(ctype_var)
+#   ## how many patients in that ctype?
+#   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+#   
+#   df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+#   
+#   ## in how many patients is the gene TS?
+#   counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+#   df = merge(df, counting_1TPM, by="gene_name")
+#   df$total_n = n_ctype
+#   
+#   ## calculate the percentage and keep only those TS in > 5% 
+#   df$percentage_n = (df$n / n_ctype)* 100
+#   df = df %>% unique()
+#   df_5percent = df #%>% subset(percentage_n > 5)
+# 
+#   df_5percent = df_5percent %>% unique()
+#   to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+#   print(table(to_table$gene_type))
+#   
+#   ## keep expression data to plot
+#   df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+#   df_5percent_expr = as.data.frame(df_5percent_expr)
+# 
+#   df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+#   ## get log2TPM
+#   df_log = log2(df_5percent_expr_values+1)
+# 
+#   ## convert to matrix
+#   matrix = as.matrix(df_log)
+#   rownames(matrix) = df_5percent_expr$gene_name
+#   matrix = na.omit(matrix)
+#   nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+# 
+# 
+#   ####### 2. non-CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   nonCTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 3. CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 4. CTA-Xchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+# 
+#   ####### 5. CTA-nonXchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ####### 6. lncRNA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   ##################################################
+#   ## Perform hierarchical clustering for rows (you can also do this for columns if needed)
+#   # hc_all = hclust(dist(nozeros_matrix_log), method="complete")
+#   hc_nonCTA = hclust(dist(nonCTA_matrix), method="complete")
+#   hc_CTA = hclust(dist(CTA_matrix), method = "complete")
+#   hc_CTAX = hclust(dist(CTA_matrix_X), method = "complete")
+#   hc_CTAnonX = hclust(dist(CTA_matrix_nonX), method = "complete")
+#   hc_lncRNA = hclust(dist(lncRNA_matrix), method = "complete")
+#   
+#   k_max <- 10  # Define the maximum number of clusters to check
+#   
+# #   wss_values_all <- sapply(2:k_max, function(k) {
+# #   clusters <- cutree(hc_all, k)
+# #   wss(nozeros_matrix_log, clusters)
+# # })
+#   wss_values_nonCTA <-  sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_nonCTA, k)
+#   wss(nonCTA_matrix, clusters)
 # })
-  wss_values_nonCTA <-  sapply(2:k_max, function(k) {
-  clusters <- cutree(hc_nonCTA, k)
-  wss(nonCTA_matrix, clusters)
-})
-  wss_values_CTA <-  sapply(2:k_max, function(k) {
-  clusters <- cutree(hc_CTA, k)
-  wss(CTA_matrix, clusters)
-})
-  wss_values_CTAX <-  sapply(2:k_max, function(k) {
-  clusters <- cutree(hc_CTAX, k)
-  wss(CTA_matrix_X, clusters)
-})
-  wss_values_CTAnonX <- sapply(2:k_max, function(k) {
-  clusters <- cutree(hc_CTAnonX, k)
-  wss(CTA_matrix_nonX, clusters)
-})
-  wss_values_lncRNA <-  sapply(2:k_max, function(k) {
-  clusters <- cutree(hc_lncRNA, k)
-  wss(lncRNA_matrix, clusters)
-})
-
-  # plot(2:k_max, wss_values_all, type = "b xlab = "Number of clusters ylab = "Within-cluster sum of squares main=paste0("allctype_var))
-  plot(2:k_max, wss_values_nonCTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("non-CT", ctype_var))
-  plot(2:k_max, wss_values_CTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT", ctype_var))
-  plot(2:k_max, wss_values_CTAX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-X", ctype_var))
-  plot(2:k_max, wss_values_CTAnonX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-nonX", ctype_var))
-  plot(2:k_max, wss_values_lncRNA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("lncRNA", ctype_var))
-
-  # Silhouette method for different number of clusters
-  silhouette_scores_CTAnonX <- sapply(2:k_max, function(k) {
-    clusters <- cutree(hc_CTAnonX, k)
-    silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix_nonX))[, 'sil_width'])
-    return(silhouette_avg)
-  }) 
-  # Find the optimal number of clusters
-  optimal_clusters_CTAnonX <- which.max(silhouette_scores_CTAnonX)
-  print(paste("Optimal number of clusters CTA-nonX based on silhouette method:", optimal_clusters_CTAnonX))
-  
-  silhouette_scores_CTAX <- sapply(2:k_max, function(k) {
-    clusters <- cutree(hc_CTAX, k)
-    silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix_X))[, 'sil_width'])
-    return(silhouette_avg)
-  })
-  optimal_clusters_CTAX <- which.max(silhouette_scores_CTAX)
-  print(paste("Optimal number of clusters CTA-X based on silhouette method:", optimal_clusters_CTAX))
-  
-  silhouette_scores_lncRNA <- sapply(2:k_max, function(k) {
-    clusters <- cutree(hc_lncRNA, k)
-    silhouette_avg <- mean(silhouette(clusters, dist(lncRNA_matrix))[, 'sil_width'])
-    return(silhouette_avg)
-  })
-  optimal_clusters_lncRNA <- which.max(silhouette_scores_lncRNA)
-  print(paste("Optimal number of clusters lncRNA based on silhouette method:", optimal_clusters_lncRNA))
-  
-  silhouette_scores_CTA <- sapply(2:k_max, function(k) {
-    clusters <- cutree(hc_CTA, k)
-    silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix))[, 'sil_width'])
-    return(silhouette_avg)
-  })
-  optimal_clusters_CTA <- which.max(silhouette_scores_CTA)
-  print(paste("Optimal number of clusters CTA based on silhouette method:", optimal_clusters_CTA))
-  
-}
+#   wss_values_CTA <-  sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_CTA, k)
+#   wss(CTA_matrix, clusters)
+# })
+#   wss_values_CTAX <-  sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_CTAX, k)
+#   wss(CTA_matrix_X, clusters)
+# })
+#   wss_values_CTAnonX <- sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_CTAnonX, k)
+#   wss(CTA_matrix_nonX, clusters)
+# })
+#   wss_values_lncRNA <-  sapply(2:k_max, function(k) {
+#   clusters <- cutree(hc_lncRNA, k)
+#   wss(lncRNA_matrix, clusters)
+# })
+# 
+#   # plot(2:k_max, wss_values_all, type = "b xlab = "Number of clusters ylab = "Within-cluster sum of squares main=paste0("allctype_var))
+#   plot(2:k_max, wss_values_nonCTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("non-CT", ctype_var))
+#   plot(2:k_max, wss_values_CTA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT", ctype_var))
+#   plot(2:k_max, wss_values_CTAX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-X", ctype_var))
+#   plot(2:k_max, wss_values_CTAnonX, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("CT-nonX", ctype_var))
+#   plot(2:k_max, wss_values_lncRNA, type = "b", xlab = "Number of clusters", ylab = "Within-cluster sum of squares", main=paste0("lncRNA", ctype_var))
+# 
+#   # Silhouette method for different number of clusters
+#   silhouette_scores_CTAnonX <- sapply(2:k_max, function(k) {
+#     clusters <- cutree(hc_CTAnonX, k)
+#     silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix_nonX))[, 'sil_width'])
+#     return(silhouette_avg)
+#   }) 
+#   # Find the optimal number of clusters
+#   optimal_clusters_CTAnonX <- which.max(silhouette_scores_CTAnonX)
+#   print(paste("Optimal number of clusters CTA-nonX based on silhouette method:", optimal_clusters_CTAnonX))
+#   
+#   silhouette_scores_CTAX <- sapply(2:k_max, function(k) {
+#     clusters <- cutree(hc_CTAX, k)
+#     silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix_X))[, 'sil_width'])
+#     return(silhouette_avg)
+#   })
+#   optimal_clusters_CTAX <- which.max(silhouette_scores_CTAX)
+#   print(paste("Optimal number of clusters CTA-X based on silhouette method:", optimal_clusters_CTAX))
+#   
+#   silhouette_scores_lncRNA <- sapply(2:k_max, function(k) {
+#     clusters <- cutree(hc_lncRNA, k)
+#     silhouette_avg <- mean(silhouette(clusters, dist(lncRNA_matrix))[, 'sil_width'])
+#     return(silhouette_avg)
+#   })
+#   optimal_clusters_lncRNA <- which.max(silhouette_scores_lncRNA)
+#   print(paste("Optimal number of clusters lncRNA based on silhouette method:", optimal_clusters_lncRNA))
+#   
+#   silhouette_scores_CTA <- sapply(2:k_max, function(k) {
+#     clusters <- cutree(hc_CTA, k)
+#     silhouette_avg <- mean(silhouette(clusters, dist(CTA_matrix))[, 'sil_width'])
+#     return(silhouette_avg)
+#   })
+#   optimal_clusters_CTA <- which.max(silhouette_scores_CTA)
+#   print(paste("Optimal number of clusters CTA based on silhouette method:", optimal_clusters_CTA))
+#   
+# }
 ```
 
 ## Measuring that tendency
 
 ```{r tendency_to_cluster, echo=F}
-data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
-to_cluster = data_completed_TSA_forced %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = "patient", values_from = "forced_tumor_expr")
-to_cluster[is.na(to_cluster)] = 0
-
-to_cluster_values = mutate_all(to_cluster[,-1], function(x) as.numeric(as.character(x)))
-
-## convert to matrix
-matrix = data.matrix(to_cluster_values)
-rownames(matrix) = to_cluster$gene_name
-matrix = na.omit(matrix)
-to_cluster_matrix = matrix[,colSums(matrix) > 0]
+# data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
+# to_cluster = data_completed_TSA_forced %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = "patient", values_from = "forced_tumor_expr")
+# to_cluster[is.na(to_cluster)] = 0
+# 
+# to_cluster_values = mutate_all(to_cluster[,-1], function(x) as.numeric(as.character(x)))
+# 
+# ## convert to matrix
+# matrix = data.matrix(to_cluster_values)
+# rownames(matrix) = to_cluster$gene_name
+# matrix = na.omit(matrix)
+# to_cluster_matrix = matrix[,colSums(matrix) > 0]
 ##### 1. Silhouette Coefficient (Clustering Quality)
 # The silhouette coefficient measures how well each point in a cluster is similar to its own cluster compared to other clusters. It ranges from -1 to 1:
 # 
@@ -989,53 +990,53 @@ to_cluster_matrix = matrix[,colSums(matrix) > 0]
 # You can use other clustering methods as well (like hierarchical clustering)
 
 #### MAYBE WE WOULD NEED TO CONSIDER CTYPE HERE?
-set.seed(123)  # For reproducibility
-kmeans_result <- kmeans(to_cluster_matrix, centers = 3)
-
-# Step 3: Compute silhouette scores for the genes
-silhouette_score <- silhouette(kmeans_result$cluster, dist(to_cluster_matrix))
-
-# Step 4: Extract and visualize the silhouette scores
-silhouette_scores_per_gene <- data.frame(
-  gene = rownames(to_cluster_matrix),
-  silhouette_width = silhouette_score[, "sil_width"]
-)
-
-# Step 5: Check the silhouette scores per gene
-print(silhouette_scores_per_gene)
-
-# Optional: Visualize the silhouette scores (overall visualization)
-fviz_silhouette(silhouette_score)
-
-# You can also calculate the average silhouette width for the entire dataset
-mean_silhouette <- mean(silhouette_score[, 3])
-cat("Mean Silhouette Score for all genes:", mean_silhouette)
-
-# Example: Sorting genes by silhouette width
-silhouette_scores_per_gene <- silhouette_scores_per_gene[order(silhouette_scores_per_gene$silhouette_width, decreasing = TRUE), ]
-head(silhouette_scores_per_gene)
-silhouette_scores_per_gene = merge(silhouette_scores_per_gene, annot %>% select(gene_name, gene_type, chr), by.x="gene", by.y="gene_name")
-silhouette_scores_per_gene = silhouette_scores_per_gene %>% mutate(gene_type_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "X-CT",
-                                                                                             gene_type == "protein_coding" & chr != "X" ~ "nonX-CT",
-                                                                                             TRUE ~ gene_type))
-# Example: Plotting silhouette widths per gene
-ggplot(silhouette_scores_per_gene, aes(x = reorder(gene, silhouette_width), y = silhouette_width, color=gene_type_chr)) +
-  geom_bar(stat = "identity") +
-  coord_flip() +  # Rotate the plot for better visualization
-  labs(title = "Silhouette Widths per Gene", x = "Gene", y = "Silhouette Width") +
-  theme_minimal()
-
-ggplot(silhouette_scores_per_gene, aes(x = gene_type_chr, y = silhouette_width, fill=gene_type_chr)) +
-  geom_boxplot() +
-  labs(title = "Silhouette Widths per Gene",
-       x="") +
-  theme_minimal() +
-  theme(legend.position = "none")
+# set.seed(123)  # For reproducibility
+# kmeans_result <- kmeans(to_cluster_matrix, centers = 3)
+# 
+# # Step 3: Compute silhouette scores for the genes
+# silhouette_score <- silhouette(kmeans_result$cluster, dist(to_cluster_matrix))
+# 
+# # Step 4: Extract and visualize the silhouette scores
+# silhouette_scores_per_gene <- data.frame(
+#   gene = rownames(to_cluster_matrix),
+#   silhouette_width = silhouette_score[, "sil_width"]
+# )
+# 
+# # Step 5: Check the silhouette scores per gene
+# print(silhouette_scores_per_gene)
+# 
+# # Optional: Visualize the silhouette scores (overall visualization)
+# fviz_silhouette(silhouette_score)
+# 
+# # You can also calculate the average silhouette width for the entire dataset
+# mean_silhouette <- mean(silhouette_score[, 3])
+# cat("Mean Silhouette Score for all genes:", mean_silhouette)
+# 
+# # Example: Sorting genes by silhouette width
+# silhouette_scores_per_gene <- silhouette_scores_per_gene[order(silhouette_scores_per_gene$silhouette_width, decreasing = TRUE), ]
+# head(silhouette_scores_per_gene)
+# silhouette_scores_per_gene = merge(silhouette_scores_per_gene, annot %>% select(gene_name, gene_type, chr), by.x="gene", by.y="gene_name")
+# silhouette_scores_per_gene = silhouette_scores_per_gene %>% mutate(gene_type_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "X-CT",
+#                                                                                              gene_type == "protein_coding" & chr != "X" ~ "nonX-CT",
+#                                                                                              TRUE ~ gene_type))
+# # Example: Plotting silhouette widths per gene
+# ggplot(silhouette_scores_per_gene, aes(x = reorder(gene, silhouette_width), y = silhouette_width, color=gene_type_chr)) +
+#   geom_bar(stat = "identity") +
+#   coord_flip() +  # Rotate the plot for better visualization
+#   labs(title = "Silhouette Widths per Gene", x = "Gene", y = "Silhouette Width") +
+#   theme_minimal()
+# 
+# ggplot(silhouette_scores_per_gene, aes(x = gene_type_chr, y = silhouette_width, fill=gene_type_chr)) +
+#   geom_boxplot() +
+#   labs(title = "Silhouette Widths per Gene",
+#        x="") +
+#   theme_minimal() +
+#   theme(legend.position = "none")
 
 ```
 
 ```{r silhouette_score_ctype, echo=F}
-unique_ctypes = cancers  
+# unique_ctypes = cancers  
 
 # # List to store silhouette scores by ctype
 # silhouette_scores_by_ctype <- list()
@@ -1077,324 +1078,324 @@ unique_ctypes = cancers
 ```
 
 ```{r silhouette_score_ctype_gtype, echo)F}
-unique_ctypes = c("BRCA","BLCA","LUAD","PRAD","LUSC","COAD","LIHC")  
-###### CTA #######
-# List to store silhouette scores by ctype
-silhouette_scores_by_ctype_CTA <- list()
-
-# Loop over each 'ctype' group
-for (ctype_value in unique_ctypes) {
-  print(ctype_value)
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  CTA_to_cluster = annot %>% subset(gene_type == "protein_coding")
-  
-  # Subset the data for the specific ctype
-  ctype_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
-  
-  # Perform clustering (e.g., k-means) on the subset
-  kmeans_result = kmeans(ctype_matrix_CTA, centers = 3)  # Adjust centers as needed
-
-  # Calculate silhouette scores for this ctype
-  silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTA))
-  
-  # Store the silhouette score
-  silhouette_scores_by_ctype_CTA[[ctype_value]] <- data.frame(
-    gene = rownames(ctype_matrix_CTA),
-    ctype = ctype_value,
-    silhouette_width = silhouette_score[, "sil_width"]
-  )
-}
-
-# Combine silhouette scores into one data frame
-silhouette_scores_all_CTA = do.call(rbind, silhouette_scores_by_ctype_CTA)
-silhouette_scores_all_CTA$gene_type = "CT"
-
-
-
-###### CT-X #######
-# List to store silhouette scores by ctype
-silhouette_scores_by_ctype_CTX <- list()
-
-# Loop over each 'ctype' group
-for (ctype_value in unique_ctypes) {
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  CTX_to_cluster = annot %>% subset(gene_type == "protein_coding" & chr == "X")
-  
-  # Subset the data for the specific ctype
-  ctype_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
-  
-  # Perform clustering (e.g., k-means) on the subset
-  kmeans_result = kmeans(ctype_matrix_CTX, centers = 3)  # Adjust centers as needed
-
-  # Calculate silhouette scores for this ctype
-  silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTX))
-  
-  # Store the silhouette score
-  silhouette_scores_by_ctype_CTX[[ctype_value]] <- data.frame(
-    gene = rownames(ctype_matrix_CTX),
-    ctype = ctype_value,
-    silhouette_width = silhouette_score[, "sil_width"]
-  )
-}
-
-# Combine silhouette scores into one data frame
-silhouette_scores_all_CTX = do.call(rbind, silhouette_scores_by_ctype_CTX)
-silhouette_scores_all_CTX$gene_type = "CT-X"
-
-
-###### CT-nonX #######
-# List to store silhouette scores by ctype
-silhouette_scores_by_ctype_CTnonX <- list()
-
-# Loop over each 'ctype' group
-for (ctype_value in unique_ctypes) {
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  CTnonX_to_cluster = annot %>% subset(gene_type == "protein_coding" & chr != "X")
-  
-  # Subset the data for the specific ctype
-  ctype_matrix_CTnonX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
-  
-  # Perform clustering (e.g., k-means) on the subset
-  kmeans_result = kmeans(ctype_matrix_CTnonX, centers = 3)  # Adjust centers as needed
-
-  # Calculate silhouette scores for this ctype
-  silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTnonX))
-  
-  # Store the silhouette score
-  silhouette_scores_by_ctype_CTnonX[[ctype_value]] <- data.frame(
-    gene = rownames(ctype_matrix_CTnonX),
-    ctype = ctype_value,
-    silhouette_width = silhouette_score[, "sil_width"]
-  )
-}
-
-# Combine silhouette scores into one data frame
-silhouette_scores_all_CTnonX = do.call(rbind, silhouette_scores_by_ctype_CTnonX)
-silhouette_scores_all_CTnonX$gene_type = "CT-nonX"
-
-
-###### non-CTA #######
-# List to store silhouette scores by ctype
-silhouette_scores_by_ctype_nonCTA <- list()
-
-# Loop over each 'ctype' group
-for (ctype_value in unique_ctypes) {
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  nonCTA_to_cluster = annot %>% subset(gene_type != "protein_coding")
-  
-  # Subset the data for the specific ctype
-  ctype_matrix_nonCTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
-  
-  # Perform clustering (e.g., k-means) on the subset
-  kmeans_result = kmeans(ctype_matrix_nonCTA, centers = 3)  # Adjust centers as needed
-
-  # Calculate silhouette scores for this ctype
-  silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_nonCTA))
-  
-  # Store the silhouette score
-  silhouette_scores_by_ctype_nonCTA[[ctype_value]] <- data.frame(
-    gene = rownames(ctype_matrix_nonCTA),
-    ctype = ctype_value,
-    silhouette_width = silhouette_score[, "sil_width"]
-  )
-}
-
-# Combine silhouette scores into one data frame
-silhouette_scores_all_nonCTA = do.call(rbind, silhouette_scores_by_ctype_nonCTA)
-silhouette_scores_all_nonCTA$gene_type = "non-CT"
-
-
-###### lncRNA #######
-# List to store silhouette scores by ctype
-silhouette_scores_by_ctype_lncRNA <- list()
-
-# Loop over each 'ctype' group
-for (ctype_value in unique_ctypes) {
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  lncRNA_to_cluster = annot %>% subset(gene_type == "lncRNA")
-  
-  # Subset the data for the specific ctype
-  ctype_matrix_lncRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
-  
-  # Perform clustering (e.g., k-means) on the subset
-  kmeans_result = kmeans(ctype_matrix_lncRNA, centers = 3)  # Adjust centers as needed
-
-  # Calculate silhouette scores for this ctype
-  silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_lncRNA))
-  
-  # Store the silhouette score
-  silhouette_scores_by_ctype_lncRNA[[ctype_value]] <- data.frame(
-    gene = rownames(ctype_matrix_lncRNA),
-    ctype = ctype_value,
-    silhouette_width = silhouette_score[, "sil_width"]
-  )
-}
-
-# Combine silhouette scores into one data frame
-silhouette_scores_all_lncRNA = do.call(rbind, silhouette_scores_by_ctype_lncRNA)
-silhouette_scores_all_lncRNA$gene_type = "lncRNA"
-
-
-
-print("CT")
-print(summary(silhouette_scores_all_CTA$silhouette_width))
-print("CT-X")
-print(summary(silhouette_scores_all_CTX$silhouette_width))
-print("CT-nonX")
-print(summary(silhouette_scores_all_CTnonX$silhouette_width))
-print("nonCT")
-print(summary(silhouette_scores_all_nonCTA$silhouette_width))
-print("lncRNA")
-print(summary(silhouette_scores_all_lncRNA$silhouette_width))
-
-
-silhouettes = rbind(silhouette_scores_all_CTA, silhouette_scores_all_CTX, silhouette_scores_all_CTnonX, silhouette_scores_all_nonCTA,silhouette_scores_all_lncRNA)
+# unique_ctypes = c("BRCA","BLCA","LUAD","PRAD","LUSC","COAD","LIHC")  
+# ###### CTA #######
+# # List to store silhouette scores by ctype
+# silhouette_scores_by_ctype_CTA <- list()
+# 
+# # Loop over each 'ctype' group
+# for (ctype_value in unique_ctypes) {
+#   print(ctype_value)
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   CTA_to_cluster = annot %>% subset(gene_type == "protein_coding")
+#   
+#   # Subset the data for the specific ctype
+#   ctype_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   
+#   # Perform clustering (e.g., k-means) on the subset
+#   kmeans_result = kmeans(ctype_matrix_CTA, centers = 3)  # Adjust centers as needed
+# 
+#   # Calculate silhouette scores for this ctype
+#   silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTA))
+#   
+#   # Store the silhouette score
+#   silhouette_scores_by_ctype_CTA[[ctype_value]] <- data.frame(
+#     gene = rownames(ctype_matrix_CTA),
+#     ctype = ctype_value,
+#     silhouette_width = silhouette_score[, "sil_width"]
+#   )
+# }
+# 
+# # Combine silhouette scores into one data frame
+# silhouette_scores_all_CTA = do.call(rbind, silhouette_scores_by_ctype_CTA)
+# silhouette_scores_all_CTA$gene_type = "CT"
+# 
+# 
+# 
+# ###### CT-X #######
+# # List to store silhouette scores by ctype
+# silhouette_scores_by_ctype_CTX <- list()
+# 
+# # Loop over each 'ctype' group
+# for (ctype_value in unique_ctypes) {
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   CTX_to_cluster = annot %>% subset(gene_type == "protein_coding" & chr == "X")
+#   
+#   # Subset the data for the specific ctype
+#   ctype_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   
+#   # Perform clustering (e.g., k-means) on the subset
+#   kmeans_result = kmeans(ctype_matrix_CTX, centers = 3)  # Adjust centers as needed
+# 
+#   # Calculate silhouette scores for this ctype
+#   silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTX))
+#   
+#   # Store the silhouette score
+#   silhouette_scores_by_ctype_CTX[[ctype_value]] <- data.frame(
+#     gene = rownames(ctype_matrix_CTX),
+#     ctype = ctype_value,
+#     silhouette_width = silhouette_score[, "sil_width"]
+#   )
+# }
+# 
+# # Combine silhouette scores into one data frame
+# silhouette_scores_all_CTX = do.call(rbind, silhouette_scores_by_ctype_CTX)
+# silhouette_scores_all_CTX$gene_type = "CT-X"
+# 
+# 
+# ###### CT-nonX #######
+# # List to store silhouette scores by ctype
+# silhouette_scores_by_ctype_CTnonX <- list()
+# 
+# # Loop over each 'ctype' group
+# for (ctype_value in unique_ctypes) {
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   CTnonX_to_cluster = annot %>% subset(gene_type == "protein_coding" & chr != "X")
+#   
+#   # Subset the data for the specific ctype
+#   ctype_matrix_CTnonX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   
+#   # Perform clustering (e.g., k-means) on the subset
+#   kmeans_result = kmeans(ctype_matrix_CTnonX, centers = 3)  # Adjust centers as needed
+# 
+#   # Calculate silhouette scores for this ctype
+#   silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_CTnonX))
+#   
+#   # Store the silhouette score
+#   silhouette_scores_by_ctype_CTnonX[[ctype_value]] <- data.frame(
+#     gene = rownames(ctype_matrix_CTnonX),
+#     ctype = ctype_value,
+#     silhouette_width = silhouette_score[, "sil_width"]
+#   )
+# }
+# 
+# # Combine silhouette scores into one data frame
+# silhouette_scores_all_CTnonX = do.call(rbind, silhouette_scores_by_ctype_CTnonX)
+# silhouette_scores_all_CTnonX$gene_type = "CT-nonX"
+# 
+# 
+# ###### non-CTA #######
+# # List to store silhouette scores by ctype
+# silhouette_scores_by_ctype_nonCTA <- list()
+# 
+# # Loop over each 'ctype' group
+# for (ctype_value in unique_ctypes) {
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   nonCTA_to_cluster = annot %>% subset(gene_type != "protein_coding")
+#   
+#   # Subset the data for the specific ctype
+#   ctype_matrix_nonCTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   
+#   # Perform clustering (e.g., k-means) on the subset
+#   kmeans_result = kmeans(ctype_matrix_nonCTA, centers = 3)  # Adjust centers as needed
+# 
+#   # Calculate silhouette scores for this ctype
+#   silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_nonCTA))
+#   
+#   # Store the silhouette score
+#   silhouette_scores_by_ctype_nonCTA[[ctype_value]] <- data.frame(
+#     gene = rownames(ctype_matrix_nonCTA),
+#     ctype = ctype_value,
+#     silhouette_width = silhouette_score[, "sil_width"]
+#   )
+# }
+# 
+# # Combine silhouette scores into one data frame
+# silhouette_scores_all_nonCTA = do.call(rbind, silhouette_scores_by_ctype_nonCTA)
+# silhouette_scores_all_nonCTA$gene_type = "non-CT"
+# 
+# 
+# ###### lncRNA #######
+# # List to store silhouette scores by ctype
+# silhouette_scores_by_ctype_lncRNA <- list()
+# 
+# # Loop over each 'ctype' group
+# for (ctype_value in unique_ctypes) {
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   lncRNA_to_cluster = annot %>% subset(gene_type == "lncRNA")
+#   
+#   # Subset the data for the specific ctype
+#   ctype_matrix_lncRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name, colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   
+#   # Perform clustering (e.g., k-means) on the subset
+#   kmeans_result = kmeans(ctype_matrix_lncRNA, centers = 3)  # Adjust centers as needed
+# 
+#   # Calculate silhouette scores for this ctype
+#   silhouette_score = silhouette(kmeans_result$cluster, dist(ctype_matrix_lncRNA))
+#   
+#   # Store the silhouette score
+#   silhouette_scores_by_ctype_lncRNA[[ctype_value]] <- data.frame(
+#     gene = rownames(ctype_matrix_lncRNA),
+#     ctype = ctype_value,
+#     silhouette_width = silhouette_score[, "sil_width"]
+#   )
+# }
+# 
+# # Combine silhouette scores into one data frame
+# silhouette_scores_all_lncRNA = do.call(rbind, silhouette_scores_by_ctype_lncRNA)
+# silhouette_scores_all_lncRNA$gene_type = "lncRNA"
+# 
+# 
+# 
+# print("CT")
+# print(summary(silhouette_scores_all_CTA$silhouette_width))
+# print("CT-X")
+# print(summary(silhouette_scores_all_CTX$silhouette_width))
+# print("CT-nonX")
+# print(summary(silhouette_scores_all_CTnonX$silhouette_width))
+# print("nonCT")
+# print(summary(silhouette_scores_all_nonCTA$silhouette_width))
+# print("lncRNA")
+# print(summary(silhouette_scores_all_lncRNA$silhouette_width))
+# 
+# 
+# silhouettes = rbind(silhouette_scores_all_CTA, silhouette_scores_all_CTX, silhouette_scores_all_CTnonX, silhouette_scores_all_nonCTA,silhouette_scores_all_lncRNA)
 ```
 
 ```{r CDI, echo=F}
-calculate_CDI <- function(data_matrix) {
-  # Step 1: Compute distance matrix (can use other metrics like 1 - correlation)
-  dist_matrix <- dist(data_matrix, method = "euclidean")
-  
-  # Step 2: Perform hierarchical clustering
-  hclust_result <- hclust(dist_matrix, method = "complete")
-  
-  # Step 3: Determine clusters (you can cut tree to form k clusters, e.g., 5 clusters)
-  clusters <- cutree(hclust_result, k = 5)  # Adjust k as necessary
-
-  # Step 4: Calculate silhouette scores for clustering quality
-  silhouette_scores <- silhouette(clusters, dist_matrix)
-  
-  # Average silhouette width (clustering quality)
-  avg_silhouette_width <- mean(silhouette_scores[, "sil_width"], na.rm = TRUE)
-  
-  # Step 5: Measure intra-cluster and inter-cluster variance
-  # Intra-cluster variance (within clusters sum of squares)
-  intra_cluster_variance <- sum(sapply(unique(clusters), function(cluster) {
-    cluster_data <- data_matrix[clusters == cluster, , drop = FALSE]  # Ensure matrix output
-    
-    if (nrow(cluster_data) > 1) {
-      # If more than one gene in the cluster, calculate variance
-      cluster_center <- colMeans(cluster_data)
-      sum(rowSums((cluster_data - cluster_center) ^ 2))
-    } else {
-      # Single gene in the cluster: no variance
-      0  
-    }
-  }))
-  
-  # Inter-cluster variance (distance between cluster centers)
-  cluster_centers <- sapply(unique(clusters), function(cluster) {
-    cluster_data <- data_matrix[clusters == cluster, , drop = FALSE]  # Ensure matrix output
-    if (nrow(cluster_data) > 1) {
-      colMeans(cluster_data)  # If multiple genes, return cluster center
-    } else {
-      as.numeric(cluster_data)  # If one gene, return it as the center
-    }
-  })
-  inter_cluster_variance <- sum(dist(t(cluster_centers))^2)
-  
-  # Step 6: Compute Cluster Dispersion Index (CDI)
-  CDI <- inter_cluster_variance / intra_cluster_variance
-  
-  # Return CDI and other metrics for understanding
-  return(list(CDI = CDI, avg_silhouette_width = avg_silhouette_width, intra_cluster_variance = intra_cluster_variance, inter_cluster_variance = inter_cluster_variance))
-}
-
-## CT ##
-CDI_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name,]
-CDI_CTA <- calculate_CDI(CDI_matrix_CTA)
-CDI_CTA$CDI
-CDI_CTA$avg_silhouette_width
-
-## lncRNA ##
-CDI_matrix_lnCRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name,]
-CDI_lncRNA <- calculate_CDI(CDI_matrix_lnCRNA)
-CDI_lncRNA$CDI
-CDI_lncRNA$avg_silhouette_width
-
-## CT-X ##
-CDI_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name,]
-CDI_CTX <- calculate_CDI(CDI_matrix_CTX)
-CDI_CTX$CDI
-CDI_CTX$avg_silhouette_width
-
-## CT-nonX ##
-CDI_matrix_nonCTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name,]
-CDI_nonCTX <- calculate_CDI(CDI_matrix_nonCTX)
-CDI_nonCTX$CDI
-CDI_nonCTX$avg_silhouette_width
-
-## non-CT ##
-CDI_matrix_nonCT = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name,]
-CDI_nonCT <- calculate_CDI(CDI_matrix_nonCT)
-CDI_nonCT$CDI
-CDI_nonCT$avg_silhouette_width
-
-CDI_dataframe_ctype = data.frame(CDI = numeric(),
-                                 ctype = factor(),
-                                 type = factor(),
-                                 stringsAsFactors = F)
-### per ctype independently
-for (ctype_value in unique_ctypes) {
-  print(ctype_value)
-  patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
-  
-  ## CT ##
-  CDI_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
-  CDI_CTA <- calculate_CDI(CDI_matrix_CTA)
-  # print("CT")
-  # print(CDI_CTA$CDI)
-
-  ## non-CT ##
-  CDI_matrix_nonCTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
-  CDI_nonCTA <- calculate_CDI(CDI_matrix_nonCTA)
-  # print("non-CTA")
-  # print(CDI_nonCTA$CDI)
-  
-  ## lncRNA ##
-  CDI_matrix_lnCRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
-  CDI_lncRNA <- calculate_CDI(CDI_matrix_lnCRNA)
-  # print("lncRNA")
-  # print(CDI_lncRNA$CDI)
-  
-  ## CT-X ##
-  CDI_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
-  CDI_CTX <- calculate_CDI(CDI_matrix_CTX)
-  # print("CT-X")
-  # print(CDI_CTX$CDI)
-  
-  ## CT-nonX ##
-  CDI_matrix_nonCTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
-  CDI_nonCTX <- calculate_CDI(CDI_matrix_nonCTX)
-  # print("CT-nonX")
-  # print(CDI_nonCTX$CDI)
-  
-  df_CDI = data.frame(type = c("CT","lncRNA","non-CT","CT-X","CT-nonX"),
-                      CDI = c(CDI_CTA$CDI, CDI_lncRNA$CDI, CDI_nonCTA$CDI, CDI_CTX$CDI, CDI_nonCTX$CDI))
-  df_CDI$ctype = ctype_value
-  CDI_dataframe_ctype = rbind(CDI_dataframe_ctype, df_CDI)                    
-}
-CDI_dataframe_ctype_wide = CDI_dataframe_ctype %>% pivot_wider(names_from = "ctype", values_from = "CDI")
-
-ggplot(CDI_dataframe_ctype %>% subset(type != "non-CT") %>% subset(type != "CT"), aes(x=ctype, y=CDI, color=type, group=type)) +
-  # geom_line() +
-  geom_point(size=3) +
-  scale_color_manual(values = c("lncRNA" = "#bcbddc",
-                                "CT-nonX" = "#807dba",
-                                "CT-X" = "#3f007d")) +
-  scale_y_continuous(trans="log10") +
-  labs(y="CDI",
-  title="highCDI = highly clustered\nlowCDI = tendency to dispersion",
-       x="Cancer type")+
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/lowCDI_highCDI_scatter.png"))
-ggsave(file.path(plots_wd,"PDF/lowCDI_highCDI_scatter.pdf"))
+# calculate_CDI <- function(data_matrix) {
+#   # Step 1: Compute distance matrix (can use other metrics like 1 - correlation)
+#   dist_matrix <- dist(data_matrix, method = "euclidean")
+#   
+#   # Step 2: Perform hierarchical clustering
+#   hclust_result <- hclust(dist_matrix, method = "complete")
+#   
+#   # Step 3: Determine clusters (you can cut tree to form k clusters, e.g., 5 clusters)
+#   clusters <- cutree(hclust_result, k = 5)  # Adjust k as necessary
+# 
+#   # Step 4: Calculate silhouette scores for clustering quality
+#   silhouette_scores <- silhouette(clusters, dist_matrix)
+#   
+#   # Average silhouette width (clustering quality)
+#   avg_silhouette_width <- mean(silhouette_scores[, "sil_width"], na.rm = TRUE)
+#   
+#   # Step 5: Measure intra-cluster and inter-cluster variance
+#   # Intra-cluster variance (within clusters sum of squares)
+#   intra_cluster_variance <- sum(sapply(unique(clusters), function(cluster) {
+#     cluster_data <- data_matrix[clusters == cluster, , drop = FALSE]  # Ensure matrix output
+#     
+#     if (nrow(cluster_data) > 1) {
+#       # If more than one gene in the cluster, calculate variance
+#       cluster_center <- colMeans(cluster_data)
+#       sum(rowSums((cluster_data - cluster_center) ^ 2))
+#     } else {
+#       # Single gene in the cluster: no variance
+#       0  
+#     }
+#   }))
+#   
+#   # Inter-cluster variance (distance between cluster centers)
+#   cluster_centers <- sapply(unique(clusters), function(cluster) {
+#     cluster_data <- data_matrix[clusters == cluster, , drop = FALSE]  # Ensure matrix output
+#     if (nrow(cluster_data) > 1) {
+#       colMeans(cluster_data)  # If multiple genes, return cluster center
+#     } else {
+#       as.numeric(cluster_data)  # If one gene, return it as the center
+#     }
+#   })
+#   inter_cluster_variance <- sum(dist(t(cluster_centers))^2)
+#   
+#   # Step 6: Compute Cluster Dispersion Index (CDI)
+#   CDI <- inter_cluster_variance / intra_cluster_variance
+#   
+#   # Return CDI and other metrics for understanding
+#   return(list(CDI = CDI, avg_silhouette_width = avg_silhouette_width, intra_cluster_variance = intra_cluster_variance, inter_cluster_variance = inter_cluster_variance))
+# }
+# 
+# ## CT ##
+# CDI_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name,]
+# CDI_CTA <- calculate_CDI(CDI_matrix_CTA)
+# CDI_CTA$CDI
+# CDI_CTA$avg_silhouette_width
+# 
+# ## lncRNA ##
+# CDI_matrix_lnCRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name,]
+# CDI_lncRNA <- calculate_CDI(CDI_matrix_lnCRNA)
+# CDI_lncRNA$CDI
+# CDI_lncRNA$avg_silhouette_width
+# 
+# ## CT-X ##
+# CDI_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name,]
+# CDI_CTX <- calculate_CDI(CDI_matrix_CTX)
+# CDI_CTX$CDI
+# CDI_CTX$avg_silhouette_width
+# 
+# ## CT-nonX ##
+# CDI_matrix_nonCTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name,]
+# CDI_nonCTX <- calculate_CDI(CDI_matrix_nonCTX)
+# CDI_nonCTX$CDI
+# CDI_nonCTX$avg_silhouette_width
+# 
+# ## non-CT ##
+# CDI_matrix_nonCT = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name,]
+# CDI_nonCT <- calculate_CDI(CDI_matrix_nonCT)
+# CDI_nonCT$CDI
+# CDI_nonCT$avg_silhouette_width
+# 
+# CDI_dataframe_ctype = data.frame(CDI = numeric(),
+#                                  ctype = factor(),
+#                                  type = factor(),
+#                                  stringsAsFactors = F)
+# ### per ctype independently
+# for (ctype_value in unique_ctypes) {
+#   print(ctype_value)
+#   patients_per_ctype = patients %>% subset(ctype == ctype_value) %>% pull(patient)
+#   
+#   ## CT ##
+#   CDI_matrix_CTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   CDI_CTA <- calculate_CDI(CDI_matrix_CTA)
+#   # print("CT")
+#   # print(CDI_CTA$CDI)
+# 
+#   ## non-CT ##
+#   CDI_matrix_nonCTA = to_cluster_matrix[rownames(to_cluster_matrix) %in% nonCTA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   CDI_nonCTA <- calculate_CDI(CDI_matrix_nonCTA)
+#   # print("non-CTA")
+#   # print(CDI_nonCTA$CDI)
+#   
+#   ## lncRNA ##
+#   CDI_matrix_lnCRNA = to_cluster_matrix[rownames(to_cluster_matrix) %in% lncRNA_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   CDI_lncRNA <- calculate_CDI(CDI_matrix_lnCRNA)
+#   # print("lncRNA")
+#   # print(CDI_lncRNA$CDI)
+#   
+#   ## CT-X ##
+#   CDI_matrix_CTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTX_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   CDI_CTX <- calculate_CDI(CDI_matrix_CTX)
+#   # print("CT-X")
+#   # print(CDI_CTX$CDI)
+#   
+#   ## CT-nonX ##
+#   CDI_matrix_nonCTX = to_cluster_matrix[rownames(to_cluster_matrix) %in% CTnonX_to_cluster$gene_name,colnames(to_cluster_matrix) %in% patients_per_ctype]
+#   CDI_nonCTX <- calculate_CDI(CDI_matrix_nonCTX)
+#   # print("CT-nonX")
+#   # print(CDI_nonCTX$CDI)
+#   
+#   df_CDI = data.frame(type = c("CT","lncRNA","non-CT","CT-X","CT-nonX"),
+#                       CDI = c(CDI_CTA$CDI, CDI_lncRNA$CDI, CDI_nonCTA$CDI, CDI_CTX$CDI, CDI_nonCTX$CDI))
+#   df_CDI$ctype = ctype_value
+#   CDI_dataframe_ctype = rbind(CDI_dataframe_ctype, df_CDI)                    
+# }
+# CDI_dataframe_ctype_wide = CDI_dataframe_ctype %>% pivot_wider(names_from = "ctype", values_from = "CDI")
+# 
+# ggplot(CDI_dataframe_ctype %>% subset(type != "non-CT") %>% subset(type != "CT"), aes(x=ctype, y=CDI, color=type, group=type)) +
+#   # geom_line() +
+#   geom_point(size=3) +
+#   scale_color_manual(values = c("lncRNA" = "#bcbddc",
+#                                 "CT-nonX" = "#807dba",
+#                                 "CT-X" = "#3f007d")) +
+#   scale_y_continuous(trans="log10") +
+#   labs(y="CDI",
+#   title="highCDI = highly clustered\nlowCDI = tendency to dispersion",
+#        x="Cancer type")+
+#   theme_classic()
+# ggsave(file.path(plots_wd,"PNG/lowCDI_highCDI_scatter.png"))
+# ggsave(file.path(plots_wd,"PDF/lowCDI_highCDI_scatter.pdf"))
 ```
 
 ## Burden of CT per ctype (CTAB)
@@ -1415,18 +1416,18 @@ burden_TTS_coding_noncoding$coding = as.numeric(burden_TTS_coding_noncoding$codi
 burden_TTS_coding_noncoding$noncoding = as.numeric(burden_TTS_coding_noncoding$noncoding)
 
 ggplot(burden_TTS_coding_noncoding, aes(x = coding, y=noncoding)) +
-  geom_point() +
+  geom_point(size=1) +
   stat_smooth(method = "lm",
               formula = y ~ x, 
               geom = "smooth", color="red") +
-  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01, size=2)+
   labs(x="Burden of codingTTS",
        y="Burden of non-codingTTS",
        title="Correlation between coding and non-coding TTS burden?") +
   theme_minimal() +
   facet_wrap(~ ctype, scales="free", nrow=2)
-ggsave(file.path(plots_wd, "PNG/TTSburden_coding_vs_noncoding.png"))
-ggsave(file.path(plots_wd, "PDF/TTSburden_coding_vs_noncoding.pdf"))
+ggsave(file.path(plots_wd, "PNG/TOv3xburden_coding_vs_noncoding.png"), width=7, height=4)
+ggsave(file.path(plots_wd, "PDF/TOv3xburden_coding_vs_noncoding.pdf"), width=7, height=4)
 
 
 ## How many CT of the defined in CTdatabase are tumor-specific in at least 10% of the patients?

@@ -75,24 +75,32 @@ flattenCorrMatrix <- function(cormat, pmat) {
 
 ```{r import, echo=F}
 data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
+nrow(data_completed_TSA %>% subset(normal_tumor == "tumor"))
 ```
 
 
 ```{r force_zero, echo=TRUE}
-# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor values_from = "TPM")
+patients_data = read.csv(file.path(cancers_dir, "overexpression_tumor_3xnormal/cancertypes/GTEx/GTEx_tumor_3xnormal_TPMs_patients_ctypes.csv"))
+step1 = merge(data_completed_TSA %>% subset(normal_tumor == "tumor") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select("gene_id","patient","ctype"), by=c("gene_id","patient","ctype"))
+nrow(step1)
+step2 = merge(step1, data_completed_TSA  %>% subset(normal_tumor == "tumor") %>% select(patient, ctype, gene_id, gene_name, gene_type, transcript_id, chr, Length, project), by=c("gene_id","patient","ctype"), all.y=T)
+nrow(step2)
+step2[is.na(step2)] = 0
+names(step2)[4] = "forced_tumor_expr"
+# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
 # # ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
 # data_completed_TSA_forced = data_completed_TSA_wide %>% mutate(forced_tumor_expr = case_when(normal < 0.1 & tumor > 1 ~ tumor,
 #                                                                                   TRUE ~ 0))
-# write.csv(data_completed_TSA_forced, file.path(save_wd,"TTS_forcedTPM_patients.csv"), row.names=F)
+write.csv(step2, file.path(save_wd,"TOv3x_forcedTPM_patients.csv"), row.names=F)
 ```
 
 ```{r import_TTS, echo=F}
-data_completed_TSA_forced = read.csv(file.path(save_wd,"TTS_forcedTPM_patients.csv"))
+data_completed_TSA_forced = read.csv(file.path(save_wd,"TOv3x_forcedTPM_patients.csv"))
 ```
 
 ```{r heatmap_corr_per_ctype_5percent, echo=F}
 ############ 5 percent #################
-for (ctype_var in cancers) {
+for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   print(ctype_var)
   ## how many patients in that ctype?
   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
@@ -107,7 +115,7 @@ for (ctype_var in cancers) {
   ## calculate the percentage and keep only those TS in > 5% 
   df$percentage_n = (df$n / n_ctype)* 100
   df = df %>% unique()
-  df_5percent = df %>% subset(percentage_n > 5)
+  df_5percent = df #%>% subset(percentage_n > 5)
   ## if dataframe not empty
   if (dim(df_5percent)[1] > 0) {
 
@@ -132,12 +140,12 @@ for (ctype_var in cancers) {
     
     
     ## row annotation
-    row_annot = annot %>% subset(gene_name %in% df_5percent_expr$gene_name)
+    row_annot = df %>% select(gene_name, gene_type) %>% subset(gene_name %in% df_5percent_expr$gene_name)
     row_annot = row_annot %>% select(gene_name, gene_type)
     row_annot = unique(row_annot)
     rownames(row_annot) = row_annot$gene_name
     
-    row_annot_chr = merge(annot, row_annot, by=c("gene_name"), all.y=T)
+    row_annot_chr = merge(annot, row_annot, by=c("gene_name"))
     row_annot_chr = row_annot_chr %>% select(gene_name, chr) %>% unique()
     rownames(row_annot_chr) = row_annot_chr$gene_name
     row_annot_chr = row_annot_chr %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
@@ -174,7 +182,7 @@ for (ctype_var in cancers) {
            fontsize = 6,
            main=paste0("Testis/Tumor Specific genes",  ctype_var))
     col.order = ph$tree_col$order
-    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
+    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,".pdf"))
     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,".pdf"))
 
     
@@ -237,10 +245,10 @@ for (ctype_var in cancers) {
         recordPlot() 
       }
       
-      png(paste0(plots_wd,"/PNG/corrplot_allgenes_TTS_",ctype_var,".png"))
+      png(paste0(plots_wd,"/PNG/corrplot_allgenes_TOv3x_",ctype_var,".png"))
       replayPlot(p)
       dev.off()
-      pdf(paste0(plots_wd,"/PDF/corrplot_allgenes_TTS_",ctype_var,".pdf"))
+      pdf(paste0(plots_wd,"/PDF/corrplot_allgenes_TOv3x_",ctype_var,".pdf"))
       replayPlot(p)
       dev.off()
     
@@ -292,10 +300,10 @@ for (ctype_var in cancers) {
         recordPlot() 
       }
       
-      png(paste0(plots_wd,"/PNG/corrplot_nonCTA_TTS_",ctype_var,".png"))
+      png(paste0(plots_wd,"/PNG/corrplot_nonCTA_TOv3x_",ctype_var,".png"))
       replayPlot(p)
       dev.off()
-      pdf(paste0(plots_wd,"/PDF/corrplot_nonCTA_TTS_",ctype_var,".pdf"))
+      pdf(paste0(plots_wd,"/PDF/corrplot_nonCTA_TOv3x_",ctype_var,".pdf"))
       replayPlot(p)
       dev.off()
   }
@@ -325,10 +333,10 @@ for (ctype_var in cancers) {
       recordPlot() 
     }
     
-    png(paste0(plots_wd,"/PNG/corrplot_CTA_TTS_",ctype_var,".png"))
+    png(paste0(plots_wd,"/PNG/corrplot_CTA_TOv3x_",ctype_var,".png"))
     replayPlot(p)
     dev.off()
-    pdf(paste0(plots_wd,"/PDF/corrplot_CTA_TTS_",ctype_var,".pdf"))
+    pdf(paste0(plots_wd,"/PDF/corrplot_CTA_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
     
@@ -383,10 +391,10 @@ for (ctype_var in cancers) {
       recordPlot() 
     }
     
-    png(paste0(plots_wd,"/PNG/corrplot_CTAX_TTS_",ctype_var,".png"))
+    png(paste0(plots_wd,"/PNG/corrplot_CTAX_TOv3x_",ctype_var,".png"))
     replayPlot(p)
     dev.off()
-    pdf(paste0(plots_wd,"/PDF/corrplot_CTAX_TTS_",ctype_var,".pdf"))
+    pdf(paste0(plots_wd,"/PDF/corrplot_CTAX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   
@@ -417,10 +425,10 @@ for (ctype_var in cancers) {
       recordPlot() 
     }
     
-    png(paste0(plots_wd,"/PNG/corrplot_CTAnonX_TTS_",ctype_var,".png"))
+    png(paste0(plots_wd,"/PNG/corrplot_CTAnonX_TOv3x_",ctype_var,".png"))
     replayPlot(p)
     dev.off()
-    pdf(paste0(plots_wd,"/PDF/corrplot_CTAnonX_TTS_",ctype_var,".pdf"))
+    pdf(paste0(plots_wd,"/PDF/corrplot_CTAnonX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   }
@@ -449,10 +457,10 @@ for (ctype_var in cancers) {
       recordPlot() 
     }
     
-    png(paste0(plots_wd,"/PNG/corrplot_lncRNA_TTS_",ctype_var,".png"))
+    png(paste0(plots_wd,"/PNG/corrplot_lncRNA_TOv3x_",ctype_var,".png"))
     replayPlot(p)
     dev.off()
-    pdf(paste0(plots_wd,"/PDF/corrplot_lncRNA_TTS_",ctype_var,".pdf"))
+    pdf(paste0(plots_wd,"/PDF/corrplot_lncRNA_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   }
@@ -462,7 +470,7 @@ for (ctype_var in cancers) {
 
 ```{r heatmap_corr_per_ctype_all, echo=F}
 ############ no minimum %  #################
-for (ctype_var in cancers) {
+for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   print(ctype_var)
   ## how many patients in that ctype?
   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
@@ -502,7 +510,7 @@ for (ctype_var in cancers) {
     
     
     ## row annotation
-    row_annot = annot %>% subset(gene_name %in% df_5percent_expr$gene_name)
+    row_annot = df %>% select(gene_name, gene_type) %>% subset(gene_name %in% df_5percent_expr$gene_name)
     row_annot = row_annot %>% select(gene_name, gene_type)
     row_annot = unique(row_annot)
     rownames(row_annot) = row_annot$gene_name
@@ -545,7 +553,7 @@ for (ctype_var in cancers) {
            main=paste0("Testis/Tumor Specific genes",  ctype_var))
     col.order = ph$tree_col$order
     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
-    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_",ctype_var,".pdf"))
+    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,".pdf"))
 
 
   ##### correlations
@@ -722,6 +730,6 @@ ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression
        color="Condition",
        title="Comparison of coexpression Correlation per condition") +
   theme_minimal()
-ggsave(file.path(plots_wd,"PNG/coexpr_coef_TSAall.png"))
-ggsave(file.path(plots_wd,"PDF/coexpr_coef_TSAall.pdf"))
+ggsave(file.path(plots_wd,"PNG/coexpr_coef_TOv3x5percent.png"))
+ggsave(file.path(plots_wd,"PDF/coexpr_coef_TOv3x5percent.pdf"))
 ```

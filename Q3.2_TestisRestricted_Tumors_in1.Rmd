@@ -188,7 +188,7 @@ temporary = filtered_data_TAA_long %>% select(gene_name, ctype) %>% unique()
 table(temporary$ctype)
 
 ggplot(filtered_data_TAA_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
-  geom_boxplot(position = position_dodge(width=.8)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
   geom_hline(yintercept=log(0.1)) +
   geom_hline(yintercept=log(1)) +
@@ -199,7 +199,7 @@ ggsave(file.path(plots_wd,"PNG/TestisRestricted_Reactivated_AdjacentTumor.zeros.
 ggsave(file.path(plots_wd,"PDF/TestisRestricted_Reactivated_AdjacentTumor.zeros.pdf"))
 
 ggplot(filtered_data_TAA_long, aes(x=project, y=logTPM, fill=normal_tumor)) +
-  geom_boxplot(position = position_dodge(width=.8)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
   geom_hline(yintercept=log(0.1)) +
   geom_hline(yintercept=log(1)) +
@@ -220,7 +220,7 @@ for(proj in unique(TCGAdata$project)) {
   temp_TCGAdata = TCGAdata %>% subset(project == proj)
 
   ggplot(temp_TCGAdata, aes(x=patient, y=logTPM, fill=normal_tumor)) +
-    geom_boxplot(position = position_dodge(width=.8)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
     scale_fill_manual(values=c("#FFB900","#5773CC")) +
     geom_hline(yintercept=log(0.1)) +
     geom_hline(yintercept=log(1)) +
@@ -239,7 +239,7 @@ for(proj in unique(TCGAdata$project)) {
 ```{r CTA, echo=F}
 CTA_filtered_TAA = filtered_data_TAA_long %>% subset(gene_type == "protein_coding")
 ggplot(CTA_filtered_TAA, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
-  geom_boxplot(position = position_dodge(width=.8)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
   geom_hline(yintercept=log(0.1)) +
   geom_hline(yintercept=log(1)) +
@@ -250,7 +250,7 @@ ggsave(file.path(plots_wd,"PNG/CT_TAA_Reactivated_AdjacentTumor.zeros.png"))
 ggsave(file.path(plots_wd,"PDF/CT_TAA_Reactivated_AdjacentTumor.zeros.pdf"))
 
 ggplot(CTA_filtered_TAA, aes(x=project, y=logTPM, fill=normal_tumor)) +
-  geom_boxplot(position = position_dodge(width=.8)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
   geom_hline(yintercept=log(0.1)) +
   geom_hline(yintercept=log(1)) +
@@ -367,44 +367,44 @@ for(proj in all_projects) {
 ```
 
 ```{r TSA_plot, echo=F}
-data_completed_TSA = data.frame(transcript_id = character(),
-                              Length = numeric(),
-                              sample = character(),
-                              TPM = numeric(),
-                              patient = factor(),
-                            normal_tumor = factor(),
-                            project = character(),
-                            ctype = character(),
-                              stringsAsFactors = F)
-
-TSA_testisSpecific_orfs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TSA_TestisRestrictedGTEx_Translated_Ctypes.csv")
-
-
-for (ctype_var in cancers) {
-  temp = data_completed %>% subset(ctype == ctype_var)
-  temp = temp %>% subset(transcript_id %in% TSA_testisSpecific_orfs$transcript_id)
-
-  data_completed_TSA = rbind(data_completed_TSA, temp)
-}
-
-data_completed_TSA_wide = data_completed_TSA %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
-filtered_data = data_completed_TSA_wide %>% filter(normal < 0.1, tumor > 1)
-
-filtered_data_long = filtered_data %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
-filtered_data_long$logTPM = log(filtered_data_long$TPM)
-temporary = filtered_data_long %>% select(gene_name, ctype) %>% unique()
-table(temporary$ctype)
-ggplot(filtered_data_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
-  geom_boxplot(position = position_dodge(width=.8)) +
-  scale_fill_manual(values=c("#FFB900","#5773CC")) +
-  geom_hline(yintercept=log(0.1)) +
-  geom_hline(yintercept=log(1)) +
-  labs(x="",
-       title="Testis/Tumor Specific genes\nExpression in tumor and adjacent samples") +
-  theme_classic() 
-
-ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PNG/TestisTumorSpecific_AdjacentTumor.png")
-ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PDF/TestisTumorSpecific_AdjacentTumor.pdf")
+# data_completed_TSA = data.frame(transcript_id = character(),
+#                               Length = numeric(),
+#                               sample = character(),
+#                               TPM = numeric(),
+#                               patient = factor(),
+#                             normal_tumor = factor(),
+#                             project = character(),
+#                             ctype = character(),
+#                               stringsAsFactors = F)
+# 
+# TSA_testisSpecific_orfs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TSA_TestisRestrictedGTEx_Translated_Ctypes.csv")
+# 
+# 
+# for (ctype_var in cancers) {
+#   temp = data_completed %>% subset(ctype == ctype_var)
+#   temp = temp %>% subset(transcript_id %in% TSA_testisSpecific_orfs$transcript_id)
+# 
+#   data_completed_TSA = rbind(data_completed_TSA, temp)
+# }
+# 
+# data_completed_TSA_wide = data_completed_TSA %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+# filtered_data = data_completed_TSA_wide %>% filter(normal < 0.1, tumor > 1)
+# 
+# filtered_data_long = filtered_data %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
+# filtered_data_long$logTPM = log(filtered_data_long$TPM)
+# temporary = filtered_data_long %>% select(gene_name, ctype) %>% unique()
+# table(temporary$ctype)
+# ggplot(filtered_data_long, aes(x=ctype, y=logTPM, fill=normal_tumor)) +
+#     geom_quasirandom(dodge.width= .8, size=.5) +
+#   scale_fill_manual(values=c("#FFB900","#5773CC")) +
+#   geom_hline(yintercept=log(0.1)) +
+#   geom_hline(yintercept=log(1)) +
+#   labs(x="",
+#        title="Testis/Tumor Specific genes\nExpression in tumor and adjacent samples") +
+#   theme_classic() 
+# 
+# ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PNG/TestisTumorSpecific_AdjacentTumor.png")
+# ggsave("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/plots/PDF/TestisTumorSpecific_AdjacentTumor.pdf")
 ```
 
 ## Is there a correlation between the number of Translated TestisRestrictedGTEx TumorAssociated and the number of patients per ctype?

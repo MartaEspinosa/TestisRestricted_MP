@@ -103,8 +103,69 @@ temporary = filtered_data_TOv2x_long %>% select(gene_name, gene_type, ctype) %>%
 table(temporary$ctype)
 table(temporary$ctype, temporary$gene_type)
 print(nrow(temporary %>% subset(gene_name %in% CTDB$gene_name)))
-
 ```
+
+```{r distribution_percentage_patients, echo=F}
+howmany_patients_TOv2x = data.frame(transcript_id = character(),
+                              Length = numeric(),
+                              sample = character(),
+                              TPM = numeric(),
+                              patient = factor(),
+                            normal_tumor = factor(),
+                            project = character(),
+                            ctype = character(),
+                              stringsAsFactors = F)
+howmany_patients_TOv3x = data.frame(transcript_id = character(),
+                              Length = numeric(),
+                              sample = character(),
+                              TPM = numeric(),
+                              patient = factor(),
+                            normal_tumor = factor(),
+                            project = character(),
+                            ctype = character(),
+                              stringsAsFactors = F)
+
+
+for (ctype_var in cancers) {
+  print(ctype_var)
+
+  ## Tumor 3x Normal
+  df_3x = read.csv(paste0(cancers_dir,"/overexpression_tumor_3xnormal/cancertypes/",ctype_var,"/tumor_3xnormal_TPMs.csv"))
+  df_3x$ctype = ctype_var
+
+  howmany_patients_TOv3x = rbind(howmany_patients_TOv3x, df_3x)
+  
+  ## Tumor 2x Normal
+  df_2x = read.csv(paste0(cancers_dir,"/overexpression_tumor_2xnormal/cancertypes/",ctype_var,"/tumor_2xnormal_TPMs.csv"))
+  df_2x$ctype = ctype_var
+
+  howmany_patients_TOv2x = rbind(howmany_patients_TOv2x, df_2x)
+}
+
+howmany_patients_TOv2x$condition = "2x"
+howmany_patients_TOv3x$condition = "3x"
+
+howmany_patients = rbind(howmany_patients_TOv2x, howmany_patients_TOv3x)
+
+ggplot(howmany_patients, aes(x=percentage_num_patients_overexpr, color=condition)) +
+  geom_density() +
+  labs(x="% patients",
+       title="% of patients expressing the genes") +
+  facet_wrap(~ ctype, scales="free")
+
+ggplot(howmany_patients %>% subset(gene_type == "protein_coding"), aes(x=percentage_num_patients_overexpr, color=condition)) +
+  geom_density() +
+  labs(x="% patients",
+       title="% of patients expressing the CT genes") +
+  facet_wrap(~ ctype, scales="free")
+
+ggplot(howmany_patients %>% subset(gene_type != "protein_coding"), aes(x=percentage_num_patients_overexpr, color=condition)) +
+  geom_density() +
+  labs(x="% patients",
+       title="% of patients expressing the non-coding genes") +
+  facet_wrap(~ ctype, scales="free")
+```
+
 
 ## Overexpressed in Tumors (2x Normal) (TOv2x) - 5%
 
@@ -315,6 +376,122 @@ ggsave(file.path(plots_wd,"PDF/overexpressed_2x_10pecent_boxplots_CT.pdf"))
 ```
 
 
+## Overexpressed in Tumors (3x Normal) (TOv3x) - 10%
+
+```{r cancer_TOv3x_10percent, echo=F}
+TOv3x_GTEX_all = data.frame("gene_id" = character(),
+                    "transcript_id" = character(),
+                    "gene_name" = character(),
+                    "gene_type" = factor(), 
+                    "Length" = numeric(),
+                    "n"=numeric(),
+                    "ctype" =character())
+
+for (ctype in cancers) {
+  print(ctype)
+  
+  TOv3x_GTEX = read.csv(paste0(file.path(cancers_dir,"overexpression_tumor_3xnormal/cancertypes/GTEx"),"/GTEx_n_",ctype,"_tumor_3xnormal_TPMs_10percent.csv"))
+  TOv3x_GTEX$ctype = ctype
+  
+  TOv3x_GTEX_all = rbind(TOv3x_GTEX_all, TOv3x_GTEX)
+}
+table(TOv3x_GTEX_all$ctype, TOv3x_GTEX_all$gene_type)
+
+TOv3x_GTEX_all_translated = merge(TOv3x_GTEX_all, translated_IN_testis, by=c("transcript_id","gene_name","gene_id","gene_type"))
+TOv3x_GTEX_all_translated = TOv3x_GTEX_all_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") 
+table(TOv3x_GTEX_all_translated$gene_type, TOv3x_GTEX_all_translated$ctype)
+
+TOv3x_GTEX_all_translated_genes = TOv3x_GTEX_all_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") %>% select(transcript_id, gene_name, gene_type, ctype) %>% unique()
+table(TOv3x_GTEX_all_translated_genes$gene_type, TOv3x_GTEX_all_translated_genes$ctype)
+
+table(TOv3x_GTEX_all_translated_genes$ctype)
+
+# data_completed = data.frame(transcript_id = character(),
+#                               Length = numeric(),
+#                               sample = character(),
+#                               TPM = numeric(),
+#                               patient = factor(),
+#                             normal_tumor = factor(),
+#                             project = character(),
+#                             ctype = character(),
+#                               stringsAsFactors = F)
+# 
+# for (ctype_var in cancers) {
+#   print(ctype_var)
+# 
+#   ## table of counts
+#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
+#   ## pivot to make it easier to join
+#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
+#   df_long$sample = gsub("^X","", df_long$sample)
+#   df_long$sample = gsub("\\.","-",df_long$sample)
+# 
+#   ## patients
+#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
+#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
+# 
+#   ## combine
+#   complete_tableofcounts = merge(temp_patients, df_long, by="sample")
+#   complete_tableofcounts$ctype = ctype_var
+# 
+#   ## select the tumor-associated per ctype
+#   temp_TOv3x_GTEX_all_translated_genes = TOv3x_GTEX_all_translated_genes %>% subset(ctype == ctype_var)
+#   TOv3x_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TOv3x_GTEX_all_translated_genes$transcript_id)
+#   TOv3x_complete_tableofcounts = merge(TOv3x_complete_tableofcounts, annot, by="transcript_id")
+# 
+#   data_completed = rbind(data_completed, TOv3x_complete_tableofcounts)
+# }
+# 
+# data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
+# # filtered_data_TOv2x = data_completed_wide %>% filter(tumor > 1)
+# 
+# filtered_data_TOv3x_long = data_completed_wide %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
+# filtered_data_TOv3x_long = filtered_data_TOv3x_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10,
+#                                                                                   TRUE ~ TPM))
+# filtered_data_TOv3x_long$logTPM = log(filtered_data_TOv3x_long$forced_TPM)
+# write.csv(filtered_data_TOv3x_long, file.path(save_wd,"TOv3xdata_long_10percent.csv"), row.names=F)
+```
+
+```{r plots_TOv3x_10percent, echo=F}
+filtered_data_TOv3x_long = read.csv(file.path(save_wd,"TOv3xdata_long_10percent.csv"))
+
+temporary = filtered_data_TOv3x_long %>% select(gene_name, gene_type, ctype) %>% unique()
+table(temporary$ctype)
+table(temporary$ctype, temporary$gene_type)
+
+ggplot(filtered_data_TOv3x_long, aes(x=ctype, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots.png"))
+ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots.pdf"))
+
+ggplot(filtered_data_TOv3x_long %>% subset(gene_type == "protein_coding"), aes(x=ctype, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted CT-genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots_CT.png"))
+ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots_CT.pdf"))
+
+ggplot(filtered_data_TOv3x_long %>% subset(gene_type == "protein_coding"), aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted CT-genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "top")
+ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots_CT_genenames.png"), width=10)
+ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots_CT_genenames.pdf"), width=10)
+```
+
 ## Overexpressed in Tumors (3x Normal) (TOv3x) - 5%
 
 ```{r cancer_TOv3x, echo=F}
@@ -419,243 +596,142 @@ ggsave(file.path(plots_wd,"PNG/overexpressed_3x_5percent_boxplots_CT.png"))
 ggsave(file.path(plots_wd,"PDF/overexpressed_3x_5percent_boxplots_CT.pdf"))
 ```
 
-## Overexpressed in Tumors (3x Normal) (TOv3x) - 10%
 
-```{r cancer_TOv3x_10percent, echo=F}
-TOv3x_GTEX_all = data.frame("gene_id" = character(),
-                    "transcript_id" = character(),
-                    "gene_name" = character(),
-                    "gene_type" = factor(), 
-                    "Length" = numeric(),
-                    "n"=numeric(),
-                    "ctype" =character())
+```{r TestisOv3x_TumorSpecific, echo=F}
+TOv3x_testis = TOv3x_GTEX_all %>% mutate(testisRestricted_GTEx = case_when(gene_id %in% testisRestricted_GTEx$gene_id ~ "testisRestricted_GTEx",
+                                                                       TRUE ~ "no"))
 
-for (ctype in cancers) {
-  print(ctype)
-  
-  TOv3x_GTEX = read.csv(paste0(file.path(cancers_dir,"overexpression_tumor_3xnormal/cancertypes/GTEx"),"/GTEx_n_",ctype,"_tumor_3xnormal_TPMs_10percent.csv"))
-  TOv3x_GTEX$ctype = ctype
-  
-  TOv3x_GTEX_all = rbind(TOv3x_GTEX_all, TOv3x_GTEX)
-}
-table(TOv3x_GTEX_all$ctype, TOv3x_GTEX_all$gene_type)
+TOv3x_testis_proportions = TOv3x_testis %>% unique() %>% 
+  group_by(gene_type, ctype, testisRestricted_GTEx) %>% unique() %>% 
+  summarise(count = n()) %>%
+  mutate(proportion = count / sum(count)) %>%
+  ungroup()
 
-TOv3x_GTEX_all_translated = merge(TOv3x_GTEX_all, translated_IN_testis, by=c("transcript_id","gene_name","gene_id","gene_type"))
-TOv3x_GTEX_all_translated = TOv3x_GTEX_all_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") 
-table(TOv3x_GTEX_all_translated$gene_type, TOv3x_GTEX_all_translated$ctype)
+average_proportions = TOv3x_testis_proportions %>% subset(testisRestricted_GTEx == "testisRestricted_GTEx") %>%
+  group_by(gene_type) %>%
+  summarise(avg_proportion = mean(proportion))
 
-TOv3x_GTEX_all_translated_genes = TOv3x_GTEX_all_translated %>% subset(ONLYtranslation_testis == "ONLYTestis") %>% select(transcript_id, gene_name, gene_type, ctype) %>% unique()
-table(TOv3x_GTEX_all_translated_genes$gene_type, TOv3x_GTEX_all_translated_genes$ctype)
 
-table(TOv3x_GTEX_all_translated_genes$ctype)
-
-# data_completed = data.frame(transcript_id = character(),
-#                               Length = numeric(),
-#                               sample = character(),
-#                               TPM = numeric(),
-#                               patient = factor(),
-#                             normal_tumor = factor(),
-#                             project = character(),
-#                             ctype = character(),
-#                               stringsAsFactors = F)
-# 
-# for (ctype_var in cancers) {
-#   print(ctype_var)
-# 
-#   ## table of counts
-#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
-#   ## pivot to make it easier to join
-#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
-#   df_long$sample = gsub("^X","", df_long$sample)
-#   df_long$sample = gsub("\\.","-",df_long$sample)
-# 
-#   ## patients
-#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
-#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-# 
-#   ## combine
-#   complete_tableofcounts = merge(temp_patients, df_long, by="sample")
-#   complete_tableofcounts$ctype = ctype_var
-# 
-#   ## select the tumor-associated per ctype
-#   temp_TOv3x_GTEX_all_translated_genes = TOv3x_GTEX_all_translated_genes %>% subset(ctype == ctype_var)
-#   TOv3x_complete_tableofcounts = complete_tableofcounts %>% subset(transcript_id %in% temp_TOv3x_GTEX_all_translated_genes$transcript_id)
-#   TOv3x_complete_tableofcounts = merge(TOv3x_complete_tableofcounts, annot, by="transcript_id")
-# 
-#   data_completed = rbind(data_completed, TOv3x_complete_tableofcounts)
-# }
-# 
-# data_completed_wide = data_completed %>% select(-c(sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
-# # filtered_data_TOv2x = data_completed_wide %>% filter(tumor > 1)
-# 
-# filtered_data_TOv3x_long = data_completed_wide %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
-# filtered_data_TOv3x_long = filtered_data_TOv3x_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10,
-#                                                                                   TRUE ~ TPM))
-# filtered_data_TOv3x_long$logTPM = log(filtered_data_TOv3x_long$forced_TPM)
-# write.csv(filtered_data_TOv3x_long, file.path(save_wd,"TOv3xdata_long_10percent.csv"), row.names=F)
-```
-
-```{r plots_TOv3x_10percent, echo=F}
-filtered_data_TOv3x_long = read.csv(file.path(save_wd,"TOv3xdata_long_10percent.csv"))
-
-temporary = filtered_data_TOv3x_long %>% select(gene_name, gene_type, ctype) %>% unique()
-table(temporary$ctype)
-table(temporary$ctype, temporary$gene_type)
-
-ggplot(filtered_data_TOv3x_long, aes(x=ctype, y=logTPM, color=normal_tumor)) +
-  geom_quasirandom(dodge.width= .8, size=.5) +
-  scale_color_manual(values=c("#FFB900","#5773CC")) +
-  geom_hline(yintercept=log(1)) +
-  labs(x="",
-       title="Testis-Restricted genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
-  theme_classic() 
-ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots.png"))
-ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots.pdf"))
-
-ggplot(filtered_data_TOv3x_long %>% subset(gene_type == "protein_coding"), aes(x=ctype, y=logTPM, color=normal_tumor)) +
-  geom_quasirandom(dodge.width= .8, size=.5) +
-  scale_color_manual(values=c("#FFB900","#5773CC")) +
-  geom_hline(yintercept=log(1)) +
-  labs(x="",
-       title="Testis-Restricted CT-genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
-  theme_classic() 
-ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots_CT.png"))
-ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots_CT.pdf"))
-
-ggplot(filtered_data_TOv3x_long %>% subset(gene_type == "protein_coding"), aes(x=gene_name, y=logTPM, color=normal_tumor)) +
-  geom_quasirandom(dodge.width= .8, size=.5) +
-  scale_color_manual(values=c("#FFB900","#5773CC")) +
-  geom_hline(yintercept=log(1)) +
-  labs(x="",
-       title="Testis-Restricted CT-genes reactivated in cancer\nExpression in tumor 3x that of adjacent samples\n(in at least 10% of the patients per cancer type)") +
+ggplot(TOv3x_testis_proportions, aes(x=ctype, y=proportion, fill=testisRestricted_GTEx)) +
+  geom_bar(stat="identity") +
+      scale_fill_manual(values=c("testisRestricted_GTEx" = "#B1283A", "no"="#A8A6A7")) +
   theme_classic() +
   theme(axis.text.x = element_text(angle=90),
-        legend.position = "top")
-ggsave(file.path(plots_wd,"PNG/overexpressed_3x_10percent_boxplots_CT_genenames.png"), width=10)
-ggsave(file.path(plots_wd,"PDF/overexpressed_3x_10percent_boxplots_CT_genenames.pdf"), width=10)
+        legend.position = "top") +
+  facet_wrap(~ gene_type) +
+  geom_hline(data = average_proportions, aes(yintercept = avg_proportion), color="black", linetype="dashed") +
+    geom_text(data = average_proportions, aes(x = Inf, y = avg_proportion, label = round(avg_proportion, 2)),
+            color = "black", vjust = -0.5, hjust = 1.1, size = 3, inherit.aes = FALSE) +
+  labs(title = "Proportion of Testis-Restricted genes",
+       y="Proportion",
+       y="Cancer Type")
+ggsave(file.path(plots_wd,"PNG/TOv3x_testisrestricted_proportions.png"), height=5.25, width=6.29)
+ggsave(file.path(plots_wd,"PDF/TOv3x_testisrestricted_proportions.pdf"), height=5.25, width=6.29)
 ```
 
+## Those that are testis-specific, do they tend to be more shared across cancer types?
+
+```{r testisExpressed_translated_tumorspecific, echo=F}
+TOv3x_testis = TOv3x_GTEX_all %>% mutate(testisRestricted_GTEx = case_when(gene_id %in% testisRestricted_GTEx$gene_id ~ "testisRestricted_GTEx",
+                                                                       TRUE ~ "no"))
+TOv3x_testis = TOv3x_testis %>% mutate(translatedONLYtestis = case_when(gene_id %in% translated_only_testis$gene_id ~ "yes",
+                                                                    TRUE ~ "no"))
+
+## only the specifics
+TOv3x_testisSpecific = TOv3x_testis %>% subset(testisRestricted_GTEx == "testisRestricted_GTEx" & translatedONLYtestis == "yes")
+table(TOv3x_testisSpecific$gene_type)
+table(TOv3x_testisSpecific$gene_type, TOv3x_testisSpecific$ctype)
+
+TOv3x_testisSpecific_orfs = translated_only_testis %>% subset(gene_id %in% TOv3x_testisSpecific$gene_id)
+TOv3x_testisSpecific_orfs = merge(TOv3x_testisSpecific_orfs, TOv3x_testisSpecific, by=c("gene_id", "gene_name", "gene_type", "transcript_id"))
+table(TOv3x_testisSpecific_orfs$gene_type, TOv3x_testisSpecific_orfs$ctype)
+write.csv(TOv3x_testisSpecific_orfs, file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv"), row.names = F)
+```
+
+```{r upset, echo=F}
+library(UpSetR)
+
+to_upset = TOv3x_testisSpecific %>% select(ctype, gene_name) %>% unique()
+to_upset$presence = 1
+to_upset = to_upset %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset[is.na(to_upset)] = 0
+to_upset = as.data.frame(to_upset)
+rownames(to_upset) = to_upset$gene_name
+to_upset$gene_name = NULL
+
+geneName_geneType = annot %>% subset(gene_name %in% rownames(to_upset)) %>% select(gene_name, gene_type)
+
+png(filename=file.path(plots_wd,"upset_TOv3x_all.png"))
+upset(to_upset,
+      sets=colnames(to_upset)
+)
+dev.off()
+```
+
+```{r upset_CTA, echo=F}
+CTA_geneName_geneType = geneName_geneType %>% subset(gene_type == "protein_coding")
 
 
+to_upset_CTA = to_upset %>% subset(rownames(to_upset) %in% CTA_geneName_geneType$gene_name)
+png(filename=file.path(plots_wd,"upset_TOv3x_CT.png"))
+upset(to_upset_CTA,
+      sets=colnames(to_upset_CTA))
+dev.off()
 
-<!-- ```{r TestisOv2x_TumorSpecific, echo=F} -->
-<!-- TOv2x_testis = TOv2x_GTEX_all %>% mutate(testisRestricted_GTEx = case_when(gene_id %in% testisRestricted_GTEx$gene_id ~ "testisRestricted_GTEx", -->
-<!--                                                                        TRUE ~ "no")) -->
+to_upset_CTA$sum = rowSums(to_upset_CTA)
+to_upset_CTA %>% arrange(desc(sum))
+```
 
-<!-- # TOv2x_testis_proportions = TOv2x_testis %>% -->
-<!-- #   group_by(gene_type, ctype, testisRestricted_GTEx) %>%  -->
-<!-- #   summarise(count = n()) %>%                             -->
-<!-- #   mutate(proportion = count / sum(count)) %>%            -->
-<!-- #   ungroup()                                              -->
-<!-- #  -->
-<!-- # average_proportions = TSA_testis_proportions %>% subset(testisRestricted_GTEx == "testisRestricted_GTEx") %>% -->
-<!-- #   group_by(gene_type) %>% -->
-<!-- #   summarise(avg_proportion = mean(proportion)) -->
-<!-- #  -->
-<!-- #  -->
-<!-- # ggplot(TSA_testis_proportions, aes(x=ctype, y=proportion, fill=testisRestricted_GTEx)) + -->
-<!-- #   geom_bar(stat="identity") + -->
-<!-- #       scale_fill_manual(values=c("testisRestricted_GTEx" = "#B1283A", "no"="#A8A6A7")) + -->
-<!-- #   theme_classic() + -->
-<!-- #   theme(axis.text.x = element_text(angle=90), -->
-<!-- #         legend.position = "top") + -->
-<!-- #   facet_wrap(~ gene_type) + -->
-<!-- #   geom_hline(data = average_proportions, aes(yintercept = avg_proportion), color="black", linetype="dashed") + -->
-<!-- #     geom_text(data = average_proportions, aes(x = Inf, y = avg_proportion, label = round(avg_proportion, 2)), -->
-<!-- #             color = "black", vjust = -0.5, hjust = 1.1, size = 3, inherit.aes = FALSE) + -->
-<!-- #   labs(title = "Proportion of Testis-Restricted genes", -->
-<!-- #        y="Proportion", -->
-<!-- #        y="Cancer Type") -->
-<!-- # ggsave(file.path(plots_wd,"PNG/tumorspecific_testisrestricted_proportions.png"), height=5.25, width=6.29) -->
-<!-- # ggsave(file.path(plots_wd,"PDF/tumorspecific_testisrestricted_proportions.pdf"), height=5.25, width=6.29) -->
-<!-- ``` -->
-
-<!-- ## Those that are testis-specific, do they tend to be more shared across cancer types? -->
-
-<!-- ```{r testisExpressed_translated_tumorspecific, echo=F} -->
-<!-- TSA_testis = TSA_GTEX_all %>% mutate(testisRestricted_GTEx = case_when(gene_id %in% testisRestricted_GTEx$gene_id ~ "testisRestricted_GTEx", -->
-<!--                                                                        TRUE ~ "no")) -->
-<!-- TSA_testis = TSA_testis %>% mutate(translatedONLYtestis = case_when(gene_id %in% translated_only_testis$gene_id ~ "yes", -->
-<!--                                                                     TRUE ~ "no")) -->
-
-<!-- ## only the specifics -->
-<!-- TSA_testisSpecific = TSA_testis %>% subset(testisRestricted_GTEx == "testisRestricted_GTEx" & translatedONLYtestis == "yes") -->
-<!-- table(TSA_testisSpecific$gene_type) -->
-<!-- table(TSA_testisSpecific$gene_type, TSA_testisSpecific$ctype) -->
-
-<!-- TSA_testisSpecific_orfs = translated_only_testis %>% subset(gene_id %in% TSA_testisSpecific$gene_id) -->
-<!-- TSA_testisSpecific_orfs = merge(TSA_testisSpecific_orfs, TSA_testisSpecific, by=c("gene_id", "gene_name", "gene_type", "transcript_id")) -->
-<!-- table(TSA_testisSpecific_orfs$gene_type, TSA_testisSpecific_orfs$ctype) -->
-<!-- write.csv(TSA_testisSpecific_orfs, file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"), row.names = F) -->
-<!-- ``` -->
-
-<!-- ```{r upset, echo=F} -->
-<!-- library(UpSetR) -->
-
-<!-- to_upset = TSA_testisSpecific %>% select(ctype, gene_name) %>% unique() -->
-<!-- to_upset$presence = 1 -->
-<!-- to_upset = to_upset %>% pivot_wider(names_from = "ctype", values_from = "presence") -->
-<!-- to_upset[is.na(to_upset)] = 0 -->
-<!-- to_upset = as.data.frame(to_upset) -->
-<!-- rownames(to_upset) = to_upset$gene_name -->
-<!-- to_upset$gene_name = NULL -->
-
-<!-- geneName_geneType = annot %>% subset(gene_name %in% rownames(to_upset)) %>% select(gene_name, gene_type) -->
-
-<!-- upset(to_upset,  -->
-<!--       sets=colnames(to_upset) -->
-<!-- ) -->
-<!-- ``` -->
-
-<!-- ```{r upset_CTA, echo=F} -->
-<!-- CTA_geneName_geneType = geneName_geneType %>% subset(gene_type == "protein_coding") -->
+```{r upset_nonCTA, echo=F}
+nonCTA_geneName_geneType = geneName_geneType %>% subset(gene_type == "lncRNA")
 
 
-<!-- to_upset_CTA = to_upset %>% subset(rownames(to_upset) %in% CTA_geneName_geneType$gene_name) -->
-<!-- upset(to_upset_CTA,  -->
-<!--       sets=colnames(to_upset_CTA)) -->
-<!-- ``` -->
+to_upset_nonCTA = to_upset %>% subset(rownames(to_upset) %in% nonCTA_geneName_geneType$gene_name)
+png(filename=file.path(plots_wd,"upset_TOv3x_nonCT.png"))
+upset(to_upset_nonCTA,
+      sets=colnames(to_upset_nonCTA)
+)
+dev.off()
 
-<!-- ```{r upset_nonCTA, echo=F} -->
-<!-- nonCTA_geneName_geneType = geneName_geneType %>% subset(gene_type != "protein_coding") -->
+to_upset_nonCTA$sum = rowSums(to_upset_nonCTA)
+to_upset_nonCTA %>% arrange(desc(sum))
+```
 
+```{r upset_novel, echo=F}
+novel_geneName_geneType = geneName_geneType %>% subset(gene_type == "novel")
 
-<!-- to_upset_nonCTA = to_upset %>% subset(rownames(to_upset) %in% nonCTA_geneName_geneType$gene_name) -->
-<!-- upset(to_upset_nonCTA,  -->
-<!--       sets=colnames(to_upset_nonCTA) -->
-<!-- ) -->
-<!-- ``` -->
+to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_geneType$gene_name)
+png(filename=file.path(plots_wd,"upset_TOv3x_novel.png"))
+upset(to_upset_novel,
+      sets=colnames(to_upset_novel))
+dev.off()
 
-<!-- ```{r upset_novel, echo=F} -->
-<!-- # novel_geneName_geneType = geneName_geneType %>% subset(gene_type == "novel") -->
-<!-- #  -->
-<!-- # to_upset_novel = to_upset %>% subset(rownames(to_upset) %in% novel_geneName_geneType$gene_name) -->
-<!-- # upset(to_upset_novel,  -->
-<!-- #       sets=cancers) -->
-<!-- ``` -->
+to_upset_novel$sum = rowSums(to_upset_novel)
+to_upset_novel %>% arrange(desc(sum))
+```
 
-<!-- ## Is there a correlation between the number of TTS and the number of patients per ctype? -->
+## Is there a correlation between the number of TTS and the number of patients per ctype?
 
-<!-- ```{r num_patients_numTTS, echo=F} -->
-<!-- total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"), -->
-<!--                                 total_n = c(109,38,179,142,49,75,182,144)) -->
+```{r num_patients_numTTS, echo=F}
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
 
-<!-- total_burden_TTS = TSA_testisSpecific %>% select(ctype, gene_name, gene_type) %>% unique() %>% -->
-<!--   group_by(ctype) %>% count() -->
+total_burden_TTS = TOv3x_testisSpecific %>% select(ctype, gene_name, gene_type) %>% unique() %>%
+  group_by(ctype) %>% count()
 
-<!-- full_df = merge(total_burden_TTS, total_num_patients, by="ctype") -->
+full_df = merge(total_burden_TTS, total_num_patients, by="ctype")
 
-<!-- ggplot(full_df, aes(x=total_n, y=n, color=ctype)) + -->
-<!--   geom_point(shape = 21, size=5,stroke = 3) + -->
-<!--   scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) + -->
-<!--   stat_smooth(method = "lm",  -->
-<!--               formula = y ~ x,  -->
-<!--               geom = "smooth", color="grey") + -->
-<!--   stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+ -->
-<!--   labs(x="Number of patients per cancer type", -->
-<!--        y="Number of genes", -->
-<!--        title="Correlation between number of patients and TTS genes") + -->
-<!--   theme_minimal() -->
-<!-- ggsave(file.path(plots_wd,"PNG/corr_patients_TTS.png")) -->
-<!-- ggsave(file.path(plots_wd,"PDF/corr_patients_TTS.pdf")) -->
-<!-- ``` -->
+ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
+  geom_point(shape = 21, size=5,stroke = 3) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  stat_smooth(method = "lm",
+              formula = y ~ x,
+              geom = "smooth", color="grey") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  labs(x="Number of patients per cancer type",
+       y="Number of genes",
+       title="Correlation between number of patients and TOv3x genes") +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/corr_patients_TOv3x.png"))
+ggsave(file.path(plots_wd,"PDF/corr_patients_TOv3x.pdf"))
+```
