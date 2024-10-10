@@ -99,7 +99,10 @@ data_completed_TSA_forced = read.csv(file.path(save_wd,"TOv3x_forcedTPM_patients
 ```
 
 ```{r heatmap_corr_per_ctype_5percent, echo=F}
-############ 5 percent #################
+correlation_values_to_save = data.frame("type" = character(), 
+                                        "ctype" = character(), 
+                                        "value" = numeric(), 
+                                        stringsAsFactors = F)
 for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   print(ctype_var)
   ## how many patients in that ctype?
@@ -271,9 +274,20 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       
       cormat_proteincoding = cormat %>% subset(A_biotype == "protein_coding" & B_biotype == "protein_coding")
       print("non-coding")
+      
+      correlation_values = data.frame("type"="Non-coding",
+                                      "value" = mean(cormat_lncRNA$correlation),
+                                      "ctype" = ctype_var,
+                                      "num_genes" = length(unique(lncRNA_biotypes$gene_name)))
+     correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
       print(mean(cormat_lncRNA$correlation))
       print("PCG")
       print(mean(cormat_proteincoding$correlation))
+      correlation_values = data.frame("type"="CT",
+                                "value" = mean(cormat_proteincoding$correlation),
+                                "ctype" = ctype_var,
+                                "num_genes" = length(unique(proteincoding_biotypes$gene_name)))
+     correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
     }
     
   ####### 2. non-CTA ####### 
@@ -361,8 +375,18 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     CTA_cormat_X = CTA_cormat %>% subset(A_chr == "X" & B_chr == "X")
     print("nonX")
     print(mean(CTA_cormat_nonX$correlation))
+    correlation_values = data.frame("type"="CT-nonX",
+                          "value" = mean(CTA_cormat_nonX$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_nonX$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
     print("X")
     print(mean(CTA_cormat_X$correlation))
+        correlation_values = data.frame("type"="CT-X",
+                          "value" = mean(CTA_cormat_X$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_X$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
   }
   ####### 4. CTA-Xchr ####### 
   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
@@ -466,262 +490,267 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   }
   }
 }
+
+
+write.csv(correlation_values_to_save, file.path(save_wd,"corrplot_info_TOv3x5percent.csv"), row.names = F)
+write.csv(correlation_values_to_save %>% select(-num_genes) %>% pivot_wider(names_from = ctype, values_from = value), file.path(save_wd,"corrplot_values_TOv3x5percent.csv"), row.names = F)
+
 ```
 
 ```{r heatmap_corr_per_ctype_all, echo=F}
-############ no minimum %  #################
-for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
-  print(ctype_var)
-  ## how many patients in that ctype?
-  n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
-  
-  df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
-  
-  ## in how many patients is the gene TS?
-  counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
-  df = merge(df, counting_1TPM, by="gene_name")
-  df$total_n = n_ctype
-  
-  ## calculate the percentage and keep only those TS in > 5% 
-  df$percentage_n = (df$n / n_ctype)* 100
-  df = df %>% unique()
-  df_5percent = df #%>% subset(percentage_n > 5)
-  ## if dataframe not empty
-  if (dim(df_5percent)[1] > 0) {
-
-    df_5percent = df_5percent %>% unique()
-    to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
-    print(table(to_table$gene_type))
-    
-    ## keep expression data to plot
-    df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
-    df_5percent_expr = as.data.frame(df_5percent_expr)
-  
-    df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
-    ## get log2TPM
-    df_log = log2(df_5percent_expr_values+1)
-  
-    ## convert to matrix
-    matrix = as.matrix(df_log)
-    rownames(matrix) = df_5percent_expr$gene_name
-    matrix = na.omit(matrix)
-    nozeros_matrix_log = matrix[,colSums(matrix) > 0]
-    
-    
-    
-    ## row annotation
-    row_annot = df %>% select(gene_name, gene_type) %>% subset(gene_name %in% df_5percent_expr$gene_name)
-    row_annot = row_annot %>% select(gene_name, gene_type)
-    row_annot = unique(row_annot)
-    rownames(row_annot) = row_annot$gene_name
-    
-    row_annot_chr = merge(annot, row_annot, by=c("gene_name"), all.y=T)
-    row_annot_chr = row_annot_chr %>% select(gene_name, chr) %>% unique()
-    rownames(row_annot_chr) = row_annot_chr$gene_name
-    row_annot_chr = row_annot_chr %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
-                                                                TRUE ~ "nonX"))
-    row_annot_chr = row_annot_chr %>% select(X_nonX)
-    row_annot = row_annot %>% select(-c(gene_name))
-
-    row_annotation = data.frame("X_nonX" = row_annot_chr,
-                                "gene_type" = row_annot)
-    ## col annotation
-    col_annot = df_5percent %>% select(patient, project) %>% subset(patient %in% colnames(df_5percent_expr_values))
-    col_annot = unique(col_annot)
-    rownames(col_annot) = col_annot$patient
-    col_annot = col_annot %>% select(-c(patient))
-  
-    biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
-                               "lncRNA" = "#009E73",
-                               "processed_pseudogene" = "#0090B2",
-                               "novel" = "#E69F00"),
-                           "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
-  
-    
-    ## heatmap_all_geneTypes
-    ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
-           # treeheight_row = 0, treeheight_col = 0,
-           annotation_row = row_annotation,
-           annotation_col= col_annot,
-           annotation_names_col = FALSE,
-           annotation_names_row = FALSE,
-           show_colnames = FALSE,
-           # cutree_cols = 3,
-           annotation_colors = biotypecolors,
-           color=colorRampPalette(c("lightyellow", "red"))(50),
-           fontsize = 6,
-           main=paste0("Testis/Tumor Specific genes",  ctype_var))
-    col.order = ph$tree_col$order
-    # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
-    save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,".pdf"))
-
-
-  ##### correlations
-    if (nrow(nozeros_matrix_log) > 4) {
-      transposed = t(nozeros_matrix_log)
-      res2 <- rcorr(transposed)
-      cormat <- round(cor(transposed),2)
-
-    
-      ### getting correlation values
-      cormat = data.frame(cormat)
-      cormat$A = rownames(cormat)
-      cormat = cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
-      
-      biotypes = df_5percent %>% select(gene_name, gene_type) %>% distinct()
-      lncRNA_biotypes = biotypes %>% subset(gene_type != "protein_coding")
-      proteincoding_biotypes = biotypes %>% subset(gene_type == "protein_coding")
-      
-      cormat = cormat %>% mutate(A_biotype = case_when(A %in% proteincoding_biotypes$gene_name ~ "protein_coding", 
-                                                       TRUE ~ "non-coding")) 
-      cormat = cormat %>%
-        mutate(B_biotype = case_when(B %in% lncRNA_biotypes$gene_name ~ "non-coding", 
-                                     TRUE ~ "protein_coding")) 
-      
-      cormat_lncRNA = cormat %>% subset(A_biotype == "non-coding" & B_biotype == "non-coding")
-      
-      cormat_proteincoding = cormat %>% subset(A_biotype == "protein_coding" & B_biotype == "protein_coding")
-      print("non-coding")
-      print(mean(cormat_lncRNA$correlation))
-      print("PCG")
-      print(mean(cormat_proteincoding$correlation))
-    }
-    
-  ####### 2. non-CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  if (length(gene_names_ctype) > 4) {
-      lncRNA_transposed = t(lncRNA_matrix)
-      res2 <- rcorr(lncRNA_transposed)
-      # A simple function to format the correlation matrix
-      # ++++++++++++++++++++++++++++
-      # flattenCorrMatrix
-      # ++++++++++++++++++++++++++++
-      # cormat : matrix of the correlation coefficients
-      # pmat : matrix of the correlation p-values
-      flattenCorrMatrix(res2$r, res2$P)
-      
-      lncRNA_cormat <- round(cor(lncRNA_transposed),2)
-      dim(lncRNA_cormat)
-  }
-  
-  ####### 3. CTA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  if (length(gene_names_ctype) > 4) {
-
-    CTA_transposed = t(CTA_matrix)
-    res2 <- rcorr(CTA_transposed)
-    # A simple function to format the correlation matrix
-    # ++++++++++++++++++++++++++++
-    # flattenCorrMatrix
-    # ++++++++++++++++++++++++++++
-    # cormat : matrix of the correlation coefficients
-    # pmat : matrix of the correlation p-values
-    flattenCorrMatrix(res2$r, res2$P)
-    
-    CTA_cormat <- round(cor(CTA_transposed),2)
-    dim(CTA_cormat)
-
-    
-    CTA_cormat = data.frame(CTA_cormat)
-    CTA_cormat$A = rownames(CTA_cormat)
-    CTA_cormat = CTA_cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
-    ## which group we want to compare?
-    x_nonX_df = df_5percent %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
-                                                                TRUE ~ "nonX")) %>% select(-chr)
-    chr_X = x_nonX_df %>% subset(X_nonX == "X")
-    chr_nonX = x_nonX_df %>% subset(X_nonX == "nonX")
-    
-    
-    CTA_cormat = CTA_cormat %>% mutate(A_chr = case_when(A %in% chr_X$gene_name ~ "X", 
-                                                     TRUE ~ "non-X")) 
-    CTA_cormat = CTA_cormat %>%
-      mutate(B_chr = case_when(B %in% chr_nonX$gene_name ~ "non-X", 
-                                   TRUE ~ "X")) 
-    
-    CTA_cormat %>% head
-    CTA_cormat_nonX = CTA_cormat %>% subset(A_chr == "non-X" & B_chr == "non-X")
-    CTA_cormat_X = CTA_cormat %>% subset(A_chr == "X" & B_chr == "X")
-    print("nonX")
-    print(mean(CTA_cormat_nonX$correlation))
-    print("X")
-    print(mean(CTA_cormat_X$correlation))
-  }
-  ####### 4. CTA-Xchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
-  print("Num CT-X")
-  print(nrow(CTA_matrix_X))
-  if (length(gene_names_ctype) > 4) {
-
-    CTAX_transposed = t(CTA_matrix_X)
-    res2 <- rcorr(CTAX_transposed)
-    # A simple function to format the correlation matrix
-    # ++++++++++++++++++++++++++++
-    # flattenCorrMatrix
-    # ++++++++++++++++++++++++++++
-    # cormat : matrix of the correlation coefficients
-    # pmat : matrix of the correlation p-values
-    flattenCorrMatrix(res2$r, res2$P)
-    
-    CTAX_cormat <- round(cor(CTAX_transposed),2)
-    dim(CTAX_cormat)
-  
-  }
-  
-  ####### 5. CTA-nonXchr ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
-  print("Num CT-nonX")
-  print(nrow(CTA_matrix_nonX))
-  if (length(gene_names_ctype) > 4) {
-    CTAnonX_transposed = t(CTA_matrix_nonX)
-    res2 <- rcorr(CTAnonX_transposed)
-    # A simple function to format the correlation matrix
-    # ++++++++++++++++++++++++++++
-    # flattenCorrMatrix
-    # ++++++++++++++++++++++++++++
-    # cormat : matrix of the correlation coefficients
-    # pmat : matrix of the correlation p-values
-    flattenCorrMatrix(res2$r, res2$P)
-      
-    CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
-    dim(CTAnonX_cormat)
-  }
-  
-  ####### 6. lncRNA ####### 
-  gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
-  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
-  if (length(gene_names_ctype) > 4) {
-    lncRNA_transposed = t(lncRNA_matrix)
-    res2 <- rcorr(lncRNA_transposed)
-    # A simple function to format the correlation matrix
-    # ++++++++++++++++++++++++++++
-    # flattenCorrMatrix
-    # ++++++++++++++++++++++++++++
-    # cormat : matrix of the correlation coefficients
-    # pmat : matrix of the correlation p-values
-    flattenCorrMatrix(res2$r, res2$P)
-    
-    lncRNA_cormat <- round(cor(lncRNA_transposed),2)
-    dim(lncRNA_cormat)
-
-  }
-  }
-}
+# ############ no minimum %  #################
+# for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
+#   print(ctype_var)
+#   ## how many patients in that ctype?
+#   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
+#   
+#   df = data_completed_TSA_forced %>% subset(ctype == ctype_var)
+#   
+#   ## in how many patients is the gene TS?
+#   counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_tumor_expr) %>% subset(forced_tumor_expr > 0) %>% group_by(gene_name) %>% count()
+#   df = merge(df, counting_1TPM, by="gene_name")
+#   df$total_n = n_ctype
+#   
+#   ## calculate the percentage and keep only those TS in > 5% 
+#   df$percentage_n = (df$n / n_ctype)* 100
+#   df = df %>% unique()
+#   df_5percent = df #%>% subset(percentage_n > 5)
+#   ## if dataframe not empty
+#   if (dim(df_5percent)[1] > 0) {
+# 
+#     df_5percent = df_5percent %>% unique()
+#     to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
+#     print(table(to_table$gene_type))
+#     
+#     ## keep expression data to plot
+#     df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_tumor_expr) %>% pivot_wider(names_from = patient, values_from = forced_tumor_expr) %>% unique()
+#     df_5percent_expr = as.data.frame(df_5percent_expr)
+#   
+#     df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
+#     ## get log2TPM
+#     df_log = log2(df_5percent_expr_values+1)
+#   
+#     ## convert to matrix
+#     matrix = as.matrix(df_log)
+#     rownames(matrix) = df_5percent_expr$gene_name
+#     matrix = na.omit(matrix)
+#     nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+#     
+#     
+#     
+#     ## row annotation
+#     row_annot = df %>% select(gene_name, gene_type) %>% subset(gene_name %in% df_5percent_expr$gene_name)
+#     row_annot = row_annot %>% select(gene_name, gene_type)
+#     row_annot = unique(row_annot)
+#     rownames(row_annot) = row_annot$gene_name
+#     
+#     row_annot_chr = merge(annot, row_annot, by=c("gene_name"), all.y=T)
+#     row_annot_chr = row_annot_chr %>% select(gene_name, chr) %>% unique()
+#     rownames(row_annot_chr) = row_annot_chr$gene_name
+#     row_annot_chr = row_annot_chr %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+#                                                                 TRUE ~ "nonX"))
+#     row_annot_chr = row_annot_chr %>% select(X_nonX)
+#     row_annot = row_annot %>% select(-c(gene_name))
+# 
+#     row_annotation = data.frame("X_nonX" = row_annot_chr,
+#                                 "gene_type" = row_annot)
+#     ## col annotation
+#     col_annot = df_5percent %>% select(patient, project) %>% subset(patient %in% colnames(df_5percent_expr_values))
+#     col_annot = unique(col_annot)
+#     rownames(col_annot) = col_annot$patient
+#     col_annot = col_annot %>% select(-c(patient))
+#   
+#     biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
+#                                "lncRNA" = "#009E73",
+#                                "processed_pseudogene" = "#0090B2",
+#                                "novel" = "#E69F00"),
+#                            "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
+#   
+#     
+#     ## heatmap_all_geneTypes
+#     ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+#            # treeheight_row = 0, treeheight_col = 0,
+#            annotation_row = row_annotation,
+#            annotation_col= col_annot,
+#            annotation_names_col = FALSE,
+#            annotation_names_row = FALSE,
+#            show_colnames = FALSE,
+#            # cutree_cols = 3,
+#            annotation_colors = biotypecolors,
+#            color=colorRampPalette(c("lightyellow", "red"))(50),
+#            fontsize = 6,
+#            main=paste0("Testis/Tumor Specific genes",  ctype_var))
+#     col.order = ph$tree_col$order
+#     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_5percent_",ctype_var,".pdf"))
+#     save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,".pdf"))
+# 
+# 
+#   ##### correlations
+#     if (nrow(nozeros_matrix_log) > 4) {
+#       transposed = t(nozeros_matrix_log)
+#       res2 <- rcorr(transposed)
+#       cormat <- round(cor(transposed),2)
+# 
+#     
+#       ### getting correlation values
+#       cormat = data.frame(cormat)
+#       cormat$A = rownames(cormat)
+#       cormat = cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
+#       
+#       biotypes = df_5percent %>% select(gene_name, gene_type) %>% distinct()
+#       lncRNA_biotypes = biotypes %>% subset(gene_type != "protein_coding")
+#       proteincoding_biotypes = biotypes %>% subset(gene_type == "protein_coding")
+#       
+#       cormat = cormat %>% mutate(A_biotype = case_when(A %in% proteincoding_biotypes$gene_name ~ "protein_coding", 
+#                                                        TRUE ~ "non-coding")) 
+#       cormat = cormat %>%
+#         mutate(B_biotype = case_when(B %in% lncRNA_biotypes$gene_name ~ "non-coding", 
+#                                      TRUE ~ "protein_coding")) 
+#       
+#       cormat_lncRNA = cormat %>% subset(A_biotype == "non-coding" & B_biotype == "non-coding")
+#       
+#       cormat_proteincoding = cormat %>% subset(A_biotype == "protein_coding" & B_biotype == "protein_coding")
+#       print("non-coding")
+#       print(mean(cormat_lncRNA$correlation))
+#       print("PCG")
+#       print(mean(cormat_proteincoding$correlation))
+#     }
+#     
+#   ####### 2. non-CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   if (length(gene_names_ctype) > 4) {
+#       lncRNA_transposed = t(lncRNA_matrix)
+#       res2 <- rcorr(lncRNA_transposed)
+#       # A simple function to format the correlation matrix
+#       # ++++++++++++++++++++++++++++
+#       # flattenCorrMatrix
+#       # ++++++++++++++++++++++++++++
+#       # cormat : matrix of the correlation coefficients
+#       # pmat : matrix of the correlation p-values
+#       flattenCorrMatrix(res2$r, res2$P)
+#       
+#       lncRNA_cormat <- round(cor(lncRNA_transposed),2)
+#       dim(lncRNA_cormat)
+#   }
+#   
+#   ####### 3. CTA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   if (length(gene_names_ctype) > 4) {
+# 
+#     CTA_transposed = t(CTA_matrix)
+#     res2 <- rcorr(CTA_transposed)
+#     # A simple function to format the correlation matrix
+#     # ++++++++++++++++++++++++++++
+#     # flattenCorrMatrix
+#     # ++++++++++++++++++++++++++++
+#     # cormat : matrix of the correlation coefficients
+#     # pmat : matrix of the correlation p-values
+#     flattenCorrMatrix(res2$r, res2$P)
+#     
+#     CTA_cormat <- round(cor(CTA_transposed),2)
+#     dim(CTA_cormat)
+# 
+#     
+#     CTA_cormat = data.frame(CTA_cormat)
+#     CTA_cormat$A = rownames(CTA_cormat)
+#     CTA_cormat = CTA_cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
+#     ## which group we want to compare?
+#     x_nonX_df = df_5percent %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+#                                                                 TRUE ~ "nonX")) %>% select(-chr)
+#     chr_X = x_nonX_df %>% subset(X_nonX == "X")
+#     chr_nonX = x_nonX_df %>% subset(X_nonX == "nonX")
+#     
+#     
+#     CTA_cormat = CTA_cormat %>% mutate(A_chr = case_when(A %in% chr_X$gene_name ~ "X", 
+#                                                      TRUE ~ "non-X")) 
+#     CTA_cormat = CTA_cormat %>%
+#       mutate(B_chr = case_when(B %in% chr_nonX$gene_name ~ "non-X", 
+#                                    TRUE ~ "X")) 
+#     
+#     CTA_cormat %>% head
+#     CTA_cormat_nonX = CTA_cormat %>% subset(A_chr == "non-X" & B_chr == "non-X")
+#     CTA_cormat_X = CTA_cormat %>% subset(A_chr == "X" & B_chr == "X")
+#     print("nonX")
+#     print(mean(CTA_cormat_nonX$correlation))
+#     print("X")
+#     print(mean(CTA_cormat_X$correlation))
+#   }
+#   ####### 4. CTA-Xchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+#   print("Num CT-X")
+#   print(nrow(CTA_matrix_X))
+#   if (length(gene_names_ctype) > 4) {
+# 
+#     CTAX_transposed = t(CTA_matrix_X)
+#     res2 <- rcorr(CTAX_transposed)
+#     # A simple function to format the correlation matrix
+#     # ++++++++++++++++++++++++++++
+#     # flattenCorrMatrix
+#     # ++++++++++++++++++++++++++++
+#     # cormat : matrix of the correlation coefficients
+#     # pmat : matrix of the correlation p-values
+#     flattenCorrMatrix(res2$r, res2$P)
+#     
+#     CTAX_cormat <- round(cor(CTAX_transposed),2)
+#     dim(CTAX_cormat)
+#   
+#   }
+#   
+#   ####### 5. CTA-nonXchr ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+#   print("Num CT-nonX")
+#   print(nrow(CTA_matrix_nonX))
+#   if (length(gene_names_ctype) > 4) {
+#     CTAnonX_transposed = t(CTA_matrix_nonX)
+#     res2 <- rcorr(CTAnonX_transposed)
+#     # A simple function to format the correlation matrix
+#     # ++++++++++++++++++++++++++++
+#     # flattenCorrMatrix
+#     # ++++++++++++++++++++++++++++
+#     # cormat : matrix of the correlation coefficients
+#     # pmat : matrix of the correlation p-values
+#     flattenCorrMatrix(res2$r, res2$P)
+#       
+#     CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
+#     dim(CTAnonX_cormat)
+#   }
+#   
+#   ####### 6. lncRNA ####### 
+#   gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% pull(gene_name)
+#   lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+#   
+#   if (length(gene_names_ctype) > 4) {
+#     lncRNA_transposed = t(lncRNA_matrix)
+#     res2 <- rcorr(lncRNA_transposed)
+#     # A simple function to format the correlation matrix
+#     # ++++++++++++++++++++++++++++
+#     # flattenCorrMatrix
+#     # ++++++++++++++++++++++++++++
+#     # cormat : matrix of the correlation coefficients
+#     # pmat : matrix of the correlation p-values
+#     flattenCorrMatrix(res2$r, res2$P)
+#     
+#     lncRNA_cormat <- round(cor(lncRNA_transposed),2)
+#     dim(lncRNA_cormat)
+# 
+#   }
+#   }
+# }
 ```
 
 ```{r plot_corr_all, echo=F}
-corrplot_values_all = read.csv(file.path(save_wd,"corrplot_values.csv"))
-names(corrplot_values_all)[1] = "type"
+corrplot_values_all = read.csv(file.path(save_wd,"corrplot_values_TOv3x5percent.csv"))
 corrplot_values_all = corrplot_values_all %>% pivot_longer(cols=-c("type"), names_to = "ctype", values_to = "coexpression_corr")
 corrplot_values_all$coexpression_corr = as.numeric(corrplot_values_all$coexpression_corr)
 ######### plot
 ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression_corr, color=type)) +
   geom_point(size=5) +
+  geom_line(aes(group=type)) +
   scale_color_manual(values = c("Non-coding" = "#bcbddc",
                                 "CT-nonX" = "#807dba",
                                 "CT-X" = "#3f007d")) +
@@ -732,4 +761,37 @@ ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression
   theme_minimal()
 ggsave(file.path(plots_wd,"PNG/coexpr_coef_TOv3x5percent.png"))
 ggsave(file.path(plots_wd,"PDF/coexpr_coef_TOv3x5percent.pdf"))
+```
+
+```{r chromosomes, echo=F}
+# chr_info = data_completed_TSA_forced %>% select(gene_name, ctype, gene_type, chr) %>% unique()
+# chr_info_counts = chr_info %>% group_by(gene_type, chr, ctype) %>% count()
+# chr_info_counts$chr = factor(chr_info_counts$chr, levels=c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "X"))
+# ggplot(chr_info_counts, aes(x=chr, y=n, fill=gene_type)) +
+#   geom_bar(stat="identity", position="fill") +
+#   geom_text(aes(label=n), position = position_fill(vjust = .5)) +
+#       scale_fill_manual(values=c("protein_coding"="#CC79A7",
+#                              "lncRNA" = "#009E73",
+#                              "processed_pseudogene" = "#0090B2",
+#                              "novel" = "#E69F00")) +
+#   theme_minimal() +
+#   facet_wrap(~ ctype, ncol=1)
+
+## regardless of cancer type
+chr_info_pancancer = data_completed_TSA_forced %>% select(gene_name, gene_type, chr) %>% unique()
+chr_info_pancancer_counts = chr_info_pancancer %>% group_by(gene_type, chr) %>% count()
+chr_info_pancancer_counts$chr = factor(chr_info_pancancer_counts$chr, levels=c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "X"))
+
+ggplot(chr_info_pancancer_counts, aes(x=chr, y=n, fill=gene_type)) +
+  geom_bar(stat="identity", position="fill") +
+  geom_text(aes(label=n), position = position_fill(vjust = .5)) +
+      scale_fill_manual(values=c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2",
+                             "novel" = "#E69F00")) +
+  labs(title="Tumor Overexpressed 3x genes in 5% of the patients of at least 1 cancer type") +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/chrdistr_TOv3x.png"))
+ggsave(file.path(plots_wd,"PDF/chrdistr_TOv3x.pdf"))
+
 ```

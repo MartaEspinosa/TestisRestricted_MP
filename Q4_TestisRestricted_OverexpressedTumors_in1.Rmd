@@ -680,6 +680,7 @@ dev.off()
 
 to_upset_CTA$sum = rowSums(to_upset_CTA)
 to_upset_CTA %>% arrange(desc(sum))
+write.csv(to_upset_CTA %>% arrange(desc(sum)), file.path(save_wd,"upset_CTA.csv"))
 ```
 
 ```{r upset_nonCTA, echo=F}
@@ -694,7 +695,7 @@ upset(to_upset_nonCTA,
 dev.off()
 
 to_upset_nonCTA$sum = rowSums(to_upset_nonCTA)
-to_upset_nonCTA %>% arrange(desc(sum))
+write.csv(to_upset_nonCTA %>% arrange(desc(sum)), file.path(save_wd,"upset_nonCTA.csv"))
 ```
 
 ```{r upset_novel, echo=F}
@@ -708,6 +709,7 @@ dev.off()
 
 to_upset_novel$sum = rowSums(to_upset_novel)
 to_upset_novel %>% arrange(desc(sum))
+write.csv(to_upset_novel %>% arrange(desc(sum)), file.path(save_wd,"upset_novel.csv"))
 ```
 
 ## Is there a correlation between the number of TTS and the number of patients per ctype?
@@ -734,4 +736,103 @@ ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
   theme_minimal()
 ggsave(file.path(plots_wd,"PNG/corr_patients_TOv3x.png"))
 ggsave(file.path(plots_wd,"PDF/corr_patients_TOv3x.pdf"))
+```
+
+## Is there a correlation between the number of Translated TestisRestrictedGTEx TumorAssociated and the number of patients per ctype?
+
+```{r num_patients_numTTS, echo=F}
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+total_burden_TestisRestrGTEx_TOv3x = TOv3x_testisSpecific %>% select(ctype, gene_name, gene_type) %>% unique() %>%
+  group_by(ctype) %>% count()
+
+full_df = merge(total_burden_TestisRestrGTEx_TOv3x, total_num_patients, by="ctype")
+
+ggplot(full_df, aes(x=total_n, y=n, color=ctype)) +
+  geom_point(shape = 21, size=5,stroke = 3) +
+  scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="grey") +
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)+
+  labs(x="Number of patients per cancer type",
+       y="Number of genes",
+       title="Correlation between number of patients and\nTranslated TestisRestrictedGTEx TOverexpressed3x") +
+  theme_minimal()
+# ggsave(file.path(plots_wd,"PNG/corr_patients_TOv3x.png"))
+# ggsave(file.path(plots_wd,"PDF/corr_patients_TOv3x.pdf"))
+```
+
+## Is the expression in testis and in tumor correlated?
+
+```{r stats_function, echo=F}
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+```
+
+```{r TPMS_testis, echo=F}
+## Load counts data
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
+testis_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+names(testis_TPMs)[1] = "transcript_id"
+## For novels, remove those shorter than 300 pb
+testis_TPMs = testis_TPMs %>%
+  filter(!(startsWith(transcript_id, "TCONS") & Length < 300))
+
+testis_TPMs = merge(testis_TPMs, annot, by="transcript_id", all.x=T)
+testis_TPMs = testis_TPMs %>% unique()
+testis_TPMs = testis_TPMs[,!grepl("brain", names(testis_TPMs))]
+testis_TPMs = testis_TPMs[,!grepl("liver", names(testis_TPMs))]
+testis_TPMs = testis_TPMs %>% select(-Length)
+
+## Select only numeric columns
+numeric_df = testis_TPMs[, sapply(testis_TPMs, is.numeric)]
+## Apply the function to each row
+stats_per_row = t(apply(numeric_df, 1, compute_stats))
+stats_df = as.data.frame(stats_per_row)
+
+testis_TPMs_stats = cbind(testis_TPMs %>% select(transcript_id, gene_id, gene_type, gene_name), stats_df)
+testis_TPMs_stats %>% head
+names(testis_TPMs_stats) = c("transcript_id","gene_id","gene_type","gene_name","mean_testis","median_testis","sd_testis","Q1.25%_testis","Q3.75%_testis")
+
+```
+
+
+```{r correlation_TPM, echo=F}
+testis_tumor_TPMs = merge(filtered_data_TOv3x_long, testis_TPMs_stats, by=c("transcript_id","gene_id","gene_type","gene_name"))
+## remove the zeros, show mean of patients for which it is Overexpressed
+testis_tumor_TPMs = testis_tumor_TPMs %>% subset(normal_tumor == "tumor")# %>% subset(forced_TPM > 0) 
+testis_tumor_TPMs = testis_tumor_TPMs %>% group_by(gene_name, gene_type, mean) %>% mutate(mean_tumor = mean(forced_TPM))
+testis_tumor_TPMs = testis_tumor_TPMs %>% select(gene_name, gene_type, mean_tumor, mean) %>% unique()
+
+testis_tumor_TPMs$log_meanTestis = log(testis_tumor_TPMs$mean)
+testis_tumor_TPMs$log_meanTumor = log(testis_tumor_TPMs$mean_tumor)
+
+
+ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=log_meanTumor, y=log_meanTestis, color=gene_type)) +
+  geom_point(size=.03) +
+  geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+  # scale_x_continuous(trans="log10") +
+  # scale_y_continuous(trans="log10") +
+    scale_color_manual(values=c("protein_coding"="#CC79A7",
+                           "lncRNA" = "#009E73",
+                           "processed_pseudogene" = "#0090B2",
+                           "novel" = "#E69F00")) +
+  labs(title="Correlation TPMs between tumor and testis") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  # facet_wrap(~ ctype, nrow=2) +
+  stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type, color = gene_type), size=3) 
+# ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.cancertype.png"), width=12.52, height=5.64)
+# ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), width=12.52, height=5.64)
 ```

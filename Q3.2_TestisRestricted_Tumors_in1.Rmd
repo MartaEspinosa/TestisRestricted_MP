@@ -433,3 +433,131 @@ ggsave(file.path(plots_wd,"PNG/corr_patients_TumorAss.png"))
 ggsave(file.path(plots_wd,"PDF/corr_patients_TumorAss.pdf"))
 ```
 
+
+## Is the expression in testis and in tumor correlated?
+
+```{r stats_function, echo=F}
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+```
+
+```{r TPMS_testis, echo=F}
+## Load counts data
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
+testis_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+
+## For novels, remove those shorter than 300 pb
+testis_TPMs = testis_TPMs %>%
+  filter(!(startsWith(gene_id, "TCONS") & Length < 300))
+names(testis_TPMs)[1] = "transcript_id"
+
+testis_TPMs = merge(testis_TPMs, annot, by="transcript_id", all.x=T)
+testis_TPMs = testis_TPMs %>% unique()
+testis_TPMs = testis_TPMs[,!grepl("brain", names(testis_TPMs))]
+testis_TPMs = testis_TPMs[,!grepl("liver", names(testis_TPMs))]
+testis_TPMs = testis_TPMs %>% select(-Length)
+
+## Select only numeric columns
+numeric_df = testis_TPMs[, sapply(testis_TPMs, is.numeric)]
+## Apply the function to each row
+stats_per_row = t(apply(numeric_df, 1, compute_stats))
+stats_df = as.data.frame(stats_per_row)
+
+testis_TPMs_stats = cbind(testis_TPMs %>% select(transcript_id, gene_id, gene_type, gene_name), stats_df)
+testis_TPMs_stats %>% head
+names(testis_TPMs_stats) = c("transcript_id","gene_id","gene_type","gene_name","mean_testis","median_testis","sd_testis","Q1.25%_testis","Q3.75%_testis")
+
+```
+
+
+```{r TPMS_cancer, echo=F}
+testis_tumor_TPMs = data.frame(transcript_id = character(),
+                               stringsAsFactors = F)
+
+for(i in 1:length(all_projects)) {
+  TAA_tumor = read.csv(paste0(cancers_dir,"/tumorexpressed/tumor_1FPKM_table_of_counts_",all_projects[i],".csv"))
+  TAA_tumor = TAA_tumor %>% select(-Length)
+  
+  ## Select only numeric columns
+  numeric_df = TAA_tumor[, sapply(TAA_tumor, is.numeric)]
+  ## Apply the function to each row
+  stats_per_row = t(apply(numeric_df, 1, compute_stats))
+  stats_df = as.data.frame(stats_per_row)
+
+  TAA_tumor_stats = cbind(TAA_tumor %>% select(transcript_id), stats_df)
+  names(TAA_tumor_stats) = c("transcript_id","mean_tumor","median_tumor","sd_tumor","Q1.25%_tumor","Q3.75%_tumor")
+  TAA_tumor_stats_testis = merge(testis_TPMs_stats, TAA_tumor_stats, by="transcript_id")
+  TAA_tumor_stats_testis$cancertype = cancers[i]
+  
+  ## rbind
+  testis_tumor_TPMs = rbind(testis_tumor_TPMs, TAA_tumor_stats_testis)
+}
+```
+
+```{r correlation_TPM, echo=F}
+ggplot(testis_tumor_TPMs %>% drop_na(), aes(x=mean_tumor, y=mean_testis)) +
+  geom_point(size=.03) +
+  geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+  scale_x_continuous(trans="log10") +
+  scale_y_continuous(trans="log10") +
+    scale_color_manual(values=c("protein_coding"="#CC79A7",
+                           "lncRNA" = "#009E73",
+                           "processed_pseudogene" = "#0090B2",
+                           "novel" = "#E69F00")) +
+  labs(title="Correlation TPMs between tumor and testis") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  facet_wrap(~ cancertype, nrow=2) +
+  stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type, color = gene_type), size=3) 
+ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.cancertype.png"), width=12.52, height=5.64)
+ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.cancertype.pdf"), width=12.52, height=5.64)
+
+
+testis_tumor_TPMs_pancancer = testis_tumor_TPMs %>% select(-cancertype) %>% group_by(transcript_id, gene_id, gene_name, gene_type) %>% mutate(mean_mean_testis = mean(mean_testis),
+                                                                                                           mean_mean_tumor = mean(mean_tumor)) %>% unique()
+
+ggplot(testis_tumor_TPMs_pancancer %>% drop_na(), aes(x=mean_mean_tumor, y=mean_mean_testis, color=gene_type)) +
+  geom_point(size=.03) +
+  geom_smooth(method = "lm", se = FALSE, color="black") +
+  scale_x_continuous(trans="log10") +
+  scale_y_continuous(trans="log10") +
+    scale_color_manual(values=c("protein_coding"="#CC79A7",
+                           "lncRNA" = "#009E73",
+                           "processed_pseudogene" = "#0090B2",
+                           "novel" = "#E69F00")) +
+  labs(title="Correlation TPMs between tumor and testis") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type, nrow=2, scales="free") +
+  stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type), size=3, color="black") 
+ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.meancancers.png"), width=7, height=7)
+ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.meancancers.pdf"), width=7, height=7)
+
+ggplot(testis_tumor_TPMs_pancancer %>% drop_na(), aes(x=mean_mean_tumor, y=mean_mean_testis, color=gene_type)) +
+  geom_point(size=.5, alpha=.5) +
+  geom_smooth(method = "lm", se = FALSE, aes(color=gene_type)) +
+  scale_x_continuous(trans="log10") +
+  # xlim(0,100000) +
+  # ylim(0,100000) +
+  scale_y_continuous(trans="log10") +
+    scale_color_manual(values=c("protein_coding"="#CC79A7",
+                           "lncRNA" = "#009E73",
+                           "processed_pseudogene" = "#0090B2",
+                           "novel" = "#E69F00")) +
+  labs(title="Correlation TPMs between tumor and testis") +
+  theme_classic() +
+  theme(legend.position = "top") +
+  stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), aes(group=gene_type, color=gene_type), size=3) 
+
+ggsave(file.path(plots_wd,"PNG/correlationTPM_testis_tumor.meancancers.onlydots.png"), width=7, height=7)
+ggsave(file.path(plots_wd,"PDF/correlationTPM_testis_tumor.meancancers.onlydots.pdf"), width=7, height=7)
+```
