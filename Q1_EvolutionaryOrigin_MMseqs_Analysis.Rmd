@@ -19,6 +19,8 @@ library(bioseq)
 library(ggbeeswarm)
 library(ggbreak)
 library(pheatmap)
+library(ggbreak) 
+library(patchwork)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 # names(gene_transcript) = c("gene_id"gene_type"gene_name")
@@ -37,15 +39,32 @@ mycolors=list("gene_type" = c("protein_coding"="#CC79A7",
                                "novel" = "#E69F00"))
 ```
 
-## Evolutionary Origin
+# Evolutionary Origin
 
 For human, only those that are translated in Testis:
 
 `/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.fa`
+`/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv`
+
+Exclusively translated in testis:
+
+`/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv`
+
+Tumor Reactivated (TOv3x5%)
+
+`/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv`
+
+```{r read, echo=F}
+testis = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv')
+tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
+```
 
 For the species, everything that is translated
 
 `/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/*/RiboSeq/RiboQC_RiboNovel*/RibORF/*_repre.valid.pred.pvalue.parameters.PROTEIN.noredunant.fa`
+
+## Testis Translated
 
 ### Non-coding Conserved
 
@@ -72,7 +91,33 @@ pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
-         main="Conservation of ncORFs in human")
+         main="Conservation of ncORFs in human | Testis")
+
+
+#### conserved and young
+all_nc = read.csv(file.path(evoDir,"Clustering/noncodingHuman_matrix.tsv"), sep="\t")
+all_nc_ordered = all_nc[order(all_nc$sum, decreasing = TRUE), ] 
+
+matrix = all_nc_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = all_nc$orfID
+
+## row annotation - gene_type
+row_annotation = all_nc_ordered %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
+
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         show_rownames= FALSE,
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
+         fontsize = 6,
+         main="Evolutionary Origin of ncORFs in human | Testis")
 ```
 
 ### Canonical Conserved
@@ -100,7 +145,32 @@ pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
-         main="Conservation of CDS in human")
+         main="Conservation of CDS in human | Testis")
+
+#### conserved and young
+all_cds = read.csv(file.path(evoDir,"Clustering/canonicalHuman_matrix.tsv"), sep="\t")
+all_cds_ordered = all_cds[order(all_cds$sum, decreasing = TRUE), ] 
+
+matrix = all_cds_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = all_cds$orfID
+
+## row annotation - gene_type
+row_annotation = all_cds_ordered %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
+
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         show_rownames= FALSE,
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
+         fontsize = 6,
+         main="Evolutionary Origin of CDS in human | Testis")
 ```
 
 ## Both canonical and ncORFs conserved
@@ -129,114 +199,10 @@ pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
          main="Conservation of ORFs in human")
-```
 
-## How does it look like for TOv2x - 5%?
-
-```{r TOv2x_5percent, echo=F}
-TOv3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv2xdata_long_5percent.csv")
-
-conserved_ordered_TOv3x = conserved_ordered %>% subset(gene_name %in% TOv3x$gene_name)
-
-matrix_TOv3x = conserved_ordered_TOv3x %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix_TOv3x = apply(matrix_TOv3x, 2, as.numeric)
-matrix_TOv3x = as.matrix(matrix_TOv3x)
-rownames(matrix_TOv3x) = conserved_ordered_TOv3x$orfID
-
-pheatmap(matrix_TOv3x, cluster_rows=FALSE, cluster_cols=FALSE,
-         annotation_names_col = FALSE, 
-         annotation_names_row = FALSE,
-         show_colnames = TRUE,
-         show_rownames= FALSE,
-         annotation_row = row_annotation,
-         annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
-         fontsize = 6,
-         main="Conservation of ORFs in human | TumorOverexpressed 2x in at least 5% of the patients in some ctype")
-```
-
-
-## How does it look like for TOv3x - 10%?
-
-```{r TOv3x_10percent, echo=F}
-TOv3x_10percent = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_10percent.csv")
-
-conserved_ordered_TOv3x = conserved_ordered %>% subset(gene_name %in% TOv3x_10percent$gene_name)
-
-matrix_TOv3x = conserved_ordered_TOv3x %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix_TOv3x = apply(matrix_TOv3x, 2, as.numeric)
-matrix_TOv3x = as.matrix(matrix_TOv3x)
-rownames(matrix_TOv3x) = conserved_ordered_TOv3x$orfID
-
-pheatmap(matrix_TOv3x, cluster_rows=FALSE, cluster_cols=FALSE,
-         annotation_names_col = FALSE, 
-         annotation_names_row = FALSE,
-         show_colnames = TRUE,
-         show_rownames= FALSE,
-         annotation_row = row_annotation,
-         annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
-         fontsize = 6,
-         main="Conservation of ORFs in human | TumorOverexpressed 3x in at least 10% of the patients in some ctype")
-```
-
-## Not only conserved but all, also non-conserved
-
-```{r all_noncoding, echo=F}
-all_nc = read.csv(file.path(evoDir,"Clustering/noncodingHuman_matrix.tsv"), sep="\t")
-all_nc_ordered = all_nc[order(all_nc$sum, decreasing = TRUE), ] 
-
-matrix = all_nc_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix = apply(matrix, 2, as.numeric)
-matrix = as.matrix(matrix)
-rownames(matrix) = all_nc$orfID
-
-## row annotation - gene_type
-row_annotation = all_nc_ordered %>% select(orfID, gene_type)
-rownames(row_annotation) = row_annotation$orfID
-row_annotation$orfID = NULL
-
-pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
-         annotation_names_col = FALSE, 
-         annotation_names_row = FALSE,
-         show_colnames = TRUE,
-         show_rownames= FALSE,
-         annotation_row = row_annotation,
-         annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
-         fontsize = 6,
-         main="Evolutionary Origin of ncORFs in human")
-```
-
-```{r all_canonical, echo=F}
-all_cds = read.csv(file.path(evoDir,"Clustering/canonicalHuman_matrix.tsv"), sep="\t")
-all_cds_ordered = all_cds[order(all_cds$sum, decreasing = TRUE), ] 
-
-matrix = all_cds_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix = apply(matrix, 2, as.numeric)
-matrix = as.matrix(matrix)
-rownames(matrix) = all_cds$orfID
-
-## row annotation - gene_type
-row_annotation = all_cds_ordered %>% select(orfID, gene_type)
-rownames(row_annotation) = row_annotation$orfID
-row_annotation$orfID = NULL
-
-pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
-         annotation_names_col = FALSE, 
-         annotation_names_row = FALSE,
-         show_colnames = TRUE,
-         show_rownames= FALSE,
-         annotation_row = row_annotation,
-         annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
-         fontsize = 6,
-         main="Evolutionary Origin of CDS in human")
-```
-
-```{r merged_all, echo=F}
 merged = rbind(all_nc, all_cds)
 
+#### conserved and young
 merged_ordered = merged[order(merged$sum, decreasing = TRUE), ] 
 
 matrix = merged_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
@@ -258,23 +224,54 @@ pheatmap(matrix, cluster_rows=F, cluster_cols=FALSE,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
-         main="Evolutionary Origin of CDS and ncORFs in human")
+         main="Evolutionary Origin of CDS and ncORFs in human | Testis")
 ```
 
+```{r age_merged_all, echo=F}
+evoAge = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
 
-## How does it look like for TOv2x - 5%?
+testis_age = evoAge %>% subset(orfID %in% merged_ordered$orfID)
+testis_age_count = testis_age %>% group_by(gene_type, oldest_species, age) %>% count()
+testis_age_count = testis_age_count %>% group_by(gene_type) %>% mutate(proportion = n / sum(n))
+ggplot(testis_age_count, aes(x=as.factor(age), y=n, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis Translated") +
+  theme_minimal()
 
-```{r TOv2x_5percent_all, echo=F}
-TOv2x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv2xdata_long_5percent.csv")
+ggplot(testis_age_count, aes(x=as.factor(age), y=proportion, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis Translated") +
+  theme_minimal()
+```
+## Testis-Restricted Translated
 
-merged_ordered_TOv2x = merged_ordered %>% subset(gene_name %in% TOv2x$gene_name)
+```{r testisRestricted, echo=F}
+TRestr_ordered = merged_ordered %>% subset(orfID %in% testisRestr$orfID)
+TRestr_ordered_conserved = conserved_ordered %>% subset(orfID %in% testisRestr$orfID)
 
-matrix_TOv2x = merged_ordered_TOv2x %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix_TOv2x = apply(matrix_TOv2x, 2, as.numeric)
-matrix_TOv2x = as.matrix(matrix_TOv2x)
-rownames(matrix_TOv2x) = merged_ordered_TOv2x$orfID
+matrix = TRestr_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = TRestr_ordered$orfID
 
-pheatmap(matrix_TOv2x, cluster_rows=FALSE, cluster_cols=FALSE,
+## row annotation - gene_type
+row_annotation = TRestr_ordered %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
+
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_names_col = FALSE, 
          annotation_names_row = FALSE,
          show_colnames = TRUE,
@@ -283,23 +280,20 @@ pheatmap(matrix_TOv2x, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
-         main="Conservation of ORFs and CDSs in human\nTumorOverexpressed 2x in at least 5% of the patients in some ctype")
-```
+         main="Conservation of ncORFs & CDSs in human | TestisRestricted")
 
+### only conserved
+matrix = TRestr_ordered_conserved %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = TRestr_ordered_conserved$orfID
 
-## How does it look like for TOv3x - 10%?
+## row annotation - gene_type
+row_annotation = TRestr_ordered_conserved %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
 
-```{r TOv3x_10percent_all, echo=F}
-TOv3x_10percent = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_10percent.csv")
-
-merged_ordered_TOv3x = merged_ordered %>% subset(gene_name %in% TOv3x_10percent$gene_name)
-
-matrix_TOv3x = merged_ordered_TOv3x %>% select(macaca, mouse, opossum, platypus, chicken)
-matrix_TOv3x = apply(matrix_TOv3x, 2, as.numeric)
-matrix_TOv3x = as.matrix(matrix_TOv3x)
-rownames(matrix_TOv3x) = merged_ordered_TOv3x$orfID
-
-pheatmap(matrix_TOv3x, cluster_rows=FALSE, cluster_cols=FALSE,
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_names_col = FALSE, 
          annotation_names_row = FALSE,
          show_colnames = TRUE,
@@ -308,5 +302,345 @@ pheatmap(matrix_TOv3x, cluster_rows=FALSE, cluster_cols=FALSE,
          annotation_colors = mycolors,  # Custom colors
          color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
          fontsize = 6,
-         main="Conservation of ORFs and CDs in human\nTumorOverexpressed 3x in at least 10% of the patients in some ctype")
+         main="Conservation of ncORFs in human | TestisRestricted")
+```
+
+```{r age_testisRestr, echo=F}
+testisRestr_age = evoAge %>% subset(orfID %in% TRestr_ordered$orfID)
+testisRestr_age_count = testisRestr_age %>% group_by(gene_type, oldest_species, age) %>% count()
+testisRestr_age_count = testisRestr_age_count %>% group_by(gene_type) %>% mutate(proportion = n / sum(n))
+ggplot(testisRestr_age_count, aes(x=as.factor(age), y=n, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted") +
+  theme_minimal()
+
+ggplot(testisRestr_age_count, aes(x=as.factor(age), y=proportion, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted") +
+  theme_minimal()
+```
+
+## Testis-Restricted Translated Reactivated in Tumor (3x Normal in 5%)
+
+```{r tumorReactivated, echo=F}
+tumorReactivated_ordered = merged_ordered %>% subset(orfID %in% tumorReact$orfID)
+tumorReactivated_ordered_conserved = conserved_ordered %>% subset(orfID %in% tumorReact$orfID)
+
+matrix = tumorReactivated_ordered %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = tumorReactivated_ordered$orfID
+
+## row annotation - gene_type
+row_annotation = tumorReactivated_ordered %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
+
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         show_rownames= FALSE,
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
+         fontsize = 6,
+         main="Conservation of ncORFs & CDSs in human | TestisRestricted Reactivated in Tumors")
+
+### only conserved
+matrix = tumorReactivated_ordered_conserved %>% select(macaca, mouse, opossum, platypus, chicken)
+matrix = apply(matrix, 2, as.numeric)
+matrix = as.matrix(matrix)
+rownames(matrix) = tumorReactivated_ordered_conserved$orfID
+
+## row annotation - gene_type
+row_annotation = tumorReactivated_ordered_conserved %>% select(orfID, gene_type)
+rownames(row_annotation) = row_annotation$orfID
+row_annotation$orfID = NULL
+
+pheatmap(matrix, cluster_rows=FALSE, cluster_cols=FALSE,
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         show_rownames= FALSE,
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#F57F17"))(50),
+         fontsize = 6,
+         main="Conservation of ncORFs in human | TestisRestricted Reactivated in Tumors")
+```
+
+```{r age_tumorReact, echo=F}
+tumorReact_age = evoAge %>% subset(orfID %in% tumorReactivated_ordered$orfID)
+tumorReact_age_count = tumorReact_age %>% group_by(gene_type, oldest_species, age) %>% count()
+tumorReact_age_count = tumorReact_age_count %>% group_by(gene_type) %>% mutate(proportion = n / sum(n))
+ggplot(tumorReact_age_count, aes(x=as.factor(age), y=n, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+  theme_minimal()
+
+ggplot(tumorReact_age_count, aes(x=as.factor(age), y=proportion, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+  theme_minimal()
+```
+
+### Ages summary
+
+```{r ages, echo=F}
+tumorReact_age$condition = "TumorReactivated"
+testisRestr_age$condition = "TestisRestricted"
+testis_age$condition = "Testis"
+
+
+ages = rbind(tumorReact_age, testisRestr_age, testis_age)
+ages = ages %>% mutate(age_categorical = case_when(age < 100 ~ "young",
+                                                   TRUE ~ "old"))
+
+ages_count = ages %>% group_by(gene_type, age_categorical, condition) %>% count()
+ages_count = ages_count %>% group_by(gene_type, condition) %>% mutate(proportion = n / sum(n))
+# ggplot(ages_count, aes(x=as.factor(age), y=n, color=gene_type)) +
+#   geom_point() +
+#   geom_line(aes(group=gene_type)) +
+#   scale_color_manual(values = c("protein_coding"="#CC79A7",
+#                                "lncRNA" = "#009E73",
+#                                "processed_pseudogene" = "#0090B2")) +
+#   labs(x="Myr",
+#        y="Number of ORFs",
+#        title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+#   theme_minimal() +
+#   theme(legend.position="top")+
+#   facet_wrap(~ condition, scales="free_y")
+# 
+# ggplot(ages_count, aes(x=as.factor(age), y=proportion, color=gene_type)) +
+#   geom_point() +
+#   geom_line(aes(group=gene_type)) +
+#   scale_color_manual(values = c("protein_coding"="#CC79A7",
+#                                "lncRNA" = "#009E73",
+#                                "processed_pseudogene" = "#0090B2")) +
+#   labs(x="Myr",
+#        y="Number of ORFs",
+#        title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+#   theme_minimal() +
+#   theme(legend.position="top")+
+#   facet_wrap(~ condition, scales="free_y")
+
+ggplot(ages_count, aes(x=factor(age_categorical, levels = c("young","old")), y=n, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+  theme_minimal() +
+  theme(legend.position="top")+
+  facet_wrap(~ condition, scales="free_y")
+
+ggplot(ages_count, aes(x=factor(age_categorical, levels = c("young","old")), y=proportion, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2")) +
+  labs(x="Myr",
+       y="Number of ORFs",
+       title="Evolutionary age of conservation of translation\nTestis-Restricted Reactivated in Tumors") +
+  theme_minimal() +
+  theme(legend.position="top")+
+  facet_wrap(~ condition, scales="free_y")
+```
+
+## Length
+
+```{r lengths, echo=F}
+testis_length = testis %>% select(orfID, gene_type, length_aa) %>% mutate(condition = "Testis")
+testisRestr_length = testisRestr %>% select(orfID, gene_type, length_aa) %>% mutate(condition = "TestisRestricted")
+tumorReact_length = tumorReact %>% select(orfID, gene_type, length_aa) %>% mutate(condition = "TumorReactivated")
+
+lengths = rbind(testis_length, testisRestr_length, tumorReact_length)
+
+ages_lengths = merge(lengths, ages, by=c("orfID","gene_type","condition"))
+ages_lengths = ages_lengths %>% mutate(age_categorical = case_when(age < 100 ~ "young",
+                                                                   TRUE ~ "old"))
+
+ggplot(ages_lengths, aes(x=length_aa, color=gene_type)) +
+  geom_density() +
+  scale_x_continuous(trans="log10") +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(x="Length (AA)",
+       title="Length distribution") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ condition, scales="free_y")
+
+ggplot(ages_lengths, aes(x=as.factor(age), y=length_aa, fill=gene_type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  scale_y_continuous(trans="log10") +
+    theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ condition, scales="free_y")
+
+ggplot(ages_lengths, aes(x=factor(age_categorical, levels=c("young","old")), y=length_aa, fill=gene_type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  scale_y_continuous(trans="log10") +
+    theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ condition, scales="free_y")
+
+ages_lengths_median = ages_lengths %>% group_by(gene_type, age, age_categorical, condition) %>% mutate(median_length = median(length_aa))
+ggplot(ages_lengths_median, aes(x=as.factor(age), y=median_length, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  scale_y_continuous(trans="log10") +
+    theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ condition, scales="free_y")
+
+ggplot(ages_lengths_median, aes(x=as.factor(age), y=median_length, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  scale_y_continuous(trans="log10") +
+    theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ condition, scales="free_y")
+```
+
+## TE
+
+```{r TE, echo=F}
+mean_testis_TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
+testis_TE = mean_testis_TE %>% select(orfID, gene_type, mean_TE) %>% subset(orfID %in% testis$orfID) %>% mutate(condition = "Testis")
+testisRestr_TE = mean_testis_TE %>% select(orfID, gene_type, mean_TE) %>% subset(orfID %in% testisRestr$orfID) %>% mutate(condition = "TestisRestricted")
+tumorReact_TE = mean_testis_TE %>% select(orfID, gene_type, mean_TE) %>% subset(orfID %in% tumorReact$orfID) %>% mutate(condition = "TumorReactivated")
+
+TE = rbind(testis_TE, testisRestr_TE, tumorReact_TE)
+TE_ages_length = merge(TE, ages_lengths, by=c("gene_type","condition","orfID"))
+
+ggplot(TE, aes(x=condition, y=mean_TE, fill=gene_type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  scale_y_continuous(trans="log10") +
+  labs(x="",
+       y="Translation Efficiency in testis (mean)",
+       title="Translation Efficiency") +
+  theme_minimal() +
+  theme(legend.position = "top") 
+
+```
+
+### yes - no 
+
+```{r proportions_yes_no, echo=F}
+all_info = TE_ages_length %>% subset(condition == "Testis") %>% select(-condition)
+all_info = all_info %>% mutate(testisRestricted = case_when(orfID %in% testisRestr$orfID ~ "yes",
+                                                            TRUE ~ "no"),
+                               tumorReactivated = case_when(orfID %in% tumorReact$orfID ~ "yes",
+                                                            TRUE ~ "no"))
+```
+
+#### Length 
+
+```{r yes_no_length, echo=F}
+ggplot(all_info, aes(x=testisRestricted, y=length_aa, color=gene_type)) +
+  geom_boxplot() +
+  scale_y_continuous(trans="log10") +
+    stat_compare_means(aes(group=testisRestricted), label="p.signif") +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(y="Length (AA)",
+       title="Length differences for testisRestricted ORFs") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type) 
+
+ggplot(all_info, aes(x=tumorReactivated, y=length_aa, color=gene_type)) +
+  geom_boxplot() +
+  scale_y_continuous(trans="log10") +
+    stat_compare_means(aes(group=tumorReactivated), label="p.signif") +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(y="Length (AA)",
+       title="Length differences for tumorReactivated ORFs") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type) 
+```
+
+#### TE 
+
+```{r yes_no_TE, echo=F}
+ggplot(all_info, aes(x=testisRestricted, y=mean_TE, color=gene_type)) +
+  geom_boxplot() +
+  scale_y_continuous(trans="log10") +
+    stat_compare_means(aes(group=testisRestricted), label="p.signif") +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(y="Translation Efficiency in Testis (mean)",
+       title="Translation Efficiency for testisRestricted ORFs") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type) 
+
+ggplot(all_info, aes(x=tumorReactivated, y=mean_TE, color=gene_type)) +
+  geom_boxplot() +
+  scale_y_continuous(trans="log10") +
+    stat_compare_means(aes(group=tumorReactivated), label="p.signif") +
+  scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(y="Translation Efficiency in Testis (mean)",
+       title="Translation Efficiency for tumorReactivated ORFs") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type) 
+```
+
+#### "Evolutionary Age"
+
+```{r yes_no_age, echo=F}
 ```
