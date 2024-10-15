@@ -1,0 +1,229 @@
+---
+title: "Stability"
+author: "Marta Espinosa"
+date: "2024-10-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+library(ggbeeswarm)
+library(ggbreak)
+library(pheatmap)
+library(ggbreak) 
+library(patchwork)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+# names(gene_transcript) = c("gene_id"gene_type"gene_name")
+# gene_transcript$gene_id = gsub("\\..*"gene_transcript$gene_id)
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q6_Stability/human/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q6_Stability/human"
+
+dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/ORFold"
+
+mycolors=list("gene_type" = c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2",
+                               "novel" = "#E69F00"))
+```
+
+## ORFold
+
+
+```{r import_data, echo=F}
+info = read.csv(file.path(dir,"ribORF_humanTestis_in1.csv"))
+info = info %>% select(orfID, gene_name, gene_type, length_aa, start_codon) 
+
+orfold_output=read.csv(file.path(dir,"ribORF_humanTestis_in1.tab"), sep="\t", skip = 1, header=F)
+names(orfold_output) = c("orfID","HCA","Dirsord","Aggreg")
+orfold_output = orfold_output %>% select(orfID, HCA)
+orfold_output = as.data.frame(apply(orfold_output, 2, function(x)gsub('\\s+', '',x)))
+orfold_output = merge(orfold_output, info, by="orfID")
+orfold_output$HCA = as.numeric(orfold_output$HCA)
+orfold_output$Testis = "Testis"
+orfold_output = orfold_output %>% mutate("coding" = case_when(grepl("canonical", orfID) ~ "CDS",
+                                                              gene_type == "processed_pseudogene" ~ "processed_pseudogene",
+                                                        TRUE ~ "ncORF"))
+## keep those with >= 20 aa 
+orfold_output_20 = orfold_output %>% subset(length_aa >= 20)
+```
+
+## HCA Plot | testis
+
+```{r HCAplot, echo=FALSE}
+ggplot(orfold_output_20, aes(x=HCA, fill=gene_type)) +
+  geom_density(alpha=.5) +
+  scale_fill_manual(values=c("protein_coding"="#CC79A7",
+                               "lncRNA" = "#009E73",
+                               "processed_pseudogene" = "#0090B2",
+                               "novel" = "#E69F00")) +
+  geom_vline(xintercept=-5) +
+  geom_vline(xintercept=5) +
+  labs(x="HCA score",
+       title="HCA of Testis ORFs") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/HCAscore_Testis_GeneType_density.png"), height=4)
+
+ggplot(orfold_output_20 %>% subset(coding != "processed_pseudogene"), aes(x=HCA, fill=coding)) +
+  geom_density(alpha=.5) +
+  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
+  #                              "lncRNA" = "#009E73",
+  #                              "processed_pseudogene" = "#0090B2",
+  #                              "novel" = "#E69F00")) +
+  geom_vline(xintercept=-5) +
+  geom_vline(xintercept=5) +
+  labs(x="HCA score",
+       title="HCA of Testis ORFs") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/HCAscore_Testis_CDSncORF_density.png"), height=4)
+```
+
+```{r HCAplot_startcodon, echo=F}
+ggplot(orfold_output_20 %>% subset(gene_type != "protein_coding"), aes(y=HCA, x=start_codon)) +
+  geom_quasirandom() +
+  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
+  #                              "lncRNA" = "#009E73",
+  #                              "processed_pseudogene" = "#0090B2",
+  #                              "novel" = "#E69F00")) +
+  geom_vline(xintercept=-5) +
+  geom_vline(xintercept=5) +
+  labs(title="HCA of Testis ORFs") +
+  theme_minimal() +
+  facet_wrap(~ gene_type)
+```
+
+```{r tesisCondition, echo=F}
+testis = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv')
+tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
+
+# Noncoding > 20 aa depending on condition
+orfold_output_20 = orfold_output_20 %>% mutate(TestisRestricted = case_when(orfID %in% testisRestr$orfID ~ "yes"),
+                                               TumorReactivated = case_when(orfID %in% tumorReact$orfID ~ "yes")) 
+orfold_output_20 = orfold_output_20 %>% pivot_longer(cols=c(TestisRestricted, TumorReactivated, Testis), names_to="condition", values_to="values")
+orfold_output_20 = orfold_output_20 %>% drop_na()
+
+ggplot(orfold_output_20, aes(x=HCA, fill=condition)) +
+  geom_density(alpha=.5) +
+  scale_fill_manual(values=c("Testis" = "#BB975D",
+                             "TestisRestricted" = "#CED8C2",
+                             "TumorReactivated" = "#2E8F9F")) +
+  geom_vline(xintercept=-5) +
+  geom_vline(xintercept=5) +
+  labs(x="HCA score",
+       title="HCA score by Testis Condition and gene type") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ gene_type)
+ggsave(file.path(plots_wd, "PNG/HCAscore_TestisCondition_GeneType_density.png"))
+
+ggplot(orfold_output_20 %>% subset(gene_type != "processed_pseudogene"), aes(x=HCA, fill=condition)) +
+  geom_density(alpha=.5) +
+  scale_fill_manual(values=c("Testis" = "#BB975D",
+                             "TestisRestricted" = "#CED8C2",
+                             "TumorReactivated" = "#2E8F9F")) +
+  geom_vline(xintercept=-5) +
+  geom_vline(xintercept=5) +
+  labs(x="HCA score",
+       title="HCA score by Testis Condition and gene type") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ coding)
+ggsave(file.path(plots_wd, "PNG/HCAscore_TestisCondition_CDSncORF_density.png"))
+```
+
+```{r boxplots, echo=F}
+orfold_output_20 = orfold_output_20 %>% mutate(HCA_category = case_when(HCA < -5 ~ "low HCA",
+                                                                        HCA > 5 ~ "high HCA",
+                                                                        TRUE ~ "intermediate HCA"))
+HCAcategories_counts = orfold_output_20 %>% group_by(gene_type, condition, HCA_category) %>% count()
+
+ggplot(orfold_output_20, aes(x=condition, y=HCA, color=condition)) +
+  geom_quasirandom(aes(group=condition)) +
+    # Add the black points for the median per group
+  stat_summary(fun = median, geom = "point", shape = 21, size = 2, color = "black", fill = "black") +
+  
+  # Add a line connecting the median points across conditions for each gene_type
+  stat_summary(fun = median, geom = "line", aes(group = 1), color = "black", size = .5, linetype= "dashed") +
+  labs(y="HCA score",
+       title="HCA score by Testis Condition") +
+  scale_color_manual(values=c("Testis" = "#BB975D",
+                             "TestisRestricted" = "#CED8C2",
+                             "TumorReactivated" = "#2E8F9F")) +
+  theme_minimal() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  facet_wrap(~ gene_type, scales="free") +
+    stat_compare_means(comparisons = list(c("Testis", "TestisRestricted"), c("TestisRestricted", "TumorReactivated"), c("Testis", "TumorReactivated")),
+                     aes(label=..p.signif..),
+                     method = "t.test",paired=F,
+                     tip.length=0,step.increase = 0.05)
+ggsave(file.path(plots_wd, "PNG/HCAscore_TestisCondition_GeneType_quasirandom.png"))
+
+ggplot(orfold_output_20 %>% subset(gene_type != "processed_pseudogene"), aes(x=condition, y=HCA, color=condition)) +
+  geom_quasirandom(aes(group=condition)) +
+    # Add the black points for the median per group
+  stat_summary(fun = median, geom = "point", shape = 21, size = 2, color = "black", fill = "black") +
+  
+  # Add a line connecting the median points across conditions for each gene_type
+  stat_summary(fun = median, geom = "line", aes(group = 1), color = "black", size = .5, linetype= "dashed") +
+  labs(y="HCA score",
+       title="HCA score by Testis Condition") +
+  scale_color_manual(values=c("Testis" = "#BB975D",
+                             "TestisRestricted" = "#CED8C2",
+                             "TumorReactivated" = "#2E8F9F")) +
+  theme_minimal() +
+  theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  facet_wrap(~ coding, scales="free") +
+    stat_compare_means(comparisons = list(c("Testis", "TestisRestricted"), c("TestisRestricted", "TumorReactivated"), c("Testis", "TumorReactivated")),
+                     aes(label=..p.signif..),
+                     method = "t.test",paired=F,
+                     tip.length=0,step.increase = 0.05)
+ggsave(file.path(plots_wd, "PNG/HCAscore_TestisCondition_CDSncORF_quasirandom.png"))
+```
+
+```{r HCA_length, echo=F}
+ggplot(orfold_output_20, aes(x=length_aa, y=HCA)) +
+  geom_point(size=.2) +
+  scale_x_continuous(trans="log10") +
+  labs(title="Association between HCA and length") +
+  theme_minimal() +
+  facet_wrap(~ gene_type, scales="free") +
+    stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="red", linetype="dashed") +
+    stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+ggsave(file.path(plots_wd, "PNG/HCAscore_vs_length_GeneType.png"))
+
+ggplot(orfold_output_20 %>% subset(gene_type != "processed_pseudogene"), aes(x=length_aa, y=HCA)) +
+  geom_point(size=.2) +
+  scale_x_continuous(trans="log10") +
+  labs(title="Association between HCA and length") +
+  theme_minimal() +
+  facet_wrap(~ coding, scales="free") +
+    stat_smooth(method = "lm", 
+              formula = y ~ x, 
+              geom = "smooth", color="red", linetype="dashed") +
+    stat_cor(p.accuracy = 0.001, r.accuracy = 0.01)
+ggsave(file.path(plots_wd, "PNG/HCAscore_vs_length_CDSncORF.png"))
+```
+
+## Tumor Reactivated
+
+```{r tumorReact, echo=F}
+tumorReact_HCA = merge(tumorReact, orfold_output_20, by=c("orfID","gene_name","gene_type","length_aa","start_codon"))
+tumorReact_HCA = tumorReact_HCA %>% subset(condition == "TumorReactivated")
+
+table_tumorReact_HCA = tumorReact_HCA %>% select(orfID, gene_name, gene_type, HCA_category, HCA) %>% unique()
+```

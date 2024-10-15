@@ -643,4 +643,119 @@ ggplot(all_info, aes(x=tumorReactivated, y=mean_TE, color=gene_type)) +
 #### "Evolutionary Age"
 
 ```{r yes_no_age, echo=F}
+## Testis
+testis_age = evoAge %>% subset(orfID %in% merged_ordered$orfID)
+testis_age = testis_age %>% mutate(age_categorical = case_when(age < 100 ~ "young",
+                                                                   TRUE ~ "old"))
+testis_counts_age_cat = testis_age %>% group_by(gene_type, age_categorical) %>% count() %>% group_by(gene_type) %>% mutate(proportion = n / sum(n))
+testis_counts_age_cat$condition = "Testis"
+
+## TestisRestricted
+testis_age = testis_age %>% mutate(TestisRestricted = case_when(orfID %in% testisRestr_age$orfID ~ "yes",
+                                                                                 TRUE ~ "no"))
+testisTestr_counts_age_cat = testis_age %>% group_by(gene_type, age_categorical, TestisRestricted) %>% count() %>% ungroup() %>%
+  complete(gene_type, age_categorical, TestisRestricted, fill = list(n = 0)) %>% group_by(gene_type) %>% mutate(proportion = n / sum(n)) %>% ungroup()
+testisTestr_counts_age_cat$condition = "TestisRestricted"
+names(testisTestr_counts_age_cat)[3] = "yes_no"
+
+# testisTestr_counts_age_cat = testisTestr_counts_age_cat%>% select(-TestisRestricted)
+
+## TumorReactivated
+testis_age = testis_age %>% mutate(TumorReactivated = case_when(orfID %in% tumorReact_age$orfID ~ "yes",
+                                                                                 TRUE ~ "no"))
+tumorReact_counts_age_cat = testis_age %>% group_by(gene_type, age_categorical, TumorReactivated) %>% count() %>% ungroup() %>%
+  complete(gene_type, age_categorical, TumorReactivated, fill = list(n = 0)) %>% group_by(gene_type, TumorReactivated) %>% mutate(proportion = n / sum(n)) %>% ungroup()
+tumorReact_counts_age_cat$condition = "TumorReactivated"
+names(tumorReact_counts_age_cat)[3] = "yes_no"
+# tumorReact_counts_age_cat = tumorReact_counts_age_cat %>% select(-TumorReactivated)
+
+counts_age_categorical = rbind(testis_counts_age_cat, tumorReact_counts_age_cat, testisTestr_counts_age_cat)
+
+a = ggplot(counts_age_categorical %>% select(-yes_no) %>% subset(condition == "Testis"), aes(x=factor(age_categorical, levels=c("young","old")), y=proportion, color=gene_type)) +
+  geom_point() +
+  geom_line(aes(group=gene_type)) +
+    scale_color_manual(values = c("protein_coding"="#CC79A7",
+                             "lncRNA" = "#009E73",
+                             "processed_pseudogene" = "#0090B2")) +
+  labs(x="",
+       y="Proportion",
+       title="MP or CDS translated in Testis") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+# b = ggplot(counts_age_categorical %>% select(-TumorReactivated) %>% subset(condition == "TestisRestricted"), aes(x=factor(age_categorical, levels=c("young","old")), y=proportion, color=gene_type, group=TestisRestricted)) +
+#   geom_point() +
+#   geom_line(aes(group=gene_type)) +
+#     scale_color_manual(values = c("protein_coding"="#CC79A7",
+#                              "lncRNA" = "#009E73",
+#                              "processed_pseudogene" = "#0090B2")) +
+#   labs(x="Evolutionary age",
+#        y="Proportion",
+#        title="MP or CDS Testis Restricted") +
+#   theme_minimal() +
+#   theme(legend.position = "none")
+
+# Create the plot
+ggplot(counts_age_categorical %>% select(-c(yes_no)) %>% subset(condition == "Testis"), aes(x = age_categorical, y = proportion)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare 'yes' and 'no' side-by-side
+  facet_wrap(~ gene_type) +                          # Facet by gene_type to compare per gene
+  labs(title = "Age Distribution of Testis MP or CDS",
+       x = "Age Category",
+       y = "Proportion") +
+  theme_minimal() +
+  scale_fill_manual(values = c("no" = "blue", "yes" = "red")) 
+
+ggplot(counts_age_categorical %>% subset(condition == "TestisRestricted"), aes(x = age_categorical, y = proportion, fill = yes_no)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare 'yes' and 'no' side-by-side
+  facet_wrap(~ gene_type) +                          # Facet by gene_type to compare per gene
+  labs(title = "Age Distribution of TestisRestricted MP or CDS",
+       x = "Age Category",
+       y = "Proportion",
+       fill = "TestisRestricted") +
+  theme_minimal() +
+  scale_fill_manual(values = c("no" = "blue", "yes" = "red")) 
+
+ggplot(counts_age_categorical %>% subset(condition == "TumorReactivated"), aes(x = age_categorical, y = proportion, fill = yes_no)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare 'yes' and 'no' side-by-side
+  facet_wrap(~ gene_type) +                          # Facet by gene_type to compare per gene
+  labs(title = "Age Distribution of TumorReactivated MP or CDS",
+       x = "Age Category",
+       y = "Proportion",
+       fill = "TumorReactivated") +
+  theme_minimal() +
+  scale_fill_manual(values = c("no" = "blue", "yes" = "red")) 
+
+ggplot(counts_age_categorical%>% subset(condition == "TumorReactivated"), aes(x = yes_no, y = proportion, fill = age_categorical)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare 'yes' and 'no' side-by-side
+  facet_wrap(~ gene_type) +                          # Facet by gene_type to compare per gene
+  labs(title = "Age Distribution of TumorReactivated MP or CDS",
+       # x = "Age Category",
+       # y = "Proportion",
+       fill = "TumorReactivated") +
+  theme_minimal() +
+  scale_fill_manual(values = c("old" = "green", "young" = "orange")) 
+
+
+# Create the plot
+ggplot(counts_age_categorical %>% subset(condition != "Testis"), aes(x = age_categorical, y = proportion, fill = yes_no)) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare 'yes' and 'no' side-by-side
+  facet_grid(condition ~ gene_type) +                # Facet by both condition and gene_type
+  labs(title = "Age Distribution of Genes by Testis Restriction and Tumor Reactivation",
+       x = "Age Category",
+       y = "Proportion",
+       fill = "TestisRestricted") +
+  theme_minimal() +
+  scale_fill_manual(values = c("no" = "blue", "yes" = "red")) 
+
+ggplot(counts_age_categorical %>% subset(condition != "Testis"), aes(x = age_categorical, y = proportion, fill = interaction(yes_no, condition))) +
+  geom_bar(stat = "identity", position = "dodge") +  # Use dodge to compare all combinations
+  facet_wrap(~ gene_type) +                          # Still facet by gene_type
+  labs(title = "Age Distribution of Genes by Condition (TestisRestricted vs TumorReactivated)",
+       x = "Age Category",
+       y = "Proportion",
+       fill = "Condition & TestisRestricted") +
+  theme_minimal() +
+  scale_fill_manual(values = c("no.TestisRestricted" = "blue", "yes.TestisRestricted" = "red",
+                               "no.TumorReactivated" = "lightblue", "yes.TumorReactivated" = "pink"))
+
 ```
