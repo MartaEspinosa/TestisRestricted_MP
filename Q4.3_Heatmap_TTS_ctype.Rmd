@@ -761,6 +761,22 @@ ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression
   theme_minimal()
 ggsave(file.path(plots_wd,"PNG/coexpr_coef_TOv3x5percent.png"))
 ggsave(file.path(plots_wd,"PDF/coexpr_coef_TOv3x5percent.pdf"))
+
+corrplot_values_all_toheatmap = corrplot_values_all %>% 
+  mutate(corr = case_when(is.na(coexpression_corr) ~ 0,
+        coexpression_corr == 1 ~ 0, 
+        TRUE ~ coexpression_corr)) %>% 
+  select(-coexpression_corr) %>% 
+           pivot_wider(names_from = "ctype", values_from = "corr")
+                                                                                
+corrplot_values_all_toheatmap = as.data.frame(corrplot_values_all_toheatmap)
+rownames(corrplot_values_all_toheatmap) = corrplot_values_all_toheatmap$type
+corrplot_values_all_toheatmap$type = NULL
+
+types = rownames(corrplot_values_all_toheatmap)
+# corrplot_values_all_toheatmap 
+pheatmap(corrplot_values_all_toheatmap, cluster_rows = F, cluster_cols = F, scale="column", display_numbers = round(corrplot_values_all_toheatmap,2))
+
 ```
 
 ```{r chromosomes, echo=F}

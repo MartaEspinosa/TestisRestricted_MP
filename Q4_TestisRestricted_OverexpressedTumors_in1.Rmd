@@ -58,7 +58,9 @@ translated_IN_testis_genes = translated_IN_testis %>% select(gene_type, gene_nam
 table(translated_IN_testis_genes$gene_type)
 
 print("Translated ONLY in testis")
-translated_only_testis = read.csv(file.path(Q2_wd,"testisRestricted_GTEx_translatedONLYtestis.csv"))
+# translated_only_testis = read.csv(file.path(Q2_wd,"testisRestricted_GTEx_translatedONLYtestis.csv"))
+translated_only_testis = read.csv(file.path(Q2_wd,"testisRestricted_GTEx_translatedONLYtestis.noProteome.csv"))
+
 table(translated_only_testis$gene_type)
 print("Corresponding to how many genes?")
 translated_only_testis_genes = translated_only_testis %>% select(gene_type, gene_name) %>% unique()
