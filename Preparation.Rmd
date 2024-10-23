@@ -217,13 +217,17 @@ ggsave(file.path(plots_wd, "PNG/TSTR_TestisExpr_TumorExpr.png"), width=7, height
 
 ## Comparisons, from TestisSpecific, which are Reactivated and which are not
 
+### Length
+
 ```{r comparisons, echo=F}
 testisRestr = testisRestr %>% 
   mutate(tumorReactivated = case_when(gene_id %in% tumorReact$gene_id ~ "Reactivated",
                                       TRUE ~ "NoReactivated")) %>%
   mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
                                                           TRUE ~ "noncoding"))
+```
 
+```{r length, echo=F}
 ### length
 testisRestr %>% select(gene_id, coding_noncoding, length_aa, tumorReactivated) %>% unique() %>%
   ggplot(., aes(y=length_aa, x=coding_noncoding, fill=tumorReactivated)) +
@@ -236,7 +240,11 @@ testisRestr %>% select(gene_id, coding_noncoding, length_aa, tumorReactivated) %
   scale_fill_manual(values=c("#899DA4","#DC863B")) +
   scale_y_continuous(trans="log10") +
   theme_minimal()
+```
 
+## Translation efficiency
+
+```{r TE, echo=F}
 ### translation efficiency
 testis_TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
 testisRestr = merge(testisRestr, testis_TE %>% select(orfID, mean_TE), by="orfID")
@@ -252,7 +260,11 @@ testisRestr %>% select(gene_id, coding_noncoding, mean_TE, tumorReactivated) %>%
        fill="Reactivation\nin tumor") +
   scale_fill_manual(values=c("#899DA4","#DC863B")) +
   theme_minimal()
+```
 
+## Evolutionary conservation of ORFs
+
+```{r evo, echo=F}
 ### evolutionary conservation
 conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
 testisRestr = merge(testisRestr, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
@@ -260,14 +272,62 @@ testisRestr[is.na(testisRestr)] = "human"
 
 testisRestr = testisRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
                                                                  oldest_species == "human"  ~ "primate",
+                                                                 # oldest_species == "chicken" ~ "conserved - outgroup",
                                                                  # oldest_species == "mouse" ~ "primate",
                                                    TRUE ~ "mammal"))
 
-testisRestr %>% select(gene_id, coding_noncoding, age_categorical, tumorReactivated) %>% unique() %>% group_by(coding_noncoding, tumorReactivated, age_categorical) %>% count() %>% group_by(coding_noncoding, tumorReactivated) %>% mutate(proportion = n / sum(n)) %>%
-  ggplot(., aes(y=proportion, x=age_categorical, fill=tumorReactivated, group=tumorReactivated)) +
+age_counts = testisRestr %>% select(gene_id, coding_noncoding, age_categorical, tumorReactivated) %>% unique() %>% group_by(coding_noncoding, tumorReactivated, age_categorical) %>% count() %>% group_by(coding_noncoding, tumorReactivated) %>% mutate(proportion = n / sum(n)) 
+age_counts = as.data.frame(age_counts)
+ggplot(age_counts, aes(y=proportion, x=factor(age_categorical, levels=c("primate","mammal","conserved - outgroup")), fill=tumorReactivated, group=tumorReactivated)) +
   geom_bar(stat="identity", position="dodge") +
-  facet_grid(tumorReactivated ~ coding_noncoding)
+  labs(x="Conservation level",
+       y="Proportion") +
+    scale_fill_manual(values=c("#899DA4","#DC863B")) +
+  theme_minimal() +
+  facet_grid( ~ coding_noncoding)
 
+# Subset the data for protein coding genes
+protein_coding_data <- subset(age_counts, coding_noncoding == "protein_coding")
+
+# Create a 2x2 matrix for 'primate' vs 'mammal' in Reactivated vs NoReactivated
+contingency_table <- matrix(c(
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "Reactivated" & protein_coding_data$age_categorical == "primate"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "NoReactivated" & protein_coding_data$age_categorical == "primate"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "Reactivated" & protein_coding_data$age_categorical == "mammal"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "NoReactivated" & protein_coding_data$age_categorical == "mammal"])
+), nrow = 2, byrow = TRUE)
+
+# Add proper labels to the matrix for clarity
+dimnames(contingency_table) <- list(
+  "Reactivated" = c("Reactivated", "NoReactivated"),
+  "Age Category" = c("Primate", "Mammal")
+)
+
+# Perform Fisher's exact test
+fisher.test(contingency_table)
+
+testisRestr = testisRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+age_counts = testisRestr %>% select(gene_id, coding_noncoding, age_categorical, tumorReactivated) %>% unique() %>% group_by(coding_noncoding, tumorReactivated, age_categorical) %>% count() %>% group_by(coding_noncoding, tumorReactivated) %>% mutate(proportion = n / sum(n)) 
+age_counts = as.data.frame(age_counts)
+
+ggplot(age_counts %>% subset(coding_noncoding == "protein_coding"), aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values=c("primate" = "#B1283A", "mammal" = "#006A8E", "conserved - outgroup" = "#A8A6A7")) +
+  labs(x="Reactivation in tumor",
+       y="Proportion") +
+  # geom_text(aes(label=round(proportion,2)), position = "stack") +
+  theme_minimal() 
+```
+
+## Aminoacid Composition
+
+First aa removed
+
+```{r composition, echo=F}
 ### aminoacid composition
 hph=c("A","V","L","I","M","F","Y","W")
 polar=c("S","T","N","Q")
@@ -326,4 +386,122 @@ ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
        title="Relative enrichement of aminoacids in\nProteinCoding genes Reactivated in cancer") +
   scale_fill_carto_d(palette = "Burg") +
   theme_classic()
+```
+
+## Tumor-specific antigens contribution
+
+- Cryptic DB
+
+- Beijer et al.
+
+- Erhard et al.
+
+- IEAtlas
+
+- Chong et al.
+
+- Ouspenskaia et al.
+
+```{r neoantigens, echo=F}
+## Reactivated in tumor
+tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immuno.csv")
+print("How many ORFs contain at least 1 TSA evidenced by the literature? | Tumor Reactivated")
+print(length(unique(tumorReact_TSA$matching_ORFpep)))
+print("From how many total ORFs?")
+print(length(unique(tumorReact$ORFpep)))
+print(paste0("Proportion = ",length(unique(tumorReact_TSA$matching_ORFpep))/length(unique(tumorReact$ORFpep))*100,"%"))
+
+## TestisExpressed in tumor
+testisRestr_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TestisRestrictedGTEx_Translated_ONLYintestis_immuno.csv")
+print("How many ORFs contain at least 1 TSA evidenced by the literature? | TestisRestricted")
+print(length(unique(testisRestr_TSA$matching_ORFpep)))
+print("From how many total ORFs?")
+print(length(unique(testisRestr$ORFpep)))
+print(paste0("Proportion = ",length(unique(testisRestr_TSA$matching_ORFpep))/length(unique(testisRestr$ORFpep))*100,"%"))
+
+## how many of each condition
+numbers_TSA = data.frame("TumorReactivated" = c("Reactivated","NoReactivated"),
+                         "ORFs_with_evidence" = c(length(unique(tumorReact_TSA$matching_ORFpep)), length(unique(testisRestr_TSA$matching_ORFpep))),
+                         "totalORFs" = c(length(unique(tumorReact$ORFpep)), length(unique(testisRestr$ORFpep))))
+numbers_TSA = numbers_TSA %>%
+  mutate(proportion = numbers_TSA$ORFs_with_evidence / numbers_TSA$totalORFs * 100) %>% ## compute proportion of evidenced
+  mutate(ORFs_without_evidence = numbers_TSA$totalORFs - numbers_TSA$ORFs_with_evidence)
+  
+numbers_TSA %>%
+  select(TumorReactivated, ORFs_with_evidence, ORFs_without_evidence) %>%
+  pivot_longer(cols = -TumorReactivated, names_to = "Condition", values_to = "ORFs") %>%
+  group_by(TumorReactivated) %>%
+  mutate(Percentage = ORFs / sum(ORFs) * 100,
+         Cumulative_ORFs = cumsum(ORFs),
+         LabelPosition = Cumulative_ORFs - (ORFs / 2)) %>% # Position in the middle of each slice based on ORFs
+  ggplot() + 
+  geom_bar(aes(x = 1, y = Percentage, fill = Condition), stat = "identity") +
+  coord_polar("y", start = 0) +
+  theme_void() +  
+    scale_fill_manual(values=c("#296656","#DCDCDC")) +
+  theme(legend.position = "top") +
+  facet_wrap(~ TumorReactivated, scales = "free") 
+
+testisRestr = merge(testisRestr, testisRestr_TSA %>% select(gene_name, Peptide, ORFpep, source), by=c("gene_name","ORFpep"), all.x=T)
+testisRestr[is.na(testisRestr)] = "None"
+
+## how many peptides per ORF?
+pep_x_orf = testisRestr %>% select(orfID, Peptide, gene_name, coding_noncoding, tumorReactivated, length_aa) %>% unique() %>% group_by(orfID, coding_noncoding, gene_name, tumorReactivated, length_aa) %>% count()
+
+## all non-coding have only 1 peptide per ORF
+ggplot(pep_x_orf %>% subset(coding_noncoding == "protein_coding"), aes(x=n, y=length_aa)) +
+  geom_point() +
+  geom_text_repel(aes(label=gene_name), size=3, color="black") +
+  scale_y_continuous(trans="log10") +
+  labs(x="Number of evidenced peptides",
+       y="Length (AA)",
+       title="Number of immunopeptides per ORF vs length ORFs") +
+  theme_minimal() 
+
+## at peptide level
+TSA = testisRestr %>% select(orfID, Peptide, source, gene_name, coding_noncoding, tumorReactivated) %>% unique()
+TSA$value = 1
+TSA = TSA %>% pivot_wider(names_from = "source", values_from = "value")
+TSA[is.na(TSA)] = 0
+TSA$sum = rowSums(TSA[,c(6:9)])
+
+## can it be that an ORF is validated by two sources, even though it is a different peptide?
+TSA_ORF = testisRestr %>% select(orfID, source, gene_name, coding_noncoding, tumorReactivated) %>% unique()
+TSA_ORF$value = 1
+TSA_ORF = TSA_ORF %>% pivot_wider(names_from = "source", values_from = "value")
+TSA_ORF[is.na(TSA_ORF)] = 0
+TSA_ORF$sum = rowSums(TSA_ORF[,c(5:8)])
+
+sources = testisRestr %>% select(gene_name, orfID, tumorReactivated, source) %>% unique()
+table(sources$tumorReactivated, sources$source)
+## which are the noReactivated with immunopeptidomics evidence?
+
+NoReactivatedTSAexamples = testisRestr %>% subset(tumorReactivated == "NoReactivated" & source != "None") %>% select(transcript_id, gene_name, orfID, length_aa, source, gene_type, age_categorical) %>% unique()
+
+testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source) %>% 
+  unique() %>% 
+  group_by(tumorReactivated, source) %>% count() %>%
+  mutate(Immuno = case_when(source == "None" ~ "None",
+                            TRUE ~ "Immunovalidated")) %>%
+  ggplot(., aes(x=tumorReactivated, y=n, fill=source, group = Immuno)) +
+  geom_bar(stat="identity", position = "fill") +
+  scale_fill_manual(values=c("deBeijer" = "#296656",
+                             "IEAtlas" = "#569874",
+                             "nuORFdb" = "#7EC488",
+                             "None" = "#DCDCDC")) +
+  labs(x="Tumor Reactivation",
+       fill="Source of\nimmunopeptidomics evidence",
+       y="Proportion of Tumor-specific antigens") +
+  theme_minimal()
+
+##  How are the examples in terms of tumorExpression
+# unfiltered_allfc = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/unfiltered_tablesofcounts_long.csv")
+# NoReactivatedTSAexamples_full = unfiltered_allfc %>% subset(transcript_id %in% NoReactivatedTSAexamples$transcript_id)
+# NoReactivatedTSAexamples_stats = NoReactivatedTSAexamples_full %>% group_by(transcript_id, normal_tumor) %>% 
+#   mutate(mean = mean(TPM),
+#          median = median(TPM),
+#          max = max(TPM)) %>% select(transcript_id, normal_tumor, mean, median, max) %>% unique()
+
+
 ```
