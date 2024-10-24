@@ -73,6 +73,7 @@ calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
   return(log2ratio_df)
 }
 
+# "#855C75FF","#D9AF6BFF", "#AF6458FF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF"
 ```
 
 ## TestisORFs
@@ -229,17 +230,19 @@ testisRestr = testisRestr %>%
 
 ```{r length, echo=F}
 ### length
+## KruskalWallis
 testisRestr %>% select(gene_id, coding_noncoding, length_aa, tumorReactivated) %>% unique() %>%
   ggplot(., aes(y=length_aa, x=coding_noncoding, fill=tumorReactivated)) +
   geom_boxplot() +
-  stat_compare_means() +
+  stat_compare_means(label="p.signif") +
   labs(x="",
        y="Length (AA)",
        title = "Length differences between TS/TR and TS/nonTR",
        fill="Reactivation\nin tumor") +
-  scale_fill_manual(values=c("#899DA4","#DC863B")) +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
   scale_y_continuous(trans="log10") +
   theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_Length_boxplot.png"), width=6.28, height=5.82)
 ```
 
 ## Translation efficiency
@@ -252,14 +255,16 @@ testisRestr = merge(testisRestr, testis_TE %>% select(orfID, mean_TE), by="orfID
 testisRestr %>% select(gene_id, coding_noncoding, mean_TE, tumorReactivated) %>% unique() %>%
   ggplot(., aes(y=mean_TE, x=coding_noncoding, fill=tumorReactivated)) +
   geom_boxplot() +
-  stat_compare_means() +
+  stat_compare_means(label="p.signif") +
   scale_y_continuous(trans="log10") +
   labs(x="",
        y="Mean Translation Efficiency",
        title = "TE differences between TS/TR and TS/nonTR",
        fill="Reactivation\nin tumor") +
-  scale_fill_manual(values=c("#899DA4","#DC863B")) +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
   theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_TE_boxplot.png"), width=6.28, height=5.82)
+
 ```
 
 ## Evolutionary conservation of ORFs
@@ -281,10 +286,12 @@ age_counts = as.data.frame(age_counts)
 ggplot(age_counts, aes(y=proportion, x=factor(age_categorical, levels=c("primate","mammal","conserved - outgroup")), fill=tumorReactivated, group=tumorReactivated)) +
   geom_bar(stat="identity", position="dodge") +
   labs(x="Conservation level",
-       y="Proportion") +
-    scale_fill_manual(values=c("#899DA4","#DC863B")) +
+       y="Proportion",
+       title="Evolutionary Conservation of TS/TR vs TS/nonTR") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
   theme_minimal() +
   facet_grid( ~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=8.11, height=4.82)
 
 # Subset the data for protein coding genes
 protein_coding_data <- subset(age_counts, coding_noncoding == "protein_coding")
@@ -316,11 +323,39 @@ age_counts = as.data.frame(age_counts)
 
 ggplot(age_counts %>% subset(coding_noncoding == "protein_coding"), aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
   geom_bar(stat = "identity", position = "stack") +
-  scale_fill_manual(values=c("primate" = "#B1283A", "mammal" = "#006A8E", "conserved - outgroup" = "#A8A6A7")) +
+  scale_fill_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
   labs(x="Reactivation in tumor",
-       y="Proportion") +
+       y="Proportion",
+       title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
   # geom_text(aes(label=round(proportion,2)), position = "stack") +
   theme_minimal() 
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=5.78, height=5.82)
+
+ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
+  geom_quasirandom(size=1) +
+  scale_color_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  scale_y_continuous(trans="log10") +
+  labs(x="Evolutionary Conservation of ORFs",
+       y="Length (AA)",
+       title="Relationship between Conservation and ORF length") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ coding_noncoding) +
+  stat_compare_means(comparisons = list(c("mammal", "primate"),c("mammal", "conserved - outgroup"),c("conserved - outgroup", "primate")), label="p.signif", method = "wilcox.test", paired=F)
+ggsave(file.path(plots_wd, "PNG/Conservation_Length.png"), width=6.21, height=5.25)
+
+ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
+  geom_quasirandom(size=1) +
+  scale_color_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  scale_y_continuous(trans="log10") +
+  labs(x="Evolutionary Conservation of ORFs",
+       y="Length (AA)",
+       title="Relationship between Conservation and ORF length") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_grid(tumorReactivated ~ coding_noncoding) +
+  stat_compare_means(comparisons = list(c("mammal", "primate"),c("mammal", "conserved - outgroup"),c("conserved - outgroup", "primate")), label="p.signif", method = "wilcox.test", paired=F)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_Length.png"), width=6.21, height=6.25)
 ```
 
 ## Aminoacid Composition
@@ -343,9 +378,9 @@ aacomposition_testisRestr$ORFpep = gsub("\\*","",as.character(aacomposition_test
 
 #### non-coding
 nc_React = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding") %>% subset(tumorReactivated == "Reactivated")
-nc_React$ORFpep = as.character(nc_React$ORFpep)
+nc_React = as.character(nc_React$ORFpep)
 nc_NoReact = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding") %>% subset(tumorReactivated != "Reactivated")
-nc_NoReact$ORFpep = as.character(nc_NoReact$ORFpep)
+nc_NoReact = as.character(nc_NoReact$ORFpep)
 
 log2ratios_noncoding = calculate_log2ratio_df(nc_React, nc_NoReact)
 
@@ -362,14 +397,15 @@ ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
   labs(y="Log2Ratio\n(Reactivated/No Reactivated)",
        x="Aminoacid",
        title="Relative enrichement of aminoacids in\nNon-coding genes Reactivated in cancer") +
-  scale_fill_carto_d(palette = "Burg") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
   theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_AAComposition_noncoding.png"), width=8.38, height=3.82)
 
 #### coding
 c_React = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding") %>% subset(tumorReactivated == "Reactivated")
-c_React$ORFpep = as.character(c_React$ORFpep)
+c_React = as.character(c_React$ORFpep)
 c_NoReact = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding") %>% subset(tumorReactivated != "Reactivated")
-c_NoReact$ORFpep = as.character(c_NoReact$ORFpep)
+c_NoReact = as.character(c_NoReact$ORFpep)
 
 log2ratios_coding = calculate_log2ratio_df(c_React, c_NoReact)
 log2ratios_coding %>% 
@@ -384,8 +420,33 @@ ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
   labs(y="Log2Ratio\n(Reactivated/No Reactivated)",
        x="Aminoacid",
        title="Relative enrichement of aminoacids in\nProteinCoding genes Reactivated in cancer") +
-  scale_fill_carto_d(palette = "Burg") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
   theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_AAComposition_proteincoding.png"), width=8.38, height=3.82)
+
+### coding vs noncoding
+coding_AA = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding")
+coding_AA = as.character(coding_AA$ORFpep)
+noncoding_AA = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding")
+noncoding_AA = as.character(noncoding_AA$ORFpep)
+
+log2ratios_codingnoncoding = calculate_log2ratio_df(noncoding_AA, coding_AA)
+log2ratios_codingnoncoding %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% drop_na() %>% 
+ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio\n(Non-Coding/Coding)",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in ncORFs wrt CDS") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/AAComposition_coding_vs_noncoding.png"), width=8.38, height=3.82)
+
 ```
 
 ## Tumor-specific antigens contribution
@@ -437,10 +498,12 @@ numbers_TSA %>%
   ggplot() + 
   geom_bar(aes(x = 1, y = Percentage, fill = Condition), stat = "identity") +
   coord_polar("y", start = 0) +
+  ggtitle("ORFs with immunopeptidomics evidence") +
   theme_void() +  
-    scale_fill_manual(values=c("#296656","#DCDCDC")) +
+    scale_fill_manual(values=c("#855C75FF","#D9AF6BFF")) +
   theme(legend.position = "top") +
   facet_wrap(~ TumorReactivated, scales = "free") 
+ggsave(file.path(plots_wd, "PNG/TSTR_ORFs_with_Immuno.png"))
 
 testisRestr = merge(testisRestr, testisRestr_TSA %>% select(gene_name, Peptide, ORFpep, source), by=c("gene_name","ORFpep"), all.x=T)
 testisRestr[is.na(testisRestr)] = "None"
@@ -457,6 +520,7 @@ ggplot(pep_x_orf %>% subset(coding_noncoding == "protein_coding"), aes(x=n, y=le
        y="Length (AA)",
        title="Number of immunopeptides per ORF vs length ORFs") +
   theme_minimal() 
+ggsave(file.path(plots_wd, "PNG/TSTR_ORFs_vs_Length.png"), width=6.91, height=5.90)
 
 ## at peptide level
 TSA = testisRestr %>% select(orfID, Peptide, source, gene_name, coding_noncoding, tumorReactivated) %>% unique()
@@ -479,21 +543,25 @@ table(sources$tumorReactivated, sources$source)
 NoReactivatedTSAexamples = testisRestr %>% subset(tumorReactivated == "NoReactivated" & source != "None") %>% select(transcript_id, gene_name, orfID, length_aa, source, gene_type, age_categorical) %>% unique()
 
 testisRestr %>% 
-  select(gene_name, orfID, tumorReactivated, source) %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
   unique() %>% 
-  group_by(tumorReactivated, source) %>% count() %>%
+  group_by(tumorReactivated, source, coding_noncoding) %>% count() %>%
   mutate(Immuno = case_when(source == "None" ~ "None",
                             TRUE ~ "Immunovalidated")) %>%
   ggplot(., aes(x=tumorReactivated, y=n, fill=source, group = Immuno)) +
   geom_bar(stat="identity", position = "fill") +
-  scale_fill_manual(values=c("deBeijer" = "#296656",
-                             "IEAtlas" = "#569874",
-                             "nuORFdb" = "#7EC488",
+  scale_fill_manual(values=c("deBeijer" = "#8C785DFF",
+                             "IEAtlas" = "#AF6458FF",
+                             "nuORFdb" = "#625377FF",
+                             "DiazCamarena" = "#9C9C5EFF",
                              "None" = "#DCDCDC")) +
   labs(x="Tumor Reactivation",
        fill="Source of\nimmunopeptidomics evidence",
-       y="Proportion of Tumor-specific antigens") +
-  theme_minimal()
+       y="Proportion of Tumor-specific antigens",
+       title="Number of immunovalidated TSA in TSTR") +
+  theme_minimal() +
+  facet_wrap(~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_TSAburden_immuno.png"), width=7, height=6.18)
 
 ##  How are the examples in terms of tumorExpression
 # unfiltered_allfc = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/unfiltered_tablesofcounts_long.csv")
@@ -503,5 +571,42 @@ testisRestr %>%
 #          median = median(TPM),
 #          max = max(TPM)) %>% select(transcript_id, normal_tumor, mean, median, max) %>% unique()
 
+cases = testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
+  unique() %>% subset(source != "None") %>% select(-c(source, orfID)) %>% unique()
+cases
 
+to_venn = testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
+  unique() %>% subset(source != "None")
+table(to_venn$source, to_venn$coding_noncoding)
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "IEAtlas" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "nuORFdb" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "DiazCamarena" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "deBeijer" & tumorReactivated == "Reactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Protein-Coding ORFs Reactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSTR_CDS.png"), width=7, height=6.18)
+
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "IEAtlas" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "nuORFdb" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "DiazCamarena" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "deBeijer" & tumorReactivated == "NoReactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Protein-Coding ORFs NoReactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSnoTR_CDS.png"), width=7, height=6.18)
+
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "IEAtlas" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "nuORFdb" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "DiazCamarena" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "deBeijer" & tumorReactivated == "Reactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Non-Canonical ORFs Reactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSTR_ncORFs.png"), width=7, height=6.18)
 ```
