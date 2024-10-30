@@ -21,6 +21,7 @@ library(ggbeeswarm)
 library(ggbreak)
 library(ggrepel)
 library(rcartocolor)
+library(UpSetR)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 # names(gene_transcript) = c("gene_id"gene_type"gene_name")
@@ -111,9 +112,17 @@ table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type
 
 - Expressed 3 times more in tumor than in normal in at least 5% of the patients of at least 1 cancer type of the studied ones.
 
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q3.2_TestisRestricted_Tumors_in1.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4_TestisRestricted_OverexpressedTumors_in1.Rmd` - TOV3x
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.2_Matrix.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.3_Heatmap_TTS_ctype.Rmd` - log2ratio
+
 ```{r tumorReactivated, echo=FALSE}
-tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
-filtered_data_TOv3x_long = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_5percent.csv")
+# tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
+tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv")
+# filtered_data_TOv3x_long  = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_5percent.csv")
+filtered_data_TOv3x_long  = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xlog2ratiodata_long_5percent.csv")
+
 
 tumorReact = merge(tumorReact, total_num_patients, by="ctype")
 print("ORFs")
@@ -329,7 +338,19 @@ ggplot(age_counts %>% subset(coding_noncoding == "protein_coding"), aes(x = tumo
        title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
   # geom_text(aes(label=round(proportion,2)), position = "stack") +
   theme_minimal() 
-ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=5.78, height=5.82)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar_coding.png"), width=5.78, height=5.82)
+
+ggplot(age_counts, aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  labs(x="Reactivation in tumor",
+       y="Proportion",
+       title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
+  theme(legend.position = "top") +
+  # geom_text(aes(label=round(proportion,2)), position = "stack") +
+  theme_minimal() +
+  facet_wrap(~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=7.78, height=5.82)
 
 ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
   geom_quasirandom(size=1) +
@@ -465,7 +486,9 @@ ggsave(file.path(plots_wd, "PNG/AAComposition_coding_vs_noncoding.png"), width=8
 
 ```{r neoantigens, echo=F}
 ## Reactivated in tumor
-tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immuno.csv")
+# tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immuno.csv")
+tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x_immuno.csv")
+
 print("How many ORFs contain at least 1 TSA evidenced by the literature? | Tumor Reactivated")
 print(length(unique(tumorReact_TSA$matching_ORFpep)))
 print("From how many total ORFs?")
@@ -609,4 +632,46 @@ ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "noncoding" & sou
        fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
   ggtitle("Non-Canonical ORFs Reactivated in Tumors")
 ggsave(file.path(plots_wd, "PNG/venn_TSTR_ncORFs.png"), width=7, height=6.18)
+```
+
+## Selection of TS/TR
+
+```{r TSTR, echo=F}
+TSTR = testisRestr %>% subset(tumorReactivated == "Reactivated") %>% select(-X)
+TSTR_ORFs = merge(TSTR, tumorReact %>% select(orfID, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype), by=c("orfID"), all.x=T)
+TSTR_genes = merge(TSTR %>% select(-c(orfID, ORFpep, length_aa, length, start_codon, mean_TE, TranslatedLiver, TranslatedBrain, orfType)) %>% unique(), tumorReact %>% select(gene_id, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype), by=c("gene_id"), all.x=T)
+
+TSTR_genes_fewinfo = TSTR_genes %>% select(gene_id, gene_name, coding_noncoding, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype) %>% unique()
+
+## ProteinCoding
+to_upset_Coding = TSTR_genes_fewinfo %>% subset(coding_noncoding == "protein_coding") %>% select(ctype, gene_name) %>% unique()
+to_upset_Coding$presence = 1
+to_upset_Coding = to_upset_Coding %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset_Coding[is.na(to_upset_Coding)] = 0
+to_upset_Coding = as.data.frame(to_upset_Coding)
+rownames(to_upset_Coding) = to_upset_Coding$gene_name
+to_upset_Coding$gene_name = NULL
+
+upset(to_upset_Coding,
+      sets=colnames(to_upset_Coding), main.bar.color = "#CC79A7"
+)
+to_upset_Coding_sums = to_upset_Coding
+to_upset_Coding_sums$sum = rowSums(to_upset_Coding_sums)
+
+
+## Non-Coding
+to_upset_nonCoding = TSTR_genes_fewinfo %>% subset(coding_noncoding == "noncoding") %>% select(ctype, gene_name) %>% unique()
+to_upset_nonCoding$presence = 1
+to_upset_nonCoding = to_upset_nonCoding %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset_nonCoding[is.na(to_upset_nonCoding)] = 0
+to_upset_nonCoding = as.data.frame(to_upset_nonCoding)
+rownames(to_upset_nonCoding) = to_upset_nonCoding$gene_name
+to_upset_nonCoding$gene_name = NULL
+
+upset(to_upset_nonCoding,
+      sets=colnames(to_upset_nonCoding), main.bar.color = "#0090B2"
+)
+
+to_upset_nonCoding_sums = to_upset_nonCoding
+to_upset_nonCoding_sums$sum = rowSums(to_upset_nonCoding_sums)
 ```

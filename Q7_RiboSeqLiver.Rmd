@@ -1,0 +1,115 @@
+---
+title: "RiboSeqLiver"
+author: "Marta Espinosa"
+date: "2024-10-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+
+GSE112705_dir="/users/genomics/marta/GSE112705_Zou2019_tumor/Merged/RibORF"
+```
+
+## RiboSeq from Liver tumor samples (GSE112705)
+
+Merged option has been enabled.
+
+0.6 threshold
+
+```{r results_ribORF, echo=F}
+results = read.csv(file.path(GSE112705_dir,"repre.valid.pred.pvalue.parameters.txt"), sep="\t")
+results$transcript_id = gsub(":.*","",results$orfID)
+results$transcript_id = gsub("\\..*","",results$transcript_id)
+
+results_annot = merge(results, annot, by="transcript_id")
+results_annot_genes = results_annot %>% 
+  select(gene_name, transcript_id, gene_type) %>% unique()
+print(table(results_annot_genes$gene_type))
+
+## selected biotypes
+results_annot_genes = results_annot_genes %>% subset(gene_type == "lncRNA" | gene_type == "novel" | gene_type == "processed_pseudogene" | gene_type == "protein_coding")
+print(table(results_annot_genes$gene_type))
+
+
+```
+
+## Testis Specific
+
+```{r testisSp, echo=FALSE}
+TestisSpecific = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.noProteome.csv")
+print("TestisSpecific | ORF level")
+print(table(TestisSpecific$gene_type))
+
+TestisSpecific_genes = TestisSpecific %>% select(gene_name, gene_type) %>% unique()
+print("TestisSpecific | gene level")
+print(table(TestisSpecific_genes$gene_type))
+
+## How many are translated
+print("TRANSLATION IN LIVER CANCER")
+TestisSpecific_Translated = TestisSpecific %>% subset(transcript_id %in% results_annot$transcript_id)
+print("TestisSpecific Translated in Liver Cancer | ORF level")
+print(table(TestisSpecific_Translated$gene_type))
+
+TestisSpecific_Translated_genes = TestisSpecific_Translated %>% select(gene_name, gene_type) %>% unique()
+print("TestisSpecific Translated in Liver Cancer | gene level")
+print(table(TestisSpecific_Translated_genes$gene_type))
+```
+
+## Testis Specific | Tumor Reativated (TOv3x)
+
+```{r TOV3x, echo=FALSE}
+TOv3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
+print("TestisSpecific Tumor Reactivated | ORF level")
+print(table(TOv3x$gene_type))
+
+TOv3x_genes = TOv3x %>% select(gene_name, gene_type) %>% unique()
+print("TOv3x | gene level")
+print(table(TOv3x_genes$gene_type))
+
+## How many are translated
+print("TRANSLATION IN LIVER CANCER")
+TOv3x_Translated = TOv3x %>% subset(transcript_id %in% results_annot$transcript_id) %>% select(orfID, gene_name, gene_type) %>% unique()
+print("TOv3x Translated in Liver Cancer | ORF level")
+print(table(TOv3x_Translated$gene_type))
+
+TOv3x_Translated_genes = TOv3x_Translated %>% select(gene_name, gene_type) %>% unique()
+print("TOv3x Translated in Liver Cancer | gene level")
+print(table(TOv3x_Translated_genes$gene_type))
+
+## WHICH?
+TOv3x %>% subset(gene_name %in% TOv3x_Translated_genes$gene_name) %>% 
+  select(gene_id,gene_name,gene_type,num_patients_overexpr,ctype,percentage_num_patients_overexpr)
+```
+
+## Testis Specific | Tumor Reativated (TOv3x + log2ratio3x)
+
+```{r log2ratio3x, echo=FALSE}
+TOv3x_log2ratio3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv")
+print("TestisSpecific Tumor Reactivated | ORF level")
+print(table(TOv3x_log2ratio3x$gene_type))
+
+TOv3x_log2ratio3x_genes = TOv3x_log2ratio3x %>% select(gene_name, gene_type) %>% unique()
+print("TOv3x_log2ratio3x | gene level")
+print(table(TOv3x_log2ratio3x_genes$gene_type))
+
+## How many are translated
+print("TRANSLATION IN LIVER CANCER")
+TOv3x_log2ratio3x_Translated = TOv3x_log2ratio3x %>% subset(gene_name %in% results_annot$gene_name)  %>% select(orfID, gene_name, gene_type) %>% unique()
+print("TOv3x_log2ratio3x Translated in Liver Cancer | ORF level")
+print(table(TOv3x_log2ratio3x_Translated$gene_type))
+
+TOv3x_log2ratio3x_Translated_genes = TOv3x_log2ratio3x_Translated %>% select(gene_name, gene_type) %>% unique()
+print("TOv3x_log2ratio3x Translated in Liver Cancer | gene level")
+print(table(TOv3x_log2ratio3x_Translated_genes$gene_type))
+
+## WHICH?
+TOv3x_log2ratio3x %>% subset(gene_name %in% TOv3x_log2ratio3x_Translated_genes$gene_name) %>% 
+  select(gene_id,gene_name,gene_type,num_patients_overexpr,ctype,percentage_num_patients_overexpr)
+```
