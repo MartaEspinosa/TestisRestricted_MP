@@ -65,7 +65,7 @@ print(table(TestisSpecific_Translated_genes$gene_type))
 ## Testis Specific | Tumor Reativated (TOv3x)
 
 ```{r TOV3x, echo=FALSE}
-TOv3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
+TOv3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
 print("TestisSpecific Tumor Reactivated | ORF level")
 print(table(TOv3x$gene_type))
 

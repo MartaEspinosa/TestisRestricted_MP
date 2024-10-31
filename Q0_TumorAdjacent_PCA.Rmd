@@ -2,7 +2,7 @@
 title: "Tumor samples | Adjacent controls"
 author: "Marta Espinosa"
 date: "2024-10-01"
-output: ''
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -30,7 +30,7 @@ annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_Transcrip
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q0_TumorAdjacent/human/plots"
 save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q0_TumorAdjacent/human"
 
-cancers = c("BRCA","BLCA","LUAD","KIRC","KIRP","PRAD","LUSC","COAD","LIHC")
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
 tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
@@ -156,7 +156,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% BRCA)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
- ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8), alpha=.7) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -165,11 +165,10 @@ biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
   labs(x="Dataset",
        y="logTPM",
        title="BRCA BIOMARKERS") +
-  theme_classic() +
-   facet_wrap(~ gene_name, scales="free", ncol=3)
+  theme_classic()
 
-ggsave(file.path(plots_wd,"PNG/BRCA_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/BRCA_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/BRCA_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/BRCA_biomarkers_ctype.pdf"))
 ```
 
 ```{r HCC, echo=F}
@@ -181,7 +180,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% LIHC)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -191,11 +190,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="LIHC BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=1)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/LIHC_biomarkers.png"), width=7, height=7)
-ggsave(file.path(plots_wd,"PDF/LIHC_biomarkers.pdf"), width=7, height=7)
+ggsave(file.path(plots_wd,"PNG/LIHC_biomarkers_ctype.png"), width=7, height=7)
+ggsave(file.path(plots_wd,"PDF/LIHC_biomarkers_ctype.pdf"), width=7, height=7)
 
 ```
 
@@ -209,7 +207,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% BLCA)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -219,11 +217,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="BLCA BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=1)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/BLCA_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/BLCA_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/BLCA_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/BLCA_biomarkers_ctype.pdf"))
 
 ```
 
@@ -236,7 +233,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% LUAD)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -246,11 +243,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="LUAD BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=2)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/LUAD_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/LUAD_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/LUAD_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/LUAD_biomarkers_ctype.pdf"))
 
 ```
 
@@ -263,7 +259,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% LUSC)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -273,11 +269,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="LUSC BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=4)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/LUSC_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/LUSC_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/LUSC_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/LUSC_biomarkers_ctype.pdf"))
 ```
 
 ```{r COAD, echo=F}
@@ -289,7 +284,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% COAD)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -299,11 +294,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="COAD BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=4)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/COAD_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/COAD_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/COAD_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/COAD_biomarkers_ctype.pdf"))
 ```
 
 ```{r PRAD, echo=F}
@@ -315,7 +309,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% PRAD)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -325,11 +319,10 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="PRAD BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=4)
+  theme(legend.position = "top") 
 
-ggsave(file.path(plots_wd,"PNG/PRAD_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/PRAD_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/PRAD_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/PRAD_biomarkers_ctype.pdf"))
 ```
 
 ```{r KIRC, echo=F}
@@ -341,7 +334,7 @@ temp_fc = cancers_fc %>% subset(ctype == ctype_var)
 
 biomarkers_expr = temp_fc %>% subset(gene_name %in% KIRC)
 biomarkers_expr$logTPM = log(biomarkers_expr$TPM)
-ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
+ggplot(biomarkers_expr, aes(x=gene_name, y=logTPM, fill=normal_tumor)) +
   geom_boxplot(position = position_dodge(width=.8)) +
   geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
   scale_fill_manual(values=c("#FFB900","#5773CC")) +
@@ -351,14 +344,119 @@ ggplot(biomarkers_expr, aes(x=project, y=logTPM, fill=normal_tumor)) +
        y="logTPM",
        title="KIRC BIOMARKERS") +
   theme_classic() +
-  theme(legend.position = "top") +
-   facet_wrap(~ gene_name, scales="free", ncol=4)
+  theme(legend.position = "top")
 
-ggsave(file.path(plots_wd,"PNG/KIRC_biomarkers.png"))
-ggsave(file.path(plots_wd,"PDF/KIRC_biomarkers.pdf"))
+ggsave(file.path(plots_wd,"PNG/KIRC_biomarkers_ctype.png"))
+ggsave(file.path(plots_wd,"PDF/KIRC_biomarkers_ctype.pdf"))
 ```
 
+```{r normalTumor, echo=F}
+#### TAA ####
+filtered_data_TAA_long = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/TAAdata_long.csv")
+filtered_data_TAA_long = filtered_data_TAA_long %>% subset(ctype != "KIRP")
+temporary = filtered_data_TAA_long %>% select(gene_name, ctype) %>% unique()
+table(temporary$ctype)
 
+
+ggplot(filtered_data_TAA_long, aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes expressed in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank()) +
+  facet_wrap(~ ctype, ncol=1, scales="free")
+ggsave(file.path(plots_wd, "PNG/TAA_normaltumor_ctypes_genenames.png"), width=8, height=14)
+  
+
+#### TOv3x ####
+filtered_data_TOV3x_long = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_5percent.csv")
+filtered_data_TOV3x_long = filtered_data_TOV3x_long %>% subset(ctype != "KIRP")
+temporary = filtered_data_TOV3x_long %>% select(gene_name, ctype) %>% unique()
+table(temporary$ctype)
+
+
+ggplot(filtered_data_TOV3x_long, aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes TOv3x in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90)) +
+  facet_wrap(~ ctype, ncol=1, scales="free")
+ggsave(file.path(plots_wd, "PNG/TOv3x_normaltumor_ctypes_genenames.png"), width=8, height=14)
+
+#### TOv3x + log2ratio 3x ####
+TOV3xlog2ratio3x=read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
+filtered_data_TOV3xlog2ratio3x_long = filtered_data_TOV3x_long %>% subset(gene_name %in% TOV3xlog2ratio3x$gene_name)
+filtered_data_TOV3xlog2ratio3x_long = filtered_data_TOV3xlog2ratio3x_long %>% subset(ctype != "KIRP")
+temporary = filtered_data_TOV3xlog2ratio3x_long %>% select(gene_name, ctype) %>% unique()
+table(temporary$ctype)
+
+ggplot(filtered_data_TOV3xlog2ratio3x_long, aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+  geom_quasirandom(dodge.width= .8, size=.5) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  geom_hline(yintercept=log(1)) +
+  labs(x="",
+       title="Testis-Restricted genes TOv3x & log2ratio 3x in cancer\nExpression in tumor and adjacent samples") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle=90)) +
+  facet_wrap(~ ctype, ncol=1, scales="free")
+ggsave(file.path(plots_wd, "PNG/TOv3xlog2ratio_normaltumor_ctypes_genenames.png"), width=8, height=14)
+
+
+#### PER CANCER TYPE
+for(ctype_var in cancers) {
+  print(ctype_var)
+  ### TAA ###
+  print(nrow(filtered_data_TAA_long %>% subset(ctype == ctype_var) %>% select(gene_name) %>% unique()))
+  filtered_data_TAA_long %>% subset(ctype == ctype_var) %>%
+    ggplot(., aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+      geom_quasirandom(dodge.width= .8, size=.5) +
+      scale_color_manual(values=c("#FFB900","#5773CC")) +
+      geom_hline(yintercept=log(1)) +
+      labs(x="",
+           title=paste0("Testis-Restricted genes expressed in cancer | ",ctype_var,"\nExpression in tumor and adjacent samples")) +
+      theme_classic() +
+      theme(axis.text.x = element_text(angle=90),
+          legend.position = "top")
+  ggsave(paste0(plots_wd, "/PNG/TAA_normaltumor_ctypes_genenames_",ctype_var,".png"), width=8, height=7)
+  
+
+  #### TOv3x ####
+  # print(nrow(filtered_data_TOV3x_long %>% subset(ctype == ctype_var) %>% select(gene_name) %>% unique()))
+  # filtered_data_TOV3x_long %>% subset(ctype == ctype_var) %>%
+  #   ggplot(., aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+  #     geom_quasirandom(dodge.width= .8, size=.5) +
+  #     scale_color_manual(values=c("#FFB900","#5773CC")) +
+  #     geom_hline(yintercept=log(1)) +
+  #     labs(x="",
+  #          title=paste0("Testis-Restricted genes TOv3x in cancer | ",ctype_var,"\nExpression in tumor and adjacent samples")) +
+  #     theme_classic() +
+  # theme(axis.text.x = element_text(angle=90),
+  #         legend.position = "top")
+  # ggsave(paste0(plots_wd, "/PNG/TOv3x_normaltumor_ctypes_genenames_",ctype_var,".png"), width=8, height=7)
+
+  #### TOv3x + log2ratio 3x ####
+  print(nrow(filtered_data_TOV3xlog2ratio3x_long %>% subset(ctype == ctype_var) %>% select(gene_name) %>% unique()))
+  temp_filtered_data_TOV3xlog2ratio3x_long = filtered_data_TOV3xlog2ratio3x_long %>% subset(ctype == ctype_var)
+  
+  ggplot(temp_filtered_data_TOV3xlog2ratio3x_long, aes(x=gene_name, y=logTPM, color=normal_tumor)) +
+    geom_quasirandom(dodge.width= .8, size=.5) +
+    scale_color_manual(values=c("#FFB900","#5773CC")) +
+    geom_hline(yintercept=log(1)) +
+    labs(x="",
+         title=paste0("Testis-Restricted genes TOv3x & log2ratio 3x in cancer | ",ctype_var,"\nExpression in tumor and adjacent samples")) +
+    theme_classic() +
+  theme(axis.text.x = element_text(angle=90),
+          legend.position = "top")
+  ggsave(paste0(plots_wd, "/PNG/TOv3xlog2ratio_normaltumor_ctypes_genenames_",ctype_var,".png"), width=8, height=7)
+}
+
+```
 
 
 

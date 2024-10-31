@@ -91,7 +91,7 @@ TOv3x %>% subset(gene_name %in% TOv3x_Translated_genes$gene_name) %>%
 ## Testis Specific | Tumor Reativated (TOv3x + log2ratio3x)
 
 ```{r log2ratio, echo=FALSE}
-TOv3x_log2ratio3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv")
+TOv3x_log2ratio3x = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
 print("TestisSpecific Tumor Reactivated | ORF level")
 print(table(TOv3x_log2ratio3x$gene_type))
 

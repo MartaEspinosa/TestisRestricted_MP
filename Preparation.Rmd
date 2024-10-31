@@ -119,10 +119,10 @@ table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type
 
 ```{r tumorReactivated, echo=FALSE}
 # tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv")
-tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv")
+tumorReact = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
 # filtered_data_TOv3x_long  = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xdata_long_5percent.csv")
 filtered_data_TOv3x_long  = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3xlog2ratiodata_long_5percent.csv")
-
+filtered_data_TOv3x_long = filtered_data_TOv3x_long %>% subset(gene_name %in% tumorReact$gene_name)
 
 tumorReact = merge(tumorReact, total_num_patients, by="ctype")
 print("ORFs")
@@ -130,11 +130,17 @@ table(tumorReact %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gen
 print("Genes")
 table(tumorReact %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
 
-print("Per cancertype")
+print("Per cancertype - genes")
 ctypes_tumorReact = tumorReact %>% mutate(coding_ncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
                                                                      TRUE ~ "noncoding")) %>% select(gene_id, ctype, coding_ncoding) %>% unique()
 table(ctypes_tumorReact$coding_ncoding, ctypes_tumorReact$ctype)
 table(ctypes_tumorReact$ctype)
+
+print("Per cancertype - orfs")
+ctypes_tumorReact_orfs = tumorReact %>% mutate(coding_ncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                                     TRUE ~ "noncoding")) %>% select(orfID, gene_id, ctype, coding_ncoding) %>% unique()
+table(ctypes_tumorReact_orfs$coding_ncoding, ctypes_tumorReact_orfs$ctype)
+table(ctypes_tumorReact_orfs$ctype)
 ```
 
 ```{r correlation_npatients_nTSTR, echo=F}

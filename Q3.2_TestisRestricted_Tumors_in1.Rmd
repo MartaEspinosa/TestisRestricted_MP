@@ -143,22 +143,22 @@ table(TAA_translated_genes$ctype)
 #                               stringsAsFactors = F)
 # for (ctype_var in cancers) {
 #   print(ctype_var)
-#   
+# 
 #   ## table of counts
 #   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
 #   ## pivot to make it easier to join
 #   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
 #   df_long$sample = gsub("^X","", df_long$sample)
 #   df_long$sample = gsub("\\.","-",df_long$sample)
-#   
+# 
 #   ## patients
 #   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
 #   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-#   
+# 
 #   ## combine
 #   complete_tableofcounts = merge(temp_patients, df_long, by="sample")
 #   complete_tableofcounts$ctype = ctype_var
-#   
+# 
 #   unfiltered_allfc = rbind(unfiltered_allfc, complete_tableofcounts)
 #   ## select the tumor-associated per ctype
 #   temp_TAA_translated_genes = TAA_translated_genes %>% subset(ctype == ctype_var)
@@ -174,7 +174,7 @@ table(TAA_translated_genes$ctype)
 # filtered_data_TAA = data_completed_wide %>% filter(tumor > 1)
 # 
 # filtered_data_TAA_long = filtered_data_TAA %>% pivot_longer(cols=c(normal, tumor), values_to = "TPM", names_to = "normal_tumor")
-# filtered_data_TAA_long = filtered_data_TAA_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10, 
+# filtered_data_TAA_long = filtered_data_TAA_long %>% mutate(forced_TPM = case_when(TPM == 0 ~ 1e-10,
 #                                                                                   TRUE ~ TPM))
 # filtered_data_TAA_long$logTPM = log(filtered_data_TAA_long$forced_TPM)
 # write.csv(filtered_data_TAA_long, file.path(save_wd,"TAAdata_long.csv"), row.names=F)

@@ -103,7 +103,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 
 ```{r import_data, echo=F}
 # TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"))
-TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv"))
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
 # tables_of_counts = data.frame(transcript_id = character(),
 #                               Length = numeric(),
@@ -138,7 +138,7 @@ TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP"
 ```
 
 ```{r patients_matrix_ctype, echo=F}
-TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv"))
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% mutate(n_percent = case_when(ctype == "BRCA" ~ num_patients_overexpr/109,
                                                                                        ctype == "BLCA" ~ num_patients_overexpr/38,
@@ -198,49 +198,11 @@ col_annot = col_annot %>% select(-c(ctype))
 ## Matrix for expression
 
 ```{r TPMs_matrix_ctype_lncRNA, echo=F}
-TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv"))
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
-# data_completed_TSA = data.frame(transcript_id = character(),
-#                               Length = numeric(),
-#                               sample = character(),
-#                               TPM = numeric(),
-#                               patient = factor(),
-#                             normal_tumor = factor(),
-#                             project = character(),
-#                             ctype = character(),
-#                               stringsAsFactors = F)
-# 
-# for (ctype_var in cancers) {
-#   print(ctype_var)
-# 
-#   temp_TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype == ctype_var)
-# 
-#   ## table of counts
-#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
-#   ## pivot to make it easier to join
-#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
-#   df_long$sample = gsub("\\.","-", df_long$sample)
-#   df_long$sample = gsub("^X","",df_long$sample)
-# 
-#   ## patients
-#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
-#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-# 
-#   data_completed = merge(temp_patients, df_long, by="sample")
-#   data_completed$ctype = ctype_var
-# 
-#   ## select the TTS per ctype
-#   data_completed_TSA_temp = data_completed %>% subset(transcript_id %in% temp_TSA_TestisGTEx_Translated$transcript_id)
-#   data_completed_TSA = rbind(data_completed_TSA, data_completed_TSA_temp)
-# 
-# }
-# 
-# ## add more info about the genes
-# data_completed_TSA = merge(data_completed_TSA, annot, by="transcript_id")
-# 
-# ## save the data
-# write.csv(data_completed_TSA, file.path(save_wd,"TTS_TPM_patients_log2ratio.csv"), row.names=F)
-data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients_log2ratio.csv"))
+
+data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
+data_completed_TSA = data_completed_TSA %>% subset(gene_id %in% TSA_TestisGTEx_Translated$gene_id)
 ```
 
 
@@ -256,7 +218,7 @@ names(step2)[4] = "forced_tumor_expr"
 # # ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
 # data_completed_TSA_forced = data_completed_TSA_wide %>% mutate(forced_tumor_expr = case_when(normal < 0.1 & tumor > 1 ~ tumor,
 #                                                                                   TRUE ~ 0))
-write.csv(step2, file.path(save_wd,"TOv3xlog2ratio3x_forcedTPM_patients.csv"), row.names=F)
+write.csv(step2, file.path(save_wd,"TOv3xlog2ratio3xMEAN_forcedTPM_patients.csv"), row.names=F)
 
 
 ### force for normals as well
@@ -267,9 +229,9 @@ step3_2 = step2_2 %>% mutate(forced_normal_expr = case_when(forced_tumor_expr ==
                                                             TRUE ~ TPM)) %>% select(-TPM)
 step3_2[is.na(step3_2)] = 0
 
-write.csv(step3_2, file.path(save_wd,"TOv3xlog2ratio3x_forcedTPM_patients_normals.csv"), row.names=F)
+write.csv(step3_2, file.path(save_wd,"TOv3xlog2ratio3xMEAN_forcedTPM_patients_normals.csv"), row.names=F)
 
-data_completed_TSA_forced = read.csv(file.path(save_wd,"TOv3xlog2ratio3x_forcedTPM_patients.csv"))
+data_completed_TSA_forced = read.csv(file.path(save_wd,"TOv3xlog2ratio3xMEAN_forcedTPM_patients.csv"))
 data_completed_TSA_forced = data_completed_TSA_forced %>% subset(ctype != "KIRP")
 data_completed_TSA_wide = data_completed_TSA_forced %>% subset(forced_tumor_expr > 0)
 ## select only the patients for which the gene is TSA
@@ -588,7 +550,7 @@ ggsave(file.path(plots_wd, "PDF/TOv3xlog2ratio3xburden_coding_vs_noncoding.pdf")
 ## Matrix for patients
 
 ```{r patients_matrix_ctype2, echo=F}
-TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x.csv"))
+TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% mutate(n_percent = case_when(ctype == "BRCA" ~ num_patients_overexpr/109,
                                                                                        ctype == "BLCA" ~ num_patients_overexpr/38,
