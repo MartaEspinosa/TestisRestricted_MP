@@ -1478,7 +1478,7 @@ data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
 mean_values = data_completed_TSA %>% group_by(gene_name, ctype, gene_type, normal_tumor) %>% subset(ctype != "KIRP") %>% summarise(mean = mean(TPM))
 mean_values = mean_values %>% pivot_wider(names_from = normal_tumor, values_from = mean)
 mean_values$log2ratio_TvsN = log2(mean_values$tumor /  mean_values$normal)
-mean_values = mean_values = merge(mean_values, annot %>% select(gene_name, chr), by="gene_name")
+mean_values = mean_values = merge(mean_values, annot %>% select(gene_id, gene_name, chr), by="gene_name")
 log2ratio_3x = mean_values %>% subset(log2ratio_TvsN >= log2(3)) ## !!
 write.csv(log2ratio_3x, file.path(save_wd,"TOv3x_log2ratio3xMEAN_ctypes.csv"), row.names = F)
 table(log2ratio_3x$gene_type, log2ratio_3x$ctype)

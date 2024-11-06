@@ -458,6 +458,19 @@ for(ctype_var in cancers) {
 
 ```
 
+```{r test, echo=F}
+ggplot(cancers_fc %>% subset(gene_name == "MAGEA3") %>% mutate(logTPM = log2(TPM)), aes(x=ctype, y=logTPM, fill=normal_tumor)) +
+  geom_boxplot(position = position_dodge(width=.8)) +
+  geom_jitter(aes(color=normal_tumor), position=position_jitterdodge(dodge.width = 0.8), alpha=.4, size=1) +
+  scale_fill_manual(values=c("#FFB900","#5773CC")) +
+  scale_color_manual(values=c("#FFB900","#5773CC")) +
+  stat_compare_means(label = "p.signif", paired=TRUE, label.y=3) +
+  labs(x="Cancer Type",
+       y="logTPM",
+       title="MAGEA3") +
+  theme_classic() +
+  theme(legend.position = "top")
+```
 
 
 
