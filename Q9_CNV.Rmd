@@ -51,15 +51,17 @@ TSTR = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/
 
 
 ```{r gistic, echo=F}
-# for(ctype_var in cancers) {
-#   print(ctype_var)
-#   gistic_obj <- tcga_gistic_load(ctype_var, source = "Firehose", cnLevel = "all")
-#   # tcga_gistic_available()
-#   
-#   # gisticChromPlot(gistic_obj)
-#   # gistic_obj
-#   write.GisticSummary(gistic_obj, basename=paste0(save_wd,"/gistic_",ctype_var))
-# }
+for(ctype_var in cancers) {
+  print(ctype_var)
+  gistic_obj <- tcga_gistic_load(ctype_var, source = "Firehose", cnLevel = "all")
+  # tcga_gistic_available()
+
+  png(paste0(save_wd,"/ChromPlotGistic_",ctype_var,".png"), width=7, height=6, res=400, units = "in")
+  gisticChromPlot(gistic_obj)
+  dev.off()
+  # gistic_obj
+  write.GisticSummary(gistic_obj, basename=paste0(save_wd,"/gistic_",ctype_var))
+}
 ```
 
 ```{r samples, echo=F}
@@ -67,7 +69,7 @@ results = data.frame("gene_name" = character(),
                      "gene_id" = character())
 
 
-for(ctype_var in cancers) {
+for(ctype_var in c("BLCA")) {
 
   print(ctype_var)
   ## patients
@@ -123,8 +125,10 @@ for(ctype_var in cancers) {
   gCytobandSummary_ordered = gCytobandSummary %>% select(Unique_Name, nGenes, nSamples, Variant_Classification, Cytoband, Wide_Peak_Limits, qvalues)
   write.table(gCytobandSummary_ordered, paste0(save_wd,"/matchedSamples/gistic_",ctype_var,"_gisticCytobandSummary.txt"), sep="\t", row.names =F, quote = F)
   
-  
-  
+  gData %>% head
+  gCNVSummary %>% head
+  gCytobandSummary_ordered %>% head
+  gGeneSummary_merged %>% head
   
   ### analysis by hugo symbol
   ctype_candidates = candidates_complete %>% subset(ctype == ctype_var)

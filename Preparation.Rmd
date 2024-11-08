@@ -370,7 +370,7 @@ age_counts = as.data.frame(age_counts)
 
 ggplot(age_counts %>% subset(coding_noncoding == "protein_coding"), aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
   geom_bar(stat = "identity", position = "stack") +
-  scale_fill_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
   labs(x="Reactivation in tumor",
        y="Proportion",
        title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
@@ -380,7 +380,7 @@ ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar_coding.png"), width=5.78, 
 
 ggplot(age_counts, aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
   geom_bar(stat = "identity", position = "stack") +
-  scale_fill_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
   labs(x="Reactivation in tumor",
        y="Proportion",
        title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
@@ -392,7 +392,7 @@ ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=7.78, height=
 
 ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
   geom_quasirandom(size=1) +
-  scale_color_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  scale_color_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
   scale_y_continuous(trans="log10") +
   labs(x="Evolutionary Conservation of ORFs",
        y="Length (AA)",
@@ -405,7 +405,8 @@ ggsave(file.path(plots_wd, "PNG/Conservation_Length.png"), width=6.21, height=5.
 
 ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
   geom_quasirandom(size=1) +
-  scale_color_manual(values=c("primate" = "#A06177FF", "mammal" = "#9C9C5EFF", "conserved - outgroup" = "#467378FF")) +
+  geom_quasirandom(size=1) +
+  scale_color_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
   scale_y_continuous(trans="log10") +
   labs(x="Evolutionary Conservation of ORFs",
        y="Length (AA)",
@@ -796,7 +797,7 @@ length(GRanges_GTF_tumorReact_NONCODING$gene_id)
 # setdiff(tumorReact_genes %>% subset(coding_noncoding == "noncoding") %>% pull(gene_id), GRanges_GTF_tumorReact_NONCODING$gene_id) 
 # intersect(tumorReact_genes %>% subset(coding_noncoding == "noncoding") %>% pull(gene_id), GRanges_GTF_tumorReact_NONCODING$gene_id)
 
-png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr.png"), height=9.26, width=15.20, units = "in", res=400)
+png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr_labels.png"), height=9.26, width=15.20, units = "in", res=400)
 kp <- plotKaryotype(genome="hg38")
 kpPlotMarkers(kp, data=GRanges_GTF_tumorReact_CODING, labels=GRanges_GTF_tumorReact_CODING$gene_name,
               text.orientation = "horizontal",
@@ -804,8 +805,35 @@ kpPlotMarkers(kp, data=GRanges_GTF_tumorReact_CODING, labels=GRanges_GTF_tumorRe
 kpPlotMarkers(kp, data=GRanges_GTF_tumorReact_NONCODING, labels=GRanges_GTF_tumorReact_NONCODING$gene_name, text.orientation = "horizontal",
               r1=0.5, cex=0.6, adjust.label.position = T,
               label.color = "blue", line.color = "blue")
-dev.off()
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("red", "blue"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend titledev.off()
 
+png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr.png"), height=9.26, width=15.20, units = "in", res=400)
+kp <- plotKaryotype(genome="hg38")
+# Plot the coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_CODING,
+           y0=0, y1=0.5, col="red") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_CODING,
+         y=0.5, col="red", pch=19, cex=0.6) # Add dots
+
+# Plot the non-coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_NONCODING,
+           y0=0, y1=0.5, col="blue") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_NONCODING,
+         y=0.5, col="blue", pch=19, cex=0.6) # Add dots
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("red", "blue"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend title
+dev.off()
 ```
 
 ## Thymus expression
