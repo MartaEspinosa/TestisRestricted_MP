@@ -798,6 +798,22 @@ ggvenn(list("brain"=ribORF_humanBrain_simplified$orfID,
 ggsave(file.path(plots_wd,"PNG/testisRestricted_translated_tissues.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestricted_translated_tissues.pdf"), height=4.69, width=5.4)
 
+ggvenn(list("brain"=ribORF_humanBrain_simplified %>% subset(gene_type == "lncRNA") %>% pull(orfID),
+                 "liver"=ribORF_humanLiver_simplified %>% subset(gene_type == "lncRNA") %>% pull(orfID),
+                 "testis"=testisRestrictedGTEx_Translated %>% subset(gene_type == "lncRNA") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C57A2","#ABCD72","#82581F")) +
+  ggtitle("Translated lncRNA-ORFs per tissues")
+ggsave(file.path(plots_wd,"PNG/testisRestricted_translated_tissues_lncRNA.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisRestricted_translated_tissues_lncRNA.pdf"), height=4.69, width=5.4)
+
+ggvenn(list("brain"=ribORF_humanBrain_simplified %>% subset(gene_type == "protein_coding") %>% pull(orfID),
+                 "liver"=ribORF_humanLiver_simplified %>% subset(gene_type == "protein_coding") %>% pull(orfID),
+                 "testis"=testisRestrictedGTEx_Translated %>% subset(gene_type == "protein_coding") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C57A2","#ABCD72","#82581F")) +
+  ggtitle("Translated CDSs per tissues")
+ggsave(file.path(plots_wd,"PNG/testisRestricted_translated_tissues_proteincoding.png"), height=4.69, width=5.4)
+ggsave(file.path(plots_wd,"PDF/testisRestricted_translated_tissues_proteincoding.pdf"), height=4.69, width=5.4)
+
 testisRestrictedGTEx_Translated = testisRestrictedGTEx_Translated %>% mutate("TranslatedLiver" = case_when(orfID %in% ribORF_humanLiver_simplified$orfID ~ "yes",TRUE ~ "no")) %>% mutate("TranslatedBrain" = case_when(orfID %in% ribORF_humanBrain_simplified$orfID ~ "yes",TRUE ~ "no"))
 
 ## select those only TRANSLATED in testis (in at least 2 samples) and no in any sample from brain or liver 

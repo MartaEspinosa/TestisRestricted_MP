@@ -121,7 +121,38 @@ print("Genes")
 table(testis %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
 ```
 
-## TestisRestricted - No Present in Proteome (/)BLASTP)
+```{r correlation_TPMs, echo=F}
+corr_TPMs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/translationEfficiency_testis.withoutZeros.csv")
+
+## sample1
+corr_TPMs %>% subset(sample == "Testis_1") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 1") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis1_RNA_Ribo_TPM.png"))
+## sample2
+corr_TPMs %>% subset(sample == "Testis_2") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 2") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis2_RNA_Ribo_TPM.png"))
+## sample3
+corr_TPMs %>% subset(sample == "Testis_3") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 3") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM.png"))
+```
+## TestisRestricted - No Present in Proteome (BLASTP)
 
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2_TestisRestricted_in1.Rmd`
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2.1_TestisRestricted_BLASTP_ncORFSvsCDS.ipynb`
@@ -272,7 +303,11 @@ testisRestr = testisRestr %>%
   mutate(tumorReactivated = case_when(gene_id %in% tumorReact$gene_id ~ "Reactivated",
                                       TRUE ~ "NoReactivated")) %>%
   mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
-                                                          TRUE ~ "noncoding"))
+                                                          TRUE ~ "noncoding")) %>% 
+  mutate(coding_noncoding_chr = case_when((coding_noncoding == "protein_coding") & grepl("X",orfID) ~ "CT-X",
+                                          coding_noncoding == "noncoding"  ~ "noncoding",
+                                                          TRUE ~ "CT-nonX"))
+         
 ```
 
 ```{r length, echo=F}
@@ -290,6 +325,21 @@ testisRestr %>% select(gene_id, coding_noncoding, length_aa, tumorReactivated) %
   scale_y_continuous(trans="log10") +
   theme_minimal()
 ggsave(file.path(plots_wd, "PNG/TSTR_Length_boxplot.png"), width=6.28, height=5.82)
+
+testisRestr %>% select(gene_id, coding_noncoding_chr, length_aa, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=length_aa, x=coding_noncoding_chr, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  labs(x="",
+       y="Length (AA)",
+       title = "Length differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  scale_y_continuous(trans="log10") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_Length_boxplot_chr.png"), width=6.28, height=5.82)
+
+
 ```
 
 ## Translation efficiency
@@ -312,6 +362,18 @@ testisRestr %>% select(gene_id, coding_noncoding, mean_TE, tumorReactivated) %>%
   theme_minimal()
 ggsave(file.path(plots_wd, "PNG/TSTR_TE_boxplot.png"), width=6.28, height=5.82)
 
+testisRestr %>% select(gene_id, coding_noncoding_chr, mean_TE, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=mean_TE, x=coding_noncoding_chr, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_y_continuous(trans="log10") +
+  labs(x="",
+       y="Mean Translation Efficiency",
+       title = "TE differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_TE_boxplot_chr.png"), width=6.28, height=5.82)
 ```
 
 ## Evolutionary conservation of ORFs

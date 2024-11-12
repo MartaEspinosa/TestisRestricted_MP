@@ -69,7 +69,7 @@ results = data.frame("gene_name" = character(),
                      "gene_id" = character())
 
 
-for(ctype_var in c("BLCA")) {
+for(ctype_var in cancers) {
 
   print(ctype_var)
   ## patients
@@ -149,17 +149,39 @@ for(ctype_var in c("BLCA")) {
 
   ## first match the chr
   ctype_candidates_gCytobandSummary = merge(gCytobandSummary_ordered, ctype_candidates, by="chr")
+  ctype_candidates_gCytobandSummary$start = as.numeric(ctype_candidates_gCytobandSummary$start)
+  ctype_candidates_gCytobandSummary$end = as.numeric(ctype_candidates_gCytobandSummary$end)
+  ctype_candidates_gCytobandSummary$start_cyto = as.numeric(ctype_candidates_gCytobandSummary$start_cyto)
+  ctype_candidates_gCytobandSummary$end_cyto = as.numeric(ctype_candidates_gCytobandSummary$end_cyto)
+
   ## start gene <= start cytoband
   inside_start = ctype_candidates_gCytobandSummary %>%
-  filter(start <= start_cyto) ## some start inside but finish outside
-  inside_start_end = inside_start %>% filter(end_cyto >= end)
+  subset(start >= start_cyto) ## some start inside but finish outside
+  inside_start_end = inside_start %>% subset(end_cyto >= end)
 
   cnv_TSTR_ctype = merge(TSTR %>% subset(ctype == ctype_var) %>% select(-X), inside_start_end %>% select(gene_name, Unique_Name, Cytoband, Variant_Classification, log2ratio_TvsN, Wide_Peak_Limits, position), by="gene_name")
+  cnv_TSTR_ctype = merge(cnv_TSTR_ctype, gData %>% select(-Hugo_Symbol), by.x=c("Variant_Classification","Unique_Name"), by.y=c("Variant_Classification","Cytoband"))
   results = rbind(results, cnv_TSTR_ctype)
 }
 ```
 
 ```{r results, echo=F}
-noncoding_results = results %>% subset(coding_noncoding == "noncoding")
+noncoding_results = results %>% subset(coding_noncoding == "noncoding") %>% unique()
+# print(unique(noncoding_results$gene_name))
+to_table = noncoding_results %>% select(gene_name, Variant_Classification, ctype) %>% unique() #%>% group_by(Variant_Classification, ctype) %>% count()
+print(table(to_table$Variant_Classification, to_table$ctype))
+
+noncoding_genes = noncoding_results %>% select(gene_name, Variant_Classification, ctype, num_patients_overexpr, percentage_num_patients_overexpr, Tumor_Sample_Barcode) %>% unique() %>% group_by(gene_name, Variant_Classification, ctype) %>% count()
+noncoding_genes = merge(noncoding_genes, noncoding_results %>% select(gene_name, ctype, num_patients_overexpr, percentage_num_patients_overexpr) %>% unique(), by=c("gene_name","ctype"))
+```
+
+```{r results, echo=F}
+coding_results = results %>% subset(coding_noncoding != "noncoding") %>% unique()
+# print(unique(noncoding_results$gene_name))
+to_table = coding_results %>% select(gene_name, Variant_Classification, ctype) %>% unique() #%>% group_by(Variant_Classification, ctype) %>% count()
+print(table(to_table$Variant_Classification, to_table$ctype))
+
+coding_genes = coding_results %>% select(gene_name, Variant_Classification, ctype, num_patients_overexpr, percentage_num_patients_overexpr, Tumor_Sample_Barcode) %>% unique() %>% group_by(gene_name, Variant_Classification, ctype) %>% count()
+coding_genes = merge(coding_genes, coding_results %>% select(gene_name, ctype, num_patients_overexpr, percentage_num_patients_overexpr) %>% unique(), by=c("gene_name","ctype"))
 ```
 
