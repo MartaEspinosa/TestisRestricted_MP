@@ -110,6 +110,6 @@ print("TOv3x_log2ratio3x Translated in Breast Cancer | gene level")
 print(table(TOv3x_log2ratio3x_Translated_genes$gene_type))
 
 ## WHICH?
-TOv3x_log2ratio3x %>% subset(gene_name %in% TOv3x_log2ratio3x_Translated_genes$gene_name) %>% 
-  select(gene_id,gene_name,gene_type,num_patients_overexpr,ctype,percentage_num_patients_overexpr)
+View(TOv3x_log2ratio3x %>% subset(gene_name %in% TOv3x_log2ratio3x_Translated_genes$gene_name) %>% 
+  select(gene_id,gene_name,gene_type,num_patients_overexpr,ctype,percentage_num_patients_overexpr))
 ```

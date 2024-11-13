@@ -1474,6 +1474,8 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
 ```
 
 ```{r data_for_all_ctypes_log2ratio3xMEAN, echo=F}
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.noProteome.csv')
+
 data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
 mean_values = data_completed_TSA %>% group_by(gene_name, ctype, gene_type, normal_tumor) %>% subset(ctype != "KIRP") %>% summarise(mean = mean(TPM))
 mean_values = mean_values %>% pivot_wider(names_from = normal_tumor, values_from = mean)
@@ -1487,13 +1489,15 @@ chrX_3x = log2ratio_3x %>% subset(gene_type == "protein_coding") %>% mutate(X_no
 table(chrX_3x$X_noX, chrX_3x$ctype)
 
 TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes.csv"))
+TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(gene_name %in% testisRestr$gene_name)
 tmp_orfs = TSA_TestisGTEx_Translated %>% select(orfID, gene_id, gene_name, gene_type) %>% unique()
 print("ORFs")
 table(tmp_orfs$gene_type)
 tmp_genes = TSA_TestisGTEx_Translated %>% select(gene_id, gene_name, gene_type) %>% unique()
 print("genes")
 table(tmp_genes$gene_type)
-TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(gene_name %in% log2ratio_3x$gene_name) %>%
+TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(gene_name %in% log2ratio_3x$gene_name)
+TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% 
   mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ gene_type,
                                       TRUE ~ "noncoding"))
 write.csv(TSA_TestisGTEx_Translated, file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
@@ -1534,7 +1538,7 @@ noncoding_TSA_TestisGTEx_Translated %>%
 ```
 
 ```{r means_3x, echo=F}
-TOv3xlog2ratio_GTEX_all_translated_genes = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
+TOv3xlog2ratio_GTEX_all_translated_genes = read.csv(file.path(save_wd,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 
 data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
 data_completed = data.frame(transcript_id = character(),
@@ -1553,14 +1557,14 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   mean_values = data_completed_TSA %>% subset(ctype == ctype_var) %>% group_by(gene_name, ctype, gene_type, normal_tumor) %>% summarise(mean = mean(TPM))
   mean_values = mean_values %>% pivot_wider(names_from = normal_tumor, values_from = mean)
   mean_values$log2ratio_TvsN = log2(mean_values$tumor /  mean_values$normal)
-  
+
   ############ !!!!!! log2ratio 3x ####################
   log2ratio_3x = mean_values %>% subset(log2ratio_TvsN >= log2(3)) #!!!
   print(nrow(log2ratio_3x))
 
   
   ############ tumor - log2ratio 3x
-  df = data_completed_TSA %>% subset(ctype == ctype_var) %>% subset(normal_tumor == "tumor") %>% subset(gene_name %in% log2ratio_3x$gene_name)
+  df = data_completed_TSA %>% subset(ctype == ctype_var) %>% subset(normal_tumor == "tumor") %>% subset(gene_name %in% TOv3xlog2ratio_GTEX_all_translated_genes$gene_name) %>% subset(gene_name %in% log2ratio_3x$gene_name)
 
   df = df %>% unique()
 
