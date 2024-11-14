@@ -68,7 +68,7 @@ for(ctype_var in cancers) {
 results = data.frame("gene_name" = character(),
                      "gene_id" = character())
 
-
+TOv3x_per_patient = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers/overexpression_tumor_3xnormal/cancertypes/GTEx/GTEx_tumor_3xnormal_TPMs_patients_ctypes.csv")
 for(ctype_var in cancers) {
 
   print(ctype_var)

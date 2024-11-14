@@ -1,0 +1,369 @@
+---
+title: "Liver|Brain"
+author: "Marta Espinosa"
+date: "2024-11-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+# library(ggthemr)
+library(ggbeeswarm)
+library(ggbreak)
+library(ggrepel)
+library(rcartocolor)
+library(UpSetR)
+library(karyoploteR)
+library(GenomicRanges)
+library(rtracklayer)
+library(Hmisc)
+library(corrplot)
+library(stats)
+library(car)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
+chr_annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gene_transcript_chr.csv")
+chr_annot$gene_id = gsub("\\..*","",chr_annot$gene_id)
+chr_annot$gene_id = gsub("_PAR*","",chr_annot$gene_id)
+chr_annot$transcript_id = gsub("\\..*","",chr_annot$transcript_id)
+annot = merge(annot, chr_annot, by=c("gene_id", "transcript_id"))
+plots_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/PreparationPlots/Controls"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
+                                       TRUE ~ "A"))
+CTDB = separate_rows(CTDB, gene_name, sep = "/")
+CTDB = separate_rows(CTDB, gene_name, sep = ",")
+
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+
+# "#855C75FF","#D9AF6BFF", "#AF6458FF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF"
+# Extract the correlation coefficients
+# res2$r
+# Extract p-values
+# res2$P
+# A simple function to format the correlation matrix
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+# flattenCorrMatrix(res2$r, res2$P)
+```
+
+## LiverORFs
+
+`/home/marta/PROJECT_SCRIPTS/liverRestricted_MP/Q1.1_TestisORFs_in1.Rmd`
+
+```{r liver, echo=F}
+liver = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanLiver_translated.csv")
+print("ORFs")
+table(liver %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(liver %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+### Evolutionary conservation of ORFs
+
+```{r evoLiver, echo=F}
+### evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/LIVER_allHuman_matrix_oldestAge.tsv", sep="\t")
+liver = merge(liver, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+liver[is.na(liver)] = "human"
+
+liver = liver %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+liver = liver %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts = liver %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n)) 
+age_counts
+```
+
+## LiverRestricted
+
+`/home/marta/PROJECT_SCRIPTS/liverRestricted_MP/Q2_LiverRestricted.Rmd`
+
+```{r liverRestricted, echo=F}
+liverRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/liverRestricted_GTEx_translatedONLYliver.csv')
+print("ORFs")
+table(liverRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(liverRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+### Evolutionary conservation of ORFs
+
+```{r evoLiverRestr, echo=F}
+## evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/LIVER_allHuman_matrix_oldestAge.tsv", sep="\t")
+liverRestr = merge(liverRestr, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+liverRestr[is.na(liverRestr)] = "human"
+
+liverRestr = liverRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+liverRestr = liverRestr %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts = liverRestr %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n))
+age_counts
+```
+
+## BrainORFs
+
+`/home/marta/PROJECT_SCRIPTS/liverRestricted_MP/Q1.1_TestisORFs_in1.Rmd`
+
+```{r brain, echo=F}
+brain = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanBrain_translated.csv")
+print("ORFs")
+table(brain %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(brain %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r evoBrain, echo=F}
+## evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/BRAIN_allHuman_matrix_oldestAge.tsv", sep="\t")
+brain = merge(brain, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+brain[is.na(brain)] = "human"
+
+brain = brain %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+brain = brain %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts_brain = brain %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n))
+age_counts_brain
+```
+
+## BrainRestricted
+
+`/home/marta/PROJECT_SCRIPTS/liverRestricted_MP/Q2_BrainRestricted.Rmd`
+
+```{r brainRestricted, echo=F}
+brainRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/brainRestricted_GTEx_translatedONLYbrain.csv')
+print("ORFs")
+table(brainRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(brainRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r evoBrainRestr, echo=F}
+## evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/BRAIN_allHuman_matrix_oldestAge.tsv", sep="\t")
+brainRestr = merge(brainRestr, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+brainRestr[is.na(brainRestr)] = "human"
+
+brainRestr = brainRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+brainRestr = brainRestr %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts_brainRestr = brainRestr %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n))
+age_counts_brainRestr
+```
+
+## TestisORFs
+
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q1.1_TestisORFs_in1.Rmd`
+
+```{r testis, echo=F}
+testis = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+print("ORFs")
+table(testis %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(testis %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r evoTestis, echo=F}
+## evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
+testis = merge(testis, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+testis[is.na(testis)] = "human"
+
+testis = testis %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+testis = testis %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts_testis = testis %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n))
+age_counts_testis
+```
+
+## TestisRestricted
+
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2_TestisRestricted_in1.Rmd`
+
+```{r testisRestricted, echo=F}
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv')
+print("ORFs")
+table(testisRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("Genes")
+table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+
+```{r evotestisRestr, echo=F}
+## evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
+testisRestr = merge(testisRestr, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+testisRestr[is.na(testisRestr)] = "human"
+
+testisRestr = testisRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+testisRestr = testisRestr %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
+                                                                TRUE ~ "noncoding"))
+age_counts_testisRestr = testisRestr %>% select(gene_id, coding_noncoding, age_categorical) %>% unique() %>% group_by(coding_noncoding, age_categorical) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n))
+age_counts_testisRestr
+```
+
+### Some plots
+
+```{r plots_translated, echo=F}
+## translated
+testis$tissue = "testis"
+liver$tissue = "liver"
+brain$tissue = "brain"
+
+translated = rbind(testis %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type),
+                   liver %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type),
+                   brain %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type))
+translated_grouped = translated %>% group_by(gene_type, tissue) %>% count()
+translated_grouped
+
+ggvenn(list("Testis"= translated %>% subset(tissue == "testis") %>% pull(gene_name) %>% unique(),
+                 "Liver"=translated %>% subset(tissue == "liver") %>% pull(gene_name) %>% unique(),
+                 "Brain"=translated %>% subset(tissue == "brain") %>% pull(gene_name) %>% unique()),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle("All genetypes")
+ggsave(file.path(plots_wd,"venn_tissues.png"))
+
+## noncoding
+ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique(),
+                 "Liver"=translated %>% subset(tissue == "liver" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique(),
+                 "Brain"=translated %>% subset(tissue == "brain" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique()),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle("ncORFs")
+ggsave(file.path(plots_wd,"venn_tissues_noncoding.png"))
+
+## lncRNAs
+ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique(),
+                 "Liver"=translated %>% subset(tissue == "liver" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique(),
+                 "Brain"=translated %>% subset(tissue == "brain" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique()),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle("ncORFsn from lncRNAs")
+ggsave(file.path(plots_wd,"venn_tissues_lncRNAs.png"))
+
+## coding
+ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique(),
+                 "Liver"=translated %>% subset(tissue == "liver" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique(),
+                 "Brain"=translated %>% subset(tissue == "brain" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique()),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+  ggtitle("Coding Sequences")
+ggsave(file.path(plots_wd,"venn_tissues_coding.png"))
+
+
+################ EVOAGE ###############
+ggplot(translated, aes(x=tissue, fill=age_categorical, fill=age_categorical)) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  theme_minimal()
+```
+
+```{r plots_restricted, echo=F}
+## translated
+testisRestr$tissue = "testis"
+liverRestr$tissue = "liver"
+brainRestr$tissue = "brain"
+
+translatedRestr = rbind(testisRestr %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type),
+                   liverRestr %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type),
+                   brainRestr %>% select(orfID, gene_name, coding_noncoding, tissue, oldest_species, age_categorical, gene_type))
+translatedRestr_grouped = translatedRestr %>% group_by(gene_type, tissue) %>% count()
+translatedRestr_grouped
+
+ggplot(translatedRestr_grouped, aes(x=tissue, y=n, fill=gene_type)) +
+  geom_bar(position="stack", stat="identity") +
+  theme_minimal()
+ggplot(translatedRestr_grouped, aes(x=tissue, y=n, fill=gene_type)) +
+  geom_bar(position="fill", stat="identity") +
+  theme_minimal()
+
+
+################ EVOAGE ###############
+ggplot(translatedRestr, aes(x=tissue, fill=age_categorical, fill=age_categorical)) +
+  geom_bar(position="fill") +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  theme_minimal()
+```

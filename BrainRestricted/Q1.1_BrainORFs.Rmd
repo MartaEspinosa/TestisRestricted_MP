@@ -53,17 +53,17 @@ ribORF_humanBrain_1$transcript_id = gsub("\\..*","", ribORF_humanBrain_1$transcr
 nrow(ribORF_humanBrain_1)
  
 ##-------------------------- SAMPLE 2 --------------------------##
-ribORF_humanBrain_2 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/RibORF/human_brain_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
+ribORF_humanBrain_1 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/RibORF/human_brain_ribo_2_r1/pred.pvalue.parameters.txt", header=T)
 
-repre_ribORF_humanBrain_2 =  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/RibORF/human_brain_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
+repre_ribORF_humanBrain_1 =  read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/RibORF/human_brain_ribo_2_r1/repre.valid.ORF.genepred.txt", header=F)
 
-ribORF_humanBrain_2 = ribORF_humanBrain_2 %>% subset(orfID %in% repre_ribORF_humanBrain_2$V1)
-ribORF_humanBrain_2$sample = "Brain2"
+ribORF_humanBrain_1 = ribORF_humanBrain_1 %>% subset(orfID %in% repre_ribORF_humanBrain_1$V1)
+ribORF_humanBrain_1$sample = "Brain1"
 ## get transcriptID
-ribORF_humanBrain_2$transcript_id = gsub(":.*","", ribORF_humanBrain_2$orfID)
-ribORF_humanBrain_2$transcript_id = gsub("\\..*","", ribORF_humanBrain_2$transcript_id)
+ribORF_humanBrain_1$transcript_id = gsub(":.*","", ribORF_humanBrain_1$orfID)
+ribORF_humanBrain_1$transcript_id = gsub("\\..*","", ribORF_humanBrain_1$transcript_id)
 
-nrow(ribORF_humanBrain_2)
+nrow(ribORF_humanBrain_1)
 
 ##-------------------------- SAMPLE 3 --------------------------##
 ribORF_humanBrain_3 = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/RibORF/human_brain_ribo_3_r1/pred.pvalue.parameters.txt", header=T)
@@ -78,24 +78,24 @@ ribORF_humanBrain_3$transcript_id = gsub("\\..*","", ribORF_humanBrain_3$transcr
 nrow(ribORF_humanBrain_3)
 
 ### Concatenate ncORFs for all 2 samples
-ribORF_humanBrain = rbind(ribORF_humanBrain_3, ribORF_humanBrain_2, ribORF_humanBrain_1)
+ribORF_humanBrain = rbind(ribORF_humanBrain_3, ribORF_humanBrain_1, ribORF_humanBrain_1)
 
 ggvenn(list("Sample1"=ribORF_humanBrain_1$orfID,
-                 "Sample2"=ribORF_humanBrain_2$orfID,
+                 "Sample2"=ribORF_humanBrain_1$orfID,
                  "Sample3"=ribORF_humanBrain_3$orfID),
        fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
   ggtitle("Brain-expressed ORFs")
-ggsave(paste0(plots_wd,"/PNG/venn_BrainExpressedORFs.png"))
-ggsave(paste0(plots_wd,"/PDF/venn_BrainExpressedORFs.pdf"))
+# ggsave(paste0(plots_wd,"/PNG/venn_BrainExpressedORFs.png"))
+# ggsave(paste0(plots_wd,"/PDF/venn_BrainExpressedORFs.pdf"))
 
 ### only novels
 ggvenn(list("Sample1"=ribORF_humanBrain_1 %>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID),
-                 "Sample2"=ribORF_humanBrain_2%>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID),
+                 "Sample2"=ribORF_humanBrain_1%>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID),
                  "Sample3"=ribORF_humanBrain_3%>% subset(grepl("TCONS",transcript_id)) %>% pull(orfID)),
        fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
   ggtitle("Novel Brain-expressed ORFs")
-ggsave(paste0(plots_wd,"/PNG/venn_NovelBrainExpressedORFs.png"))
-ggsave(paste0(plots_wd,"/PDF/venn_NovelBrainExpressedORFs.pdf"))
+# ggsave(paste0(plots_wd,"/PNG/venn_NovelBrainExpressedORFs.png"))
+# ggsave(paste0(plots_wd,"/PDF/venn_NovelBrainExpressedORFs.pdf"))
 
 ```
 
@@ -119,29 +119,29 @@ ribORF_humanBrain_Annotated_biotypes = ribORF_humanBrain_Annotated %>%
 
 ncORFs from lncRNA and processed pseudogenes + canonical ORFs.
 
-```{r translated_in_2, echo=F}
+```{r translated_in_1, echo=F}
 ## of the selected, select those that are translated in at least 2 out of 3 liver samples
-translated_in_2 = ribORF_humanBrain_Annotated_biotypes %>%
+translated_in_1 = ribORF_humanBrain_Annotated_biotypes %>%
   select(orfID,gene_id,gene_type) %>%
   group_by(orfID,gene_id,gene_type) %>%
   count()
-names(translated_in_2)[4] = "n"
-translated_in_2 = translated_in_2 %>% 
-  subset(n>1) %>% unique()
+names(translated_in_1)[4] = "n"
+translated_in_1 = translated_in_1 %>% 
+  subset(n>0) %>% unique()
 
-table(translated_in_2$gene_type)
-ribORF_humanBrain_in2 = ribORF_humanBrain_Annotated_biotypes %>% subset(orfID %in% translated_in_2$orfID) 
-write.csv(ribORF_humanBrain_in2, file.path(save_wd,"ribORF_humanBrain_translated_in_2.fulltable.csv"), row.names = F)
+table(translated_in_1$gene_type)
+ribORF_humanBrain_in1 = ribORF_humanBrain_Annotated_biotypes %>% subset(orfID %in% translated_in_1$orfID) 
+write.csv(ribORF_humanBrain_in1, file.path(save_wd,"ribORF_humanBrain_translated_in_1.fulltable.csv"), row.names = F)
 
-ribORF_humanBrain_in2 = ribORF_humanBrain_in2 %>% select(orfID, gene_id, gene_name, transcript_id, gene_type, orfType, length) %>% unique()
-write.csv(ribORF_humanBrain_in2, file.path(save_wd,"ribORF_humanBrain_translated_in_2.simplified.csv"), row.names = F)
+ribORF_humanBrain_in1 = ribORF_humanBrain_in1 %>% select(orfID, gene_id, gene_name, transcript_id, gene_type, orfType, length) %>% unique()
+write.csv(ribORF_humanBrain_in1, file.path(save_wd,"ribORF_humanBrain_translated_in_1.simplified.csv"), row.names = F)
 
-ORFs = as.data.frame(table(ribORF_humanBrain_in2$gene_type))
+ORFs = as.data.frame(table(ribORF_humanBrain_in1$gene_type))
 names(ORFs) = c("gene_type","num_ORFs")
 
 ## that correspond to:
-ribORF_humanBrain_in2_genes = ribORF_humanBrain_in2 %>% select(gene_id, gene_type) %>% unique()
-genes = as.data.frame(table(ribORF_humanBrain_in2_genes$gene_type))
+ribORF_humanBrain_in1_genes = ribORF_humanBrain_in1 %>% select(gene_id, gene_type) %>% unique()
+genes = as.data.frame(table(ribORF_humanBrain_in1_genes$gene_type))
 names(genes) = c("gene_type","num_genes_w_ORFs")
 
 ORFs_in_genes = merge(ORFs, genes, by="gene_type")
@@ -150,7 +150,7 @@ ORFs_in_genes
 ```
 
 ```{r ORFs_per_transcript, echo=F}
-num_ORFs_per_transcript = ribORF_humanBrain_in2 %>% 
+num_ORFs_per_transcript = ribORF_humanBrain_in1 %>% 
   group_by(transcript_id, gene_type) %>% 
   count()
 names(num_ORFs_per_transcript)[3] = "n_ORFs"
@@ -183,7 +183,7 @@ Questions: How many ncORFs in lncRNAs/processed pseudogenes are translated in li
 
 ```{r length, echo=F}
 my_comparisons = list(c("lncRNA","processed_pseudogene"), c("protein_coding","processed_pseudogene"), c("protein_coding","lncRNA"), c("lncRNA","novel"), c("novel","processed_pseudogene"), c("novel","protein_coding"))
-ggplot(ribORF_humanBrain_in2, aes(x=gene_type, y=length, fill=gene_type)) +
+ggplot(ribORF_humanBrain_in1, aes(x=gene_type, y=length, fill=gene_type)) +
   geom_boxplot() +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
                          "lncRNA" = "#B66353",
@@ -199,12 +199,12 @@ ggsave(file.path(plots_wd,"PNG/nORFs_length.png"), height=4.30, width=5.75)
 ggsave(file.path(plots_wd,"PDF/nORFs_length.pdf"), height=4.30, width=5.75)
 
 ## ncORFs vs canonical ORFs
-wilcox.test(ribORF_humanBrain_in2$length ~ ribORF_humanBrain_in2$orfType)
+wilcox.test(ribORF_humanBrain_in1$length ~ ribORF_humanBrain_in1$orfType)
 ```
 
 ```{r length_2, echo=F}
-ribORF_humanBrain_in2$length_aa = ribORF_humanBrain_in2$length/3
-ggplot(ribORF_humanBrain_in2, aes(x=length_aa, fill=gene_type, color="black")) +
+ribORF_humanBrain_in1$length_aa = ribORF_humanBrain_in1$length/3
+ggplot(ribORF_humanBrain_in1, aes(x=length_aa, fill=gene_type, color="black")) +
   geom_density(alpha=.5, color="black") +
   geom_xsideboxplot(orientation = "y", width=4, color="black") +
   scale_fill_manual(values=c("protein_coding"="#849DB1",
@@ -227,9 +227,9 @@ ggplot(ribORF_humanBrain_in2, aes(x=length_aa, fill=gene_type, color="black")) +
 **Starting codons**
 
 ```{r startcodons, echo=F}
-ribORF_humanBrain_in2$start_codon = str_sub(ribORF_humanBrain_in2$orfID,-3)
+ribORF_humanBrain_in1$start_codon = str_sub(ribORF_humanBrain_in1$orfID,-3)
 
-ggplot(ribORF_humanBrain_in2, aes(x=gene_type, fill=start_codon)) +
+ggplot(ribORF_humanBrain_in1, aes(x=gene_type, fill=start_codon)) +
   geom_bar(position="fill") +
   labs(x="Biotype",
        fill="Starting codon",
@@ -243,38 +243,38 @@ ggsave(file.path(plots_wd,"PDF/startCodons.pdf"), height=4.69, width=4.72)
 
 
 ```{r translate_seq, echo=F}
-# library(Biostrings)
-# 
-# # Function to translate DNA sequence to amino acids
-# translate_dna_to_aa <- function(dna_sequence) {
-#   aa_seq <- translate(DNAString(dna_sequence))
-#   return(as.character(aa_seq))
-# }
-# 
-# fastaFile = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/Annotation/candidateORF.fa", header=F)
-# 
-# ## subset headers and seqs
-# orfIDs = fastaFile %>% subset(grepl(">", V1))
-# seqs = fastaFile %>% subset(!grepl(">", V1))
-# 
-# fastaCandidates = data.frame("orfID" = orfIDs,
-#                              "ORFseq"= seqs)
-# names(fastaCandidates) = c("orfID","ORFseq")
-# fastaCandidates$orfID = gsub(">","",fastaCandidates$orfID)
-# 
-# ## select those that are in subset of interest --> ribORF_humanBrain_in2
-# nrow(ribORF_humanBrain_in2)
-# fastaCandidates_subset = fastaCandidates %>% subset(orfID %in% ribORF_humanBrain_in2$orfID)
-# nrow(fastaCandidates_subset)
-# 
-# ## add the fasta sequences to the dataframe
-# ribORF_humanBrain_in2_fastas = merge(fastaCandidates_subset, ribORF_humanBrain_in2, by="orfID")
-# nrow(ribORF_humanBrain_in2_fastas)
-# 
-# ## translate the ORFs
-# ribORF_humanBrain_in2_fastas$ORFpep = sapply(ribORF_humanBrain_in2_fastas$ORFseq, translate_dna_to_aa)
-# write.csv(ribORF_humanBrain_in2_fastas, file.path(save_wd, "ribORF_humanBrain_in2.csv"), row.names = F)
-ribORF_humanBrain_in2_fastas = read.csv(file.path(save_wd, "ribORF_humanBrain_in2.csv"))
+library(Biostrings)
+
+# Function to translate DNA sequence to amino acids
+translate_dna_to_aa <- function(dna_sequence) {
+  aa_seq <- translate(DNAString(dna_sequence))
+  return(as.character(aa_seq))
+}
+
+fastaFile = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/240724_RiboNovel/Annotation/candidateORF.fa", header=F)
+
+## subset headers and seqs
+orfIDs = fastaFile %>% subset(grepl(">", V1))
+seqs = fastaFile %>% subset(!grepl(">", V1))
+
+fastaCandidates = data.frame("orfID" = orfIDs,
+                             "ORFseq"= seqs)
+names(fastaCandidates) = c("orfID","ORFseq")
+fastaCandidates$orfID = gsub(">","",fastaCandidates$orfID)
+
+## select those that are in subset of interest --> ribORF_humanBrain_in1
+nrow(ribORF_humanBrain_in1)
+fastaCandidates_subset = fastaCandidates %>% subset(orfID %in% ribORF_humanBrain_in1$orfID)
+nrow(fastaCandidates_subset)
+
+## add the fasta sequences to the dataframe
+ribORF_humanBrain_in1_fastas = merge(fastaCandidates_subset, ribORF_humanBrain_in1, by="orfID")
+nrow(ribORF_humanBrain_in1_fastas)
+
+## translate the ORFs
+ribORF_humanBrain_in1_fastas$ORFpep = sapply(ribORF_humanBrain_in1_fastas$ORFseq, translate_dna_to_aa)
+write.csv(ribORF_humanBrain_in1_fastas, file.path(save_wd, "ribORF_humanBrain_in1.csv"), row.names = F)
+ribORF_humanBrain_in1_fastas = read.csv(file.path(save_wd, "ribORF_humanBrain_in1.csv"))
 ```
 
 
@@ -302,11 +302,11 @@ calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
 }
 
 ## select ncORFs
-ncORFs_seqs = ribORF_humanBrain_in2_fastas %>% subset(orfType == "noncoding")
+ncORFs_seqs = ribORF_humanBrain_in1_fastas %>% subset(orfType == "noncoding")
 ncORFs_seqs = as.character(ncORFs_seqs$ORFpep)
 
 ## ORFs
-ORFs_seqs = ribORF_humanBrain_in2_fastas %>% subset(orfType == "canonical")
+ORFs_seqs = ribORF_humanBrain_in1_fastas %>% subset(orfType == "canonical")
 ORFs_seqs = as.character(ORFs_seqs$ORFpep)
 
 ## compute log2ratio per letter
@@ -355,7 +355,7 @@ ggsave(file.path(plots_wd,"PDF/log2ratio_aa_ncORFsVSORFs.ordered.pdf"), height=4
 
 ```{r translation_eficiency, echo=F}
 orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_1.tsv", sep="\t")
-orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_2.tsv", sep="\t")
+orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_1.tsv", sep="\t")
 orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/ribORFsimp.brain_3.tsv", sep="\t")
 
 orf_TE = rbind(orf_TE_1, orf_TE_2, orf_TE_3)
@@ -365,15 +365,15 @@ orf_TE$transcript_id = gsub(":.*","",orf_TE$orfID)
 orf_TE$transcript_id = gsub("\\..*","",orf_TE$transcript_id)
 
 ## we keep only those that are in the interesting subset
-nrow(ribORF_humanBrain_in2)
-orf_TE_in2 = orf_TE %>% 
+nrow(ribORF_humanBrain_in1)
+orf_TE_in1 = orf_TE %>% 
   select(orfID,ORF_type,transcript_id) %>% 
   unique() %>% 
-  subset(orfID %in% ribORF_humanBrain_in2$orfID) %>% 
+  subset(orfID %in% ribORF_humanBrain_in1$orfID) %>% 
   unique()
-nrow(orf_TE_in2)
-orf_TE_in2 = merge(orf_TE_in2, annot, by="transcript_id")
-nrow(orf_TE_in2)
+nrow(orf_TE_in1)
+orf_TE_in1 = merge(orf_TE_in1, annot, by="transcript_id")
+nrow(orf_TE_in1)
 ```
 
 ```{r RNA_Ribo, echo=F}
@@ -381,11 +381,11 @@ TPMs_RNA = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_Transc
 
 brain_TPMs = TPMs_RNA %>% select(gene_id, Length, human_brain_rna_1, human_brain_rna_2, human_brain_rna_3)
 names(brain_TPMs)[1] = "transcript_id"
-brain_TPMs_with_ORFs = brain_TPMs %>% subset(transcript_id %in% orf_TE_in2$transcript_id)
+brain_TPMs_with_ORFs = brain_TPMs %>% subset(transcript_id %in% orf_TE_in1$transcript_id)
 
 #----------- sample 1 ---------#
 ## riboseq
-orf_brain_1 = orf_TE %>% subset(Sample == "brain_1") %>% subset(orfID %in% orf_TE_in2$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
+orf_brain_1 = orf_TE %>% subset(Sample == "brain_1") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
 names(orf_brain_1)[4] = "Ribo_TPM"
 orf_brain_1 = merge(orf_brain_1, annot, by="transcript_id")
 
@@ -401,23 +401,23 @@ brain_1$sample = "Brain_1"
 
 #----------- sample 2 ---------#
 ## riboseq
-orf_brain_2 = orf_TE %>% subset(Sample == "brain_2") %>% subset(orfID %in% orf_TE_in2$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
-names(orf_brain_2)[4] = "Ribo_TPM"
-orf_brain_2 = merge(orf_brain_2, annot, by="transcript_id")
+orf_brain_1 = orf_TE %>% subset(Sample == "brain_1") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
+names(orf_brain_1)[4] = "Ribo_TPM"
+orf_brain_1 = merge(orf_brain_1, annot, by="transcript_id")
 
 ## rnaseq
-rna_brain_2 = brain_TPMs_with_ORFs %>% select(transcript_id, human_brain_rna_2)
-names(rna_brain_2)[2] = "RNA_TPM"
+rna_brain_1 = brain_TPMs_with_ORFs %>% select(transcript_id, human_brain_rna_2)
+names(rna_brain_1)[2] = "RNA_TPM"
 
-brain_2 = merge(rna_brain_2, orf_brain_2, by=c("transcript_id"))
+brain_1 = merge(rna_brain_1, orf_brain_1, by=c("transcript_id"))
 
 ## TE
-brain_2$TE = brain_2$Ribo_TPM / brain_2$RNA_TPM
-brain_2$sample = "Brain_2"
+brain_1$TE = brain_1$Ribo_TPM / brain_1$RNA_TPM
+brain_1$sample = "Brain_1"
 
 #----------- sample 3 ---------#
 ## riboseq
-orf_brain_3 = orf_TE %>% subset(Sample == "brain_3") %>% subset(orfID %in% orf_TE_in2$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
+orf_brain_3 = orf_TE %>% subset(Sample == "brain_3") %>% subset(orfID %in% orf_TE_in1$orfID) %>% select(orfID, ORF_type, transcript_id, f1Tpm)
 names(orf_brain_3)[4] = "Ribo_TPM"
 orf_brain_3 = merge(orf_brain_3, annot, by="transcript_id")
 
@@ -431,7 +431,7 @@ brain_3 = merge(rna_brain_3, orf_brain_3, by=c("transcript_id"))
 brain_3$TE = brain_3$Ribo_TPM / brain_3$RNA_TPM
 brain_3$sample = "Brain_3"
 #--------------- merging ---------------#
-brain_TE = rbind(brain_1, brain_2, brain_3)
+brain_TE = rbind(brain_1, brain_1, brain_3)
 write.csv(brain_TE, file.path(save_wd, "translationEfficiency_brain.csv"), row.names=F)
 brain_TE = brain_TE %>% subset(Ribo_TPM > 0 & RNA_TPM > 0)
 write.csv(brain_TE, file.path(save_wd, "translationEfficiency_brain.withoutZeros.csv"), row.names=F)
