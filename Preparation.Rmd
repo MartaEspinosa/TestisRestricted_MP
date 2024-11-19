@@ -29,6 +29,7 @@ library(Hmisc)
 library(corrplot)
 library(stats)
 library(car)
+library(ggpattern)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 chr_annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gene_transcript_chr.csv")
@@ -152,6 +153,7 @@ corr_TPMs %>% subset(sample == "Testis_3") %>%
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM.png"))
 ```
+
 ## TestisRestricted - No Present in Proteome (BLASTP)
 
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2_TestisRestricted_in1.Rmd`
@@ -169,6 +171,57 @@ print("ORFs")
 table(testisRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
 print("Genes")
 table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r blastp_ncORFs_CDS, echo=F}
+before = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv")
+before = before %>% select(orfID, gene_type) %>% mutate(condition = "before")
+table(before$gene_type)
+after = testisRestr
+after = after %>% select(orfID, gene_type) %>% mutate(condition = "after")
+table(after$gene_type)
+
+blastp = rbind(after,before)
+blastp = blastp %>% subset(gene_type != "protein_coding") %>% group_by(gene_type, condition) %>% count()
+## how many are lost?
+blastp = blastp %>%
+  group_by(gene_type) %>%
+  summarise(
+    before = sum(n[condition == "before"], na.rm = TRUE),
+    after = sum(n[condition == "after"], na.rm = TRUE),
+    diff = before - after
+  ) %>%
+  mutate(
+    condition = "homology",
+    n = diff
+  ) %>%
+  select(gene_type, condition, n) %>%
+  bind_rows(blastp, .) %>%
+  arrange(gene_type, condition)
+
+blastp = blastp %>% subset(condition != "before") %>% group_by(gene_type) %>% mutate(proportion = round((n / sum(n))*100 ,2))
+blastp = blastp %>% mutate(condition_colored = case_when(condition == "after" & gene_type == "lncRNA" ~ "after - lncRNA",
+                                                         condition == "after" & gene_type == "processed_pseudogene" ~ "after - processed pseudogene",
+                                                         condition == "after" & gene_type == "novel" ~ "after - novel",
+                                                         condition == "before" & gene_type == "lncRNA" ~ "before - lncRNA",
+                                                         condition == "before" & gene_type == "processed_pseudogene" ~ "before - processed pseudogene",
+                                                         condition == "before" & gene_type == "novel" ~ "before - novel",))
+ggplot(blastp, aes(x=gene_type, y=round(proportion,2), fill=condition_colored)) +
+  geom_bar(position="fill", stat="identity") +
+  geom_text(aes(label=proportion), position = position_fill(vjust = 0.5)) +
+  scale_fill_manual(values=c("after - lncRNA" = "#009E73",
+                           "after - processed pseudogene" = "#0090B2",
+                           "after - novel" = "#E69F00",
+                           "before - lncRNA" = "grey",
+                           "before - processed pseudogene" = "grey",
+                           "before - novel" = "grey")) +
+  labs(x="Noncoding gene types",
+       y="Proportion of ncORFs",
+       title="ncORFs with homology with coding sequeneces") +
+  theme_classic() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr.png"), height=5, width=6)
+
 ```
 
 ## TumorReactivated
@@ -204,6 +257,20 @@ ctypes_tumorReact_orfs = tumorReact %>% mutate(coding_ncoding = case_when(gene_t
                                                                      TRUE ~ "noncoding")) %>% select(orfID, gene_id, ctype, coding_ncoding) %>% unique()
 table(ctypes_tumorReact_orfs$coding_ncoding, ctypes_tumorReact_orfs$ctype)
 table(ctypes_tumorReact_orfs$ctype)
+```
+
+```{r perpatient, echo=F}
+candidates_per_patient = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers/overexpression_tumor_3xnormal/cancertypes/GTEx/GTEx_tumor_3xnormal_TPMs_patients_ctypes.csv")
+candidates_per_patient = merge(candidates_per_patient, tumorReact %>% select(gene_id, ctype, coding_noncoding) %>% unique(), by=c("gene_id","ctype"))
+candidates_per_patient_counts = candidates_per_patient %>% group_by(coding_noncoding, gene_name, ctype) %>% count()
+
+ggplot(candidates_per_patient_counts %>% subset(ctype != "KIRP"), aes(x=ctype, y=n, fill=coding_noncoding)) +
+  geom_boxplot(alpha=.9) +
+  scale_fill_manual(values=c("#DFA398","#3B3960")) +
+  labs(x="Cancer type",
+    y="Number of TSTR per patient") +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_per_patient.png"))
 ```
 
 ```{r correlation_npatients_nTSTR, echo=F}
@@ -945,7 +1012,7 @@ tumorReact_Thymus = tumorReact_Thymus %>% mutate(thymus_expressed = case_when(me
                                                                               TRUE ~ "no"))
 
 ## pancancer
-tumorReact_Thymus_pancancer = tumorReact_Thymus %>% select(-c(ctype, num_patients_overexpr, percentage_num_patients_overexpr)) %>% unique() %>% group_by(coding_noncoding, thymus_expressed) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n)) 
+tumorReact_Thymus_pancancer = tumorReact_Thymus %>% select(-c(ctype, num_patients_overexpr, percentage_num_patients_overexpr, total_n)) %>% unique() %>% group_by(coding_noncoding, thymus_expressed) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n)) 
 table(tumorReact_Thymus_pancancer$coding_noncoding, tumorReact_Thymus_pancancer$thymus_expressed)
 
 ggplot(tumorReact_Thymus_pancancer, aes(x=coding_noncoding, fill=thymus_expressed, y=n)) +
@@ -1367,6 +1434,32 @@ if(all(shapiro_test_results$shapiro_p > 0.05) && levene_test[["Pr(>F)"]][1] > 0.
 }
 
 ```
+
+```{r X_nonX_barplot, echo=F}
+
+to_plot_barplot = data_completed_TSA %>% 
+  select(gene_name, gene_type, chr, ctype) %>% 
+  mutate(X_nonX = case_when(chr == "X" ~ "X", TRUE ~ "nonX")) %>% 
+  mutate(coding_noncoding_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "CT-X", gene_type != "protein_coding" ~ "noncoding", TRUE ~ "CT-nonX")) %>% unique() %>% 
+  group_by(coding_noncoding_chr, ctype) %>% 
+  count() %>% subset(ctype != "KIRP") %>% ungroup()
+to_plot_barplot = to_plot_barplot %>% add_row(coding_noncoding_chr = "CT-X", ctype = "COAD", n = 0)
+to_plot_barplot$ctype <- factor(
+  to_plot_barplot$ctype,
+  levels = c("LIHC", "BLCA", "LUSC", "BRCA", "LUAD", "PRAD", "KIRC", "COAD")
+)
+
+ggplot(to_plot_barplot, aes(x=ctype, y=n, fill=coding_noncoding_chr)) +
+    geom_bar(stat="identity", position="dodge") +
+    scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
+    labs(y="Number of TS/TR",
+         x="Cancer Type",
+         fill="Biotype") +
+    theme_classic()
+ggsave(file.path(plots_wd,"PNG/num_TSTR_per_ctype_chr.png"))
+
+```
+
 
 ### How many MAGEA genes per ctype?
 

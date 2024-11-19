@@ -305,7 +305,7 @@ translated_grouped
 ggvenn(list("Testis"= translated %>% subset(tissue == "testis") %>% pull(gene_name) %>% unique(),
                  "Liver"=translated %>% subset(tissue == "liver") %>% pull(gene_name) %>% unique(),
                  "Brain"=translated %>% subset(tissue == "brain") %>% pull(gene_name) %>% unique()),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C785DFF","#AF6458FF","#7C7C7CFF")) +
   ggtitle("All genetypes")
 ggsave(file.path(plots_wd,"venn_tissues.png"))
 
@@ -313,7 +313,7 @@ ggsave(file.path(plots_wd,"venn_tissues.png"))
 ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique(),
                  "Liver"=translated %>% subset(tissue == "liver" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique(),
                  "Brain"=translated %>% subset(tissue == "brain" & coding_noncoding == "noncoding") %>% pull(gene_name) %>% unique()),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C785DFF","#AF6458FF","#7C7C7CFF")) +
   ggtitle("ncORFs")
 ggsave(file.path(plots_wd,"venn_tissues_noncoding.png"))
 
@@ -321,21 +321,21 @@ ggsave(file.path(plots_wd,"venn_tissues_noncoding.png"))
 ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique(),
                  "Liver"=translated %>% subset(tissue == "liver" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique(),
                  "Brain"=translated %>% subset(tissue == "brain" & gene_type == "lncRNA") %>% pull(gene_name) %>% unique()),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
-  ggtitle("ncORFsn from lncRNAs")
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C785DFF","#AF6458FF","#7C7C7CFF")) +
+  ggtitle("ncORFs from lncRNAs")
 ggsave(file.path(plots_wd,"venn_tissues_lncRNAs.png"))
 
 ## coding
 ggvenn(list("Testis"= translated %>% subset(tissue == "testis" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique(),
                  "Liver"=translated %>% subset(tissue == "liver" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique(),
                  "Brain"=translated %>% subset(tissue == "brain" & coding_noncoding == "coding") %>% pull(gene_name) %>% unique()),
-       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#7876B1","red","#91D1C2")) +
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, fill_color = c("#8C785DFF","#AF6458FF","#7C7C7CFF")) +
   ggtitle("Coding Sequences")
 ggsave(file.path(plots_wd,"venn_tissues_coding.png"))
 
 
 ################ EVOAGE ###############
-ggplot(translated, aes(x=tissue, fill=age_categorical, fill=age_categorical)) +
+ggplot(translated, aes(x=tissue, fill=age_categorical)) +
   geom_bar(position="fill") +
   scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
   theme_minimal()
