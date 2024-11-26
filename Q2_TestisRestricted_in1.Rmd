@@ -20,40 +20,12 @@ library(rcartocolor)
 library(ggbeeswarm)
 library(ggrepel)
 
-gene_transcript = read.table("/data/genomics/marta/genomes/1transcript_1gene.txt",sep=",", header=T)
-names(gene_transcript) = c("gene_id","gene_type","gene_name")
-gene_transcript$gene_id = gsub("\\..*","",gene_transcript$gene_id)
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap/Q2_TestisRestricted/human/plots"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap/Q2_TestisRestricted/human"
 
-plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human/plots"
-save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human"
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv")
 ```
 
-```{r annotation, echo=F}
-## novels
-novels = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/novel_temp_biomart.csv", header=F, sep=",")
-names(novels) = c("transcript_id","gene_id","gene_type")
-novels$gene_name = novels$gene_id
-
-
-## annotated
-annotated = read.table("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/annotated_1transcript_1gene.csv", header=F, sep=",")
-names(annotated) = c("gene_id","transcript_id","gene_type","gene_name")
-annotated$gene_id = gsub("\\..*","", annotated$gene_id)
-annotated$transcript_id = gsub("\\..*","", annotated$transcript_id)
-
-annotation = rbind(annotated, novels)
-write.csv(annotation, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/1transcript_1gene.reconstructed.csv", row.names = F, quote = F)
-head(annotation)
-
-
-# t_e_g<-na.omit(merge(testis_specific_genes, anot, by="Geneid all.x=T))
-# head(t_e_g)
-# t_e_g <- subset(t_e_g, !grepl("ENST00000654848 transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000609202 transcriptID))
-# t_e_g <- subset(t_e_g, !grepl("ENST00000669393 transcriptID)) 
-# t_e_g <- subset(t_e_g, !grepl("ENST00000512989 transcriptID))
-# dim(t_e_g)
-```
 
 ## Human Data | RNASeq
 
@@ -71,7 +43,7 @@ toc_TPMs = toc_TPMs %>%
   filter(!(startsWith(gene_id, "TCONS") & Length < 300))
 names(toc_TPMs)[1] = "transcript_id"
 
-toc_TPMs = merge(toc_TPMs, annotation, by="transcript_id", all.x=T)
+toc_TPMs = merge(toc_TPMs, annot, by="transcript_id", all.x=T)
 toc_TPMs = toc_TPMs %>% unique()
 
 ggplot(toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel"), aes(x=Length, fill=gene_type)) +
@@ -579,7 +551,7 @@ ggsave(file.path(plots_wd,"PDF/Restricted_with_GTEx_piecharts.pdf"))
 
 ```{r translation_Expressed,echo=F}
 ## translation
-ribORF_humanTestis_in1_fastas = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+ribORF_humanTestis_in1_fastas = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
 table(ribORF_humanTestis_in1_fastas$gene_type)
 
 nrow(testisExpressed)
@@ -778,14 +750,14 @@ Of the testis-restricted genes, which proportion of the ncORFs/canonical ORFs th
 
 ```{r testisTranslated_in_tissues, echo=F}
 ## ---------- LIVER -----------##
-ribORF_humanLiver_Annotated_biotypes = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanLiver_translated.csv")
+ribORF_humanLiver_Annotated_biotypes = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap/Q1_TestisORFs/human/ribORF_humanLiver_translated.csv")
 ribORF_humanLiver_simplified = ribORF_humanLiver_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
   group_by(orfID, gene_type, gene_id) %>% count()
 names(ribORF_humanLiver_simplified)[4] = "num_samples"
 ribORF_humanLiver_simplified$tissue = "liver"
 
 ## ---------- BRAIN -----------##
-ribORF_humanBrain_Annotated_biotypes = read.csv( "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/ribORF_humanBrain_translated.csv")
+ribORF_humanBrain_Annotated_biotypes = read.csv( "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap/Q1_TestisORFs/human/ribORF_humanBrain_translated.csv")
 ribORF_humanBrain_simplified = ribORF_humanBrain_Annotated_biotypes %>% select(orfID, gene_type, gene_id, sample) %>% 
   group_by(orfID, gene_type, gene_id) %>% count()
 names(ribORF_humanBrain_simplified)[4] = "num_samples"
@@ -1099,4 +1071,21 @@ ggplot(testisExpressed_Restricted_Translated_GTEx, aes(x=gene_type, y=mean_TE, f
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestrictedGTEx_TE_genetype.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestrictedGTEx_TE_genetype.pdf"), height=4.69, width=5.4)  
+```
+
+## CTDB
+
+```{r CTDB, echo=F}
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
+                                       TRUE ~ "A"))
+print(nrow(CTDB))
+print(nrow(testisExpressed_Restricted_Translated_GTEx %>% subset(gene_name %in% CTDB$gene_name)))
+CTDB_translated_only_testis = merge(testisExpressed_Restricted_Translated_GTEx, CTDB, by="gene_name")
+table(CTDB_translated_in_testis$X_A)
+## non-X are more dominantly expressed in germ-cell differentation late stages such as spermatocytes
+## CT-X are generally expressed in the speratogonia, wchich are proliferating germ cells.
+
+notFound = CTDB %>% subset(!gene_name %in% CTDB_translated_only_testis$gene_name)
+print(nrow(notFound))
 ```
