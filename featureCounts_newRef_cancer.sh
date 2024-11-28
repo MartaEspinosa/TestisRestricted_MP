@@ -21,13 +21,14 @@ mkdir -p $OUTDIR
 
 # AnnotGTF="/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gencode.v38.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.NOchr.gtf"
 
-AnnotGTF="/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/gencode.v47.gffcompare.TestisLiverBrain.annotation.sorted.NOchr.fixed.gtf"
+AnnotGTF="/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/gencode.v47.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.NOchr.fixed.gtf"
 module load Subread/2.0.3
 ########################
 
 # DIR=/users/genomics/marta/TCGA_RNASeq
-DIR=/users/genomics/marta/cancers_RNASeq
+# DIR=/users/genomics/marta/cancers_RNASeq
 # DIR=/projects_eg/projects/marta
+DIR=/users/genomics/marta
 
 if [ $p == "paired-end" ]; then
     if [ $strand == "firststrand" ]; then
