@@ -1,0 +1,1475 @@
+---
+title: "Preparation"
+author: "Marta Espinosa"
+date: "2024-10-22"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+# library(ggthemr)
+library(ggbeeswarm)
+library(ggbreak)
+library(ggrepel)
+library(rcartocolor)
+library(UpSetR)
+library(karyoploteR)
+library(GenomicRanges)
+library(rtracklayer)
+library(Hmisc)
+library(corrplot)
+library(stats)
+library(car)
+library(ggpattern)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+plots_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/PreparationPlots/MultiMap_altORFs"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-KIRP","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers"
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
+                                       TRUE ~ "A"))
+CTDB = separate_rows(CTDB, gene_name, sep = "/")
+CTDB = separate_rows(CTDB, gene_name, sep = ",")
+
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+
+# "#855C75FF","#D9AF6BFF", "#AF6458FF", "#736F4CFF", "#526A83FF", "#625377FF", "#68855CFF", "#9C9C5EFF", "#A06177FF", "#8C785DFF", "#467378FF", "#7C7C7CFF"
+# Extract the correlation coefficients
+# res2$r
+# Extract p-values
+# res2$P
+# A simple function to format the correlation matrix
+# ++++++++++++++++++++++++++++
+# flattenCorrMatrix
+# ++++++++++++++++++++++++++++
+# cormat : matrix of the correlation coefficients
+# pmat : matrix of the correlation p-values
+flattenCorrMatrix <- function(cormat, pmat) {
+  ut <- upper.tri(cormat)
+  data.frame(
+    row = rownames(cormat)[row(cormat)[ut]],
+    column = rownames(cormat)[col(cormat)[ut]],
+    cor  =(cormat)[ut],
+    p = pmat[ut]
+  )
+}
+# flattenCorrMatrix(res2$r, res2$P)
+```
+
+## TestisORFs
+
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q1.1_TestisORFs_in1.Rmd`
+
+```{r testis, echo=F}
+testis = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+print("ORFs")
+table(testis %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("alt ORFs")
+table(testis %>% select(orfID, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
+print("Genes")
+table(testis %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r correlation_TPMs, echo=F}
+corr_TPMs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/translationEfficiency_testis.withoutZeros.csv")
+
+## sample1
+corr_TPMs %>% subset(sample == "Testis_1") %>% subset(geneORFtype == "protein_coding_canonical") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 1") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis1_RNA_Ribo_TPM.png"))
+## sample2
+corr_TPMs %>% subset(sample == "Testis_2") %>% subset(geneORFtype == "protein_coding_canonical") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 2") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis2_RNA_Ribo_TPM.png"))
+## sample3
+corr_TPMs %>% subset(sample == "Testis_3") %>% subset(geneORFtype == "protein_coding_canonical") %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 3") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM.png"))
+```
+
+## TestisRestricted - No Present in Proteome (BLASTP)
+
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2_TestisRestricted_in1.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2.1_TestisRestricted_BLASTP_ncORFSvsCDS.ipynb`
+
+```{r testisRestricted_NoProteome, echo=F}
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv')
+print("ORFs")
+table(testisRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("alt ORFs")
+table(testisRestr %>% select(orfID, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
+print("Genes")
+table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+
+testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.noProteome.csv')
+print("ORFs")
+table(testisRestr %>% select(orfID, gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("alt ORFs")
+table(testisRestr %>% select(orfID, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
+print("Genes")
+table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+```
+
+```{r blastp_ncORFs_CDS, echo=F}
+before = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv")
+before = before %>% select(orfID, gene_type) %>% mutate(condition = "before")
+table(before$gene_type)
+after = testisRestr
+after = after %>% select(orfID, gene_type) %>% mutate(condition = "after")
+table(after$gene_type)
+
+blastp = rbind(after,before)
+blastp = blastp %>% subset(gene_type != "protein_coding") %>% group_by(gene_type, condition) %>% count()
+## how many are lost?
+blastp = blastp %>%
+  group_by(gene_type) %>%
+  summarise(
+    before = sum(n[condition == "before"], na.rm = TRUE),
+    after = sum(n[condition == "after"], na.rm = TRUE),
+    diff = before - after
+  ) %>%
+  mutate(
+    condition = "homology",
+    n = diff
+  ) %>%
+  select(gene_type, condition, n) %>%
+  bind_rows(blastp, .) %>%
+  arrange(gene_type, condition)
+
+blastp = blastp %>% subset(condition != "before") %>% group_by(gene_type) %>% mutate(proportion = round((n / sum(n))*100 ,2))
+blastp = blastp %>% mutate(condition_colored = case_when(condition == "after" & gene_type == "lncRNA" ~ "after - lncRNA",
+                                                         condition == "after" & gene_type == "processed_pseudogene" ~ "after - processed pseudogene",
+                                                         condition == "after" & gene_type == "novel" ~ "after - novel",
+                                                         condition == "before" & gene_type == "lncRNA" ~ "before - lncRNA",
+                                                         condition == "before" & gene_type == "processed_pseudogene" ~ "before - processed pseudogene",
+                                                         condition == "before" & gene_type == "novel" ~ "before - novel",))
+ggplot(blastp, aes(x=gene_type, y=round(proportion,2), fill=condition_colored)) +
+  geom_bar(position="fill", stat="identity") +
+  geom_text(aes(label=proportion), position = position_fill(vjust = 0.5)) +
+  scale_fill_manual(values=c("after - lncRNA" = "#009E73",
+                           "after - processed pseudogene" = "#0090B2",
+                           "after - novel" = "#E69F00",
+                           "before - lncRNA" = "grey",
+                           "before - processed pseudogene" = "grey",
+                           "before - novel" = "grey")) +
+  labs(x="Noncoding gene types",
+       y="Proportion of ncORFs",
+       title="ncORFs with homology with coding sequeneces") +
+  theme_classic() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr.png"), height=5, width=6)
+
+```
+
+## TumorReactivated
+
+- Expressed 3 times more in tumor than in normal in at least 5% of the patients of at least 1 cancer type of the studied ones.
+
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q3.0_reconstructedTestis_log2ratio_altORFs.ipynb`
+<!-- `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4_TestisRestricted_OverexpressedTumors_in1.Rmd` - TOV3x -->
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.2_Matrix.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.3_Heatmap_TTS_ctype.Rmd` - log2ratio
+
+```{r tumorReactivated, echo=FALSE}
+tumorReact = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
+tumorReact = tumorReact %>% mutate(geneORFtype = paste0(gene_type,"_",orfType))
+
+filtered_data_TAA_long = read.csv(file.path(pre_save_wd,"TAAdata_long.csv"))
+filtered_data_TOv3x_long = filtered_data_TAA_long %>% subset(gene_name %in% tumorReact$gene_name)
+tumorReact_full = merge(filtered_data_TOv3x_long, tumorReact %>% select(gene_name, length_aa, start_codon, ORFpep, orfType, geneORFtype), by=c("gene_name"))
+
+tumorReact_full = merge(tumorReact_full, total_num_patients, by="ctype")
+# tumorReact_full = tumorReact_full %>% mutate(geneORFtype = paste0(gene_type,"_",orfType))
+
+print("ORFs")
+table(tumorReact_full %>% select(gene_id, gene_type, ORFpep) %>% unique() %>% pull(gene_type))
+print("altORFs")
+table(tumorReact_full %>% select(ORFpep, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
+print("Genes")
+table(tumorReact_full %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+
+print("Per cancertype - genes")
+ctypes_tumorReact = tumorReact_full %>% mutate(coding_ncoding_gene = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                                     TRUE ~ "noncoding")) %>% select(gene_id, ctype, coding_ncoding_gene) %>% unique()
+table(ctypes_tumorReact$coding_ncoding_gene, ctypes_tumorReact$ctype)
+table(ctypes_tumorReact$ctype)
+
+print("Per cancertype - orfs")
+ctypes_tumorReact_orfs = tumorReact_full %>% mutate(coding_ncoding = case_when(geneORFtype == "protein_coding_canonical" ~ "canonical",
+                                                                     gene_type == "lncRNA" | gene_type == "novel" | gene_type == "processed_pseudogene" ~ "noncoding",
+                                                                     TRUE ~ "altORFs")) %>% select(gene_id, ctype, coding_ncoding, ORFpep) %>% unique()
+table(ctypes_tumorReact_orfs$coding_ncoding, ctypes_tumorReact_orfs$ctype)
+table(ctypes_tumorReact_orfs$ctype)
+```
+
+```{r perpatient, echo=F}
+candidates_per_patient = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv")
+candidates_per_patient = merge(candidates_per_patient %>% select(-X), ctypes_tumorReact %>% select(gene_id, ctype, coding_ncoding_gene) %>% unique(), by=c("gene_id","ctype"))
+candidates_per_patient_counts = candidates_per_patient %>% group_by(coding_ncoding_gene, gene_name, ctype) %>% count()
+
+ggplot(candidates_per_patient_counts %>% subset(ctype != "KIRP"), aes(x=ctype, y=n, fill=coding_ncoding_gene)) +
+  geom_boxplot(alpha=.9) +
+  # scale_fill_manual(values=c("#DFA398","#3B3960")) +
+  labs(x="Cancer type",
+    y="Number of TSTR per patient") +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_per_patient.png"))
+```
+
+```{r correlation_npatients_nTSTR, echo=F}
+tumorReact_full %>% select(gene_id, total_n, ctype) %>% unique() %>% group_by(ctype, total_n) %>% count() %>%
+  ggplot(., aes(x=total_n, y=n, color=ctype)) +
+  geom_point(stat="identity", size=5) +
+  geom_text(aes(label=ctype), hjust = -0.3, size=3, fontface = "bold") +
+  scale_x_continuous(limits=c(25,200)) +
+  labs(x="Total number of patients",
+       y="Number of TS/TR genes",
+       title="Correlation between TS/TR and\nthe number of patients",
+       color="CancerType") +
+    scale_color_manual(values=c("BRCA"="#E69F00", "BLCA"="#56A3A6", "LUAD"="#0079E3", "KIRC"="#F0C27B", "LUSC"="#0072B2", "PRAD"="#D55E00", "LIHC"="#CC79A7", "COAD"="#8B7355")) +
+  theme_minimal() +
+  theme(legend.position="none")
+
+ggsave(file.path(plots_wd, "PNG/TSTR_numpatients_scatter.png"), height=5.08, width=4.80)
+
+```
+
+## Correlation testis expression vs tumor expression?
+
+```{r testis_tumor_TPMs, echo=F}
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
+testis_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+names(testis_TPMs)[1] = "transcript_id"
+## For novels, remove those shorter than 300 pb
+testis_TPMs = testis_TPMs %>%
+  filter(!(startsWith(transcript_id, "TCONS") & Length < 300))
+
+testis_TPMs = merge(testis_TPMs, annot, by="transcript_id", all.x=T)
+testis_TPMs = testis_TPMs %>% unique()
+testis_TPMs = testis_TPMs[,!grepl("brain", names(testis_TPMs))]
+testis_TPMs = testis_TPMs[,!grepl("liver", names(testis_TPMs))]
+testis_TPMs = testis_TPMs %>% select(-Length)
+
+## Select only numeric columns
+numeric_df = testis_TPMs[, sapply(testis_TPMs, is.numeric)]
+## Apply the function to each row
+stats_per_row = t(apply(numeric_df, 1, compute_stats))
+stats_df = as.data.frame(stats_per_row)
+
+testis_TPMs_stats = cbind(testis_TPMs %>% select(transcript_id, gene_id, gene_type, gene_name), stats_df)
+testis_TPMs_stats %>% head
+names(testis_TPMs_stats) = c("transcript_id","gene_id","gene_type","gene_name","mean_testis","median_testis","sd_testis","Q1.25%_testis","Q3.75%_testis")
+
+
+### Testis-Tumor
+testis_tumor_TPMs = merge(filtered_data_TOv3x_long, testis_TPMs_stats, by=c("transcript_id","gene_id","gene_type","gene_name"))
+## remove the zeros, show mean of patients for which it is Overexpressed
+testis_tumor_TPMs = testis_tumor_TPMs %>% subset(normal_tumor == "tumor") %>% subset(forced_TPM > 0) 
+testis_tumor_TPMs = testis_tumor_TPMs %>% group_by(gene_name, gene_type, ctype, mean_testis, median_testis) %>% mutate(mean_tumor = mean(forced_TPM),
+                                                                                          median_tumor = median(forced_TPM))
+testis_tumor_TPMs = testis_tumor_TPMs %>% select(gene_name, gene_type, mean_tumor, median_tumor, mean_testis, median_testis) %>% unique()
+
+### MEAN tumor zeros removed
+testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                          TRUE ~ "noncoding")) %>%
+  ggplot(., aes(x=mean_tumor, y=mean_testis, color=coding_noncoding)) +
+  geom_point() +
+  geom_text_repel(aes(label=gene_name)) +
+  labs(x="Mean TPM Tumor Samples (zeros removed)",
+       y="Mean TPM Testis Samples",
+       title="Correlation expression Testis vs Tumor") +
+  scale_x_continuous(limits=c(0,275)) +
+  scale_color_manual(values=c("#DFA398","#3B3960")) +
+  theme_minimal() +
+  facet_wrap(~ ctype)
+
+### MEAN tumor zeros removed
+testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                          TRUE ~ "noncoding")) %>%
+  ggplot(., aes(x=log(mean_tumor), y=log(mean_testis), color=coding_noncoding)) +
+  geom_point() +
+  # geom_smooth(method = "lm", se = FALSE, aes(color=coding_noncoding)) +
+   # stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), label.x = c(1,1,1,1), aes(group=coding_noncoding, color = coding_noncoding), size=3) +
+  labs(x="log(Mean TPM) Tumor Samples (zeros removed)",
+       y="log(Mean TPM) Testis Samples",
+       title="Correlation expression Testis vs Tumor") +
+  scale_y_continuous(limits=c(-2.5,6)) +
+  scale_x_continuous(limits=c(-2.5,6)) +
+  geom_vline(xintercept=0, size=.2) +
+  geom_hline(yintercept=0, size=.2) +
+  scale_color_manual(values=c("#DFA398","#3B3960")) +
+  theme_minimal() +
+  theme(legend.position="top") +
+  facet_wrap(~ ctype)
+ggsave(file.path(plots_wd, "PNG/TSTR_TestisExpr_TumorExpr.png"), width=7, height=7)
+```
+
+## Comparisons, from TestisSpecific, which are Reactivated and which are not
+
+### Length
+
+```{r comparisons, echo=F}
+testisRestr = testisRestr %>% 
+  mutate(tumorReactivated = case_when(gene_id %in% tumorReact$gene_id ~ "Reactivated",
+                                      TRUE ~ "NoReactivated")) %>%
+  mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                          TRUE ~ "noncoding")) %>% 
+  mutate(coding_noncoding_chr = case_when((coding_noncoding == "protein_coding") & grepl("X",orfID) ~ "CT-X",
+                                          coding_noncoding == "noncoding"  ~ "noncoding",
+                                                          TRUE ~ "CT-nonX"))
+         
+```
+
+```{r length, echo=F}
+### length
+## KruskalWallis
+testisRestr %>% select(gene_id, coding_noncoding, length_aa, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=length_aa, x=coding_noncoding, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  labs(x="",
+       y="Length (AA)",
+       title = "Length differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  scale_y_continuous(trans="log10") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_Length_boxplot.png"), width=6.28, height=5.82)
+
+testisRestr %>% select(gene_id, coding_noncoding_chr, length_aa, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=length_aa, x=coding_noncoding_chr, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  labs(x="",
+       y="Length (AA)",
+       title = "Length differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  scale_y_continuous(trans="log10") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_Length_boxplot_chr.png"), width=6.28, height=5.82)
+
+
+```
+
+## Translation efficiency
+
+```{r TE, echo=F}
+### translation efficiency
+testis_TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
+testisRestr = merge(testisRestr, testis_TE %>% select(orfID, mean_TE), by="orfID")
+
+testisRestr %>% select(gene_id, coding_noncoding, mean_TE, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=mean_TE, x=coding_noncoding, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_y_continuous(trans="log10") +
+  labs(x="",
+       y="Mean Translation Efficiency",
+       title = "TE differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_TE_boxplot.png"), width=6.28, height=5.82)
+
+testisRestr %>% select(gene_id, coding_noncoding_chr, mean_TE, tumorReactivated) %>% unique() %>%
+  ggplot(., aes(y=mean_TE, x=coding_noncoding_chr, fill=tumorReactivated)) +
+  geom_boxplot() +
+  stat_compare_means(label="p.signif") +
+  scale_y_continuous(trans="log10") +
+  labs(x="",
+       y="Mean Translation Efficiency",
+       title = "TE differences between TS/TR and TS/nonTR",
+       fill="Reactivation\nin tumor") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TSTR_TE_boxplot_chr.png"), width=6.28, height=5.82)
+```
+
+## Evolutionary conservation of ORFs
+
+```{r evo, echo=F}
+### evolutionary conservation
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
+testisRestr = merge(testisRestr, conservation %>% select(orfID, oldest_species), by="orfID", all.x = T)
+testisRestr[is.na(testisRestr)] = "human"
+
+testisRestr = testisRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 # oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+
+age_counts = testisRestr %>% select(gene_id, coding_noncoding, age_categorical, tumorReactivated) %>% unique() %>% group_by(coding_noncoding, tumorReactivated, age_categorical) %>% count() %>% group_by(coding_noncoding, tumorReactivated) %>% mutate(proportion = n / sum(n)) 
+age_counts = as.data.frame(age_counts)
+ggplot(age_counts, aes(y=proportion, x=factor(age_categorical, levels=c("primate","mammal","conserved - outgroup")), fill=tumorReactivated, group=tumorReactivated)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(x="Conservation level",
+       y="Proportion",
+       title="Evolutionary Conservation of TS/TR vs TS/nonTR") +
+  scale_fill_manual(values=c("#D9AF6BFF","#625377FF")) +
+  theme_minimal() +
+  facet_grid( ~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=8.11, height=4.82)
+
+# Subset the data for protein coding genes
+protein_coding_data <- subset(age_counts, coding_noncoding == "protein_coding")
+
+# Create a 2x2 matrix for 'primate' vs 'mammal' in Reactivated vs NoReactivated
+contingency_table <- matrix(c(
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "Reactivated" & protein_coding_data$age_categorical == "primate"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "NoReactivated" & protein_coding_data$age_categorical == "primate"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "Reactivated" & protein_coding_data$age_categorical == "mammal"]),
+  sum(protein_coding_data$n[protein_coding_data$tumorReactivated == "NoReactivated" & protein_coding_data$age_categorical == "mammal"])
+), nrow = 2, byrow = TRUE)
+
+# Add proper labels to the matrix for clarity
+dimnames(contingency_table) <- list(
+  "Reactivated" = c("Reactivated", "NoReactivated"),
+  "Age Category" = c("Primate", "Mammal")
+)
+
+# Perform Fisher's exact test
+fisher.test(contingency_table)
+
+testisRestr = testisRestr %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
+                                                                 oldest_species == "human"  ~ "primate",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 # oldest_species == "mouse" ~ "primate",
+                                                   TRUE ~ "mammal"))
+age_counts = testisRestr %>% select(gene_id, coding_noncoding, age_categorical, tumorReactivated) %>% unique() %>% group_by(coding_noncoding, tumorReactivated, age_categorical) %>% count() %>% group_by(coding_noncoding, tumorReactivated) %>% mutate(proportion = n / sum(n)) 
+age_counts = as.data.frame(age_counts)
+
+ggplot(age_counts %>% subset(coding_noncoding == "protein_coding"), aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  labs(x="Reactivation in tumor",
+       y="Proportion",
+       title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
+  # geom_text(aes(label=round(proportion,2)), position = "stack") +
+  theme_minimal() 
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar_coding.png"), width=5.78, height=5.82)
+
+ggplot(age_counts, aes(x = tumorReactivated, y = proportion, fill = age_categorical)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  labs(x="Reactivation in tumor",
+       y="Proportion",
+       title="Proportion of ORF Conservation\ndepending on Tumor Reactivation") +
+  theme(legend.position = "top") +
+  # geom_text(aes(label=round(proportion,2)), position = "stack") +
+  theme_minimal() +
+  facet_wrap(~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_bar.png"), width=7.78, height=5.82)
+
+ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
+  geom_quasirandom(size=1) +
+  scale_color_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  scale_y_continuous(trans="log10") +
+  labs(x="Evolutionary Conservation of ORFs",
+       y="Length (AA)",
+       title="Relationship between Conservation and ORF length") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_wrap(~ coding_noncoding) +
+  stat_compare_means(comparisons = list(c("mammal", "primate"),c("mammal", "conserved - outgroup"),c("conserved - outgroup", "primate")), label="p.signif", method = "wilcox.test", paired=F)
+ggsave(file.path(plots_wd, "PNG/Conservation_Length.png"), width=6.21, height=5.25)
+
+ggplot(testisRestr, aes(x=age_categorical, y=length_aa, color=age_categorical)) +
+  geom_quasirandom(size=1) +
+  geom_quasirandom(size=1) +
+  scale_color_manual(values=c("primate" = "#804d5f", "mammal" = "#A06177FF", "conserved - outgroup" = "#cfb0bb")) +
+  scale_y_continuous(trans="log10") +
+  labs(x="Evolutionary Conservation of ORFs",
+       y="Length (AA)",
+       title="Relationship between Conservation and ORF length") +
+  theme_minimal() +
+  theme(legend.position = "top") +
+  facet_grid(tumorReactivated ~ coding_noncoding) +
+  stat_compare_means(comparisons = list(c("mammal", "primate"),c("mammal", "conserved - outgroup"),c("conserved - outgroup", "primate")), label="p.signif", method = "wilcox.test", paired=F)
+ggsave(file.path(plots_wd, "PNG/TSTR_Conservation_Length.png"), width=6.21, height=6.25)
+```
+
+## Aminoacid Composition
+
+First aa removed
+
+```{r composition, echo=F}
+### aminoacid composition
+hph=c("A","V","L","I","M","F","Y","W")
+polar=c("S","T","N","Q")
+positively_charged=c("R","H","K")
+negatively_charged=c("D","E")
+special_cases=c("C","G","P")
+
+aacomposition_testisRestr = testisRestr %>% select(tumorReactivated, orfID, coding_noncoding, ORFpep) %>% unique()
+## remove starting codon
+aacomposition_testisRestr$ORFpep = substring(aacomposition_testisRestr$ORFpep, 2)
+aacomposition_testisRestr$ORFpep = gsub("\\*","",as.character(aacomposition_testisRestr$ORFpep))
+
+
+#### non-coding
+nc_React = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding") %>% subset(tumorReactivated == "Reactivated")
+nc_React = as.character(nc_React$ORFpep)
+nc_NoReact = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding") %>% subset(tumorReactivated != "Reactivated")
+nc_NoReact = as.character(nc_NoReact$ORFpep)
+
+log2ratios_noncoding = calculate_log2ratio_df(nc_React, nc_NoReact)
+
+log2ratios_noncoding %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% 
+  drop_na() %>%
+ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio\n(Reactivated/No Reactivated)",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in\nNon-coding genes Reactivated in cancer") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_AAComposition_noncoding.png"), width=8.38, height=3.82)
+
+#### coding
+c_React = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding") %>% subset(tumorReactivated == "Reactivated")
+c_React = as.character(c_React$ORFpep)
+c_NoReact = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding") %>% subset(tumorReactivated != "Reactivated")
+c_NoReact = as.character(c_NoReact$ORFpep)
+
+log2ratios_coding = calculate_log2ratio_df(c_React, c_NoReact)
+log2ratios_coding %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% drop_na() %>% 
+ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio\n(Reactivated/No Reactivated)",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in\nProteinCoding genes Reactivated in cancer") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/TSTR_AAComposition_proteincoding.png"), width=8.38, height=3.82)
+
+### coding vs noncoding
+coding_AA = aacomposition_testisRestr %>% subset(coding_noncoding == "protein_coding")
+coding_AA = as.character(coding_AA$ORFpep)
+noncoding_AA = aacomposition_testisRestr %>% subset(coding_noncoding == "noncoding")
+noncoding_AA = as.character(noncoding_AA$ORFpep)
+
+log2ratios_codingnoncoding = calculate_log2ratio_df(noncoding_AA, coding_AA)
+log2ratios_codingnoncoding %>% 
+  mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
+                             Aminoacid %in% polar ~ "polar",
+                             Aminoacid %in% positively_charged ~ "positive",
+                             Aminoacid %in% negatively_charged ~ "negative",
+                             Aminoacid %in% special_cases ~ "special")) %>%
+  subset(Aminoacid != "*") %>% drop_na() %>% 
+ggplot(., aes(x=reorder(Aminoacid,log2ratio), y=log2ratio, fill = aa_type)) +
+  geom_bar(stat = "identity") +
+  labs(y="Log2Ratio\n(Non-Coding/Coding)",
+       x="Aminoacid",
+       title="Relative enrichement of aminoacids in ncORFs wrt CDS") +
+  scale_fill_manual(values = c("#462255FF", "#FF8811FF", "#9DD9D2FF","#046E8FFF", "#D44D5CFF")) +
+  theme_classic()
+ggsave(file.path(plots_wd, "PNG/AAComposition_coding_vs_noncoding.png"), width=8.38, height=3.82)
+
+```
+
+## Tumor-specific antigens contribution
+
+- Cryptic DB
+
+- Beijer et al.
+
+- Erhard et al.
+
+- IEAtlas
+
+- Chong et al.
+
+- Ouspenskaia et al.
+
+```{r neoantigens, echo=F}
+## Reactivated in tumor
+# tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immuno.csv")
+tumorReact_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3x_immuno.csv")
+
+print("How many ORFs contain at least 1 TSA evidenced by the literature? | Tumor Reactivated")
+print(length(unique(tumorReact_TSA$matching_ORFpep)))
+print("From how many total ORFs?")
+print(length(unique(tumorReact$ORFpep)))
+print(paste0("Proportion = ",length(unique(tumorReact_TSA$matching_ORFpep))/length(unique(tumorReact$ORFpep))*100,"%"))
+
+## TestisExpressed in tumor
+testisRestr_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q5_immunopeptidomics/human/TestisRestrictedGTEx_Translated_ONLYintestis_immuno.csv")
+print("How many ORFs contain at least 1 TSA evidenced by the literature? | TestisRestricted")
+print(length(unique(testisRestr_TSA$matching_ORFpep)))
+print("From how many total ORFs?")
+print(length(unique(testisRestr$ORFpep)))
+print(paste0("Proportion = ",length(unique(testisRestr_TSA$matching_ORFpep))/length(unique(testisRestr$ORFpep))*100,"%"))
+
+## how many of each condition
+numbers_TSA = data.frame("TumorReactivated" = c("Reactivated","NoReactivated"),
+                         "ORFs_with_evidence" = c(length(unique(tumorReact_TSA$matching_ORFpep)), length(unique(testisRestr_TSA$matching_ORFpep))),
+                         "totalORFs" = c(length(unique(tumorReact$ORFpep)), length(unique(testisRestr$ORFpep))))
+numbers_TSA = numbers_TSA %>%
+  mutate(proportion = numbers_TSA$ORFs_with_evidence / numbers_TSA$totalORFs * 100) %>% ## compute proportion of evidenced
+  mutate(ORFs_without_evidence = numbers_TSA$totalORFs - numbers_TSA$ORFs_with_evidence)
+  
+numbers_TSA %>%
+  select(TumorReactivated, ORFs_with_evidence, ORFs_without_evidence) %>%
+  pivot_longer(cols = -TumorReactivated, names_to = "Condition", values_to = "ORFs") %>%
+  group_by(TumorReactivated) %>%
+  mutate(Percentage = ORFs / sum(ORFs) * 100,
+         Cumulative_ORFs = cumsum(ORFs),
+         LabelPosition = Cumulative_ORFs - (ORFs / 2)) %>% # Position in the middle of each slice based on ORFs
+  ggplot() + 
+  geom_bar(aes(x = 1, y = Percentage, fill = Condition), stat = "identity") +
+  coord_polar("y", start = 0) +
+  ggtitle("ORFs with immunopeptidomics evidence") +
+  theme_void() +  
+    scale_fill_manual(values=c("#855C75FF","#D9AF6BFF")) +
+  theme(legend.position = "top") +
+  facet_wrap(~ TumorReactivated, scales = "free") 
+ggsave(file.path(plots_wd, "PNG/TSTR_ORFs_with_Immuno.png"))
+
+testisRestr = merge(testisRestr, testisRestr_TSA %>% select(gene_name, Peptide, ORFpep, source), by=c("gene_name","ORFpep"), all.x=T)
+testisRestr[is.na(testisRestr)] = "None"
+
+## how many peptides per ORF?
+pep_x_orf = testisRestr %>% select(orfID, Peptide, gene_name, coding_noncoding, tumorReactivated, length_aa) %>% unique() %>% group_by(orfID, coding_noncoding, gene_name, tumorReactivated, length_aa) %>% count()
+
+## all non-coding have only 1 peptide per ORF
+ggplot(pep_x_orf %>% subset(coding_noncoding == "protein_coding"), aes(x=n, y=length_aa)) +
+  geom_point() +
+  geom_text_repel(aes(label=gene_name), size=3, color="black") +
+  scale_y_continuous(trans="log10") +
+  labs(x="Number of evidenced peptides",
+       y="Length (AA)",
+       title="Number of immunopeptides per ORF vs length ORFs") +
+  theme_minimal() 
+ggsave(file.path(plots_wd, "PNG/TSTR_ORFs_vs_Length.png"), width=6.91, height=5.90)
+
+## at peptide level
+TSA = testisRestr %>% select(orfID, Peptide, source, gene_name, coding_noncoding, tumorReactivated) %>% unique()
+TSA$value = 1
+TSA = TSA %>% pivot_wider(names_from = "source", values_from = "value")
+TSA[is.na(TSA)] = 0
+TSA$sum = rowSums(TSA[,c(6:9)])
+
+## can it be that an ORF is validated by two sources, even though it is a different peptide?
+TSA_ORF = testisRestr %>% select(orfID, source, gene_name, coding_noncoding, tumorReactivated) %>% unique()
+TSA_ORF$value = 1
+TSA_ORF = TSA_ORF %>% pivot_wider(names_from = "source", values_from = "value")
+TSA_ORF[is.na(TSA_ORF)] = 0
+TSA_ORF$sum = rowSums(TSA_ORF[,c(5:8)])
+
+sources = testisRestr %>% select(gene_name, orfID, tumorReactivated, source) %>% unique()
+table(sources$tumorReactivated, sources$source)
+## which are the noReactivated with immunopeptidomics evidence?
+
+NoReactivatedTSAexamples = testisRestr %>% subset(tumorReactivated == "NoReactivated" & source != "None") %>% select(transcript_id, gene_name, orfID, length_aa, source, gene_type, age_categorical) %>% unique()
+
+testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
+  unique() %>% 
+  group_by(tumorReactivated, source, coding_noncoding) %>% count() %>%
+  mutate(Immuno = case_when(source == "None" ~ "None",
+                            TRUE ~ "Immunovalidated")) %>%
+  ggplot(., aes(x=tumorReactivated, y=n, fill=source, group = Immuno)) +
+  geom_bar(stat="identity", position = "fill") +
+  scale_fill_manual(values=c("deBeijer" = "#8C785DFF",
+                             "IEAtlas" = "#AF6458FF",
+                             "nuORFdb" = "#625377FF",
+                             "DiazCamarena" = "#9C9C5EFF",
+                             "None" = "#DCDCDC")) +
+  labs(x="Tumor Reactivation",
+       fill="Source of\nimmunopeptidomics evidence",
+       y="Proportion of Tumor-specific antigens",
+       title="Number of immunovalidated TSA in TSTR") +
+  theme_minimal() +
+  facet_wrap(~ coding_noncoding)
+ggsave(file.path(plots_wd, "PNG/TSTR_TSAburden_immuno.png"), width=7, height=6.18)
+
+##  How are the examples in terms of tumorExpression
+# unfiltered_allfc = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q3_TestisRestrictedTumors/human/unfiltered_tablesofcounts_long.csv")
+# NoReactivatedTSAexamples_full = unfiltered_allfc %>% subset(transcript_id %in% NoReactivatedTSAexamples$transcript_id)
+# NoReactivatedTSAexamples_stats = NoReactivatedTSAexamples_full %>% group_by(transcript_id, normal_tumor) %>% 
+#   mutate(mean = mean(TPM),
+#          median = median(TPM),
+#          max = max(TPM)) %>% select(transcript_id, normal_tumor, mean, median, max) %>% unique()
+
+cases = testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
+  unique() %>% subset(source != "None") %>% select(-c(source, orfID)) %>% unique()
+cases
+
+to_venn = testisRestr %>% 
+  select(gene_name, orfID, tumorReactivated, source, coding_noncoding) %>% 
+  unique() %>% subset(source != "None")
+table(to_venn$source, to_venn$coding_noncoding)
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "IEAtlas" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "nuORFdb" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "DiazCamarena" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "deBeijer" & tumorReactivated == "Reactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Protein-Coding ORFs Reactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSTR_CDS.png"), width=7, height=6.18)
+
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "IEAtlas" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "nuORFdb" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "DiazCamarena" & tumorReactivated == "NoReactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "protein_coding" & source == "deBeijer" & tumorReactivated == "NoReactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Protein-Coding ORFs NoReactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSnoTR_CDS.png"), width=7, height=6.18)
+
+
+ggvenn(list("IEAtlas" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "IEAtlas" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "nuORFdb" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "nuORFdb" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "DiazCamarena" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "DiazCamarena" & tumorReactivated == "Reactivated") %>% pull(orfID),
+            "deBeijer" = to_venn %>% subset(coding_noncoding == "noncoding" & source == "deBeijer" & tumorReactivated == "Reactivated") %>% pull(orfID)),
+       fill_alpha=0.5, stroke_color="gray", set_name_size = 4, text_size=3, 
+       fill_color = c("#AF6458FF","#625377FF","#9C9C5EFF","#8C785DFF","#DCDCDC")) +
+  ggtitle("Non-Canonical ORFs Reactivated in Tumors")
+ggsave(file.path(plots_wd, "PNG/venn_TSTR_ncORFs.png"), width=7, height=6.18)
+```
+
+## Selection of TS/TR
+
+```{r TSTR, echo=F}
+TSTR = testisRestr %>% subset(tumorReactivated == "Reactivated") %>% select(-X)
+TSTR_ORFs = merge(TSTR, tumorReact %>% select(orfID, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype), by=c("orfID"), all.x=T)
+TSTR_genes = merge(TSTR %>% select(-c(orfID, ORFpep, length_aa, length, start_codon, mean_TE, TranslatedLiver, TranslatedBrain, orfType)) %>% unique(), tumorReact %>% select(gene_id, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype), by=c("gene_id"), all.x=T)
+
+TSTR_genes_fewinfo = TSTR_genes %>% select(gene_id, gene_name, coding_noncoding, total_n, percentage_num_patients_overexpr, num_patients_overexpr, ctype) %>% unique()
+
+## ProteinCoding
+to_upset_Coding = TSTR_genes_fewinfo %>% subset(coding_noncoding == "protein_coding") %>% select(ctype, gene_name) %>% unique()
+to_upset_Coding$presence = 1
+to_upset_Coding = to_upset_Coding %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset_Coding[is.na(to_upset_Coding)] = 0
+to_upset_Coding = as.data.frame(to_upset_Coding)
+rownames(to_upset_Coding) = to_upset_Coding$gene_name
+to_upset_Coding$gene_name = NULL
+
+upset(to_upset_Coding,
+      sets=colnames(to_upset_Coding), main.bar.color = "#CC79A7"
+)
+to_upset_Coding_sums = to_upset_Coding
+to_upset_Coding_sums$sum = rowSums(to_upset_Coding_sums)
+
+
+## Non-Coding
+to_upset_nonCoding = TSTR_genes_fewinfo %>% subset(coding_noncoding == "noncoding") %>% select(ctype, gene_name) %>% unique()
+to_upset_nonCoding$presence = 1
+to_upset_nonCoding = to_upset_nonCoding %>% pivot_wider(names_from = "ctype", values_from = "presence")
+to_upset_nonCoding[is.na(to_upset_nonCoding)] = 0
+to_upset_nonCoding = as.data.frame(to_upset_nonCoding)
+rownames(to_upset_nonCoding) = to_upset_nonCoding$gene_name
+to_upset_nonCoding$gene_name = NULL
+
+upset(to_upset_nonCoding,
+      sets=colnames(to_upset_nonCoding), main.bar.color = "#0090B2"
+)
+
+to_upset_nonCoding_sums = to_upset_nonCoding
+to_upset_nonCoding_sums$sum = rowSums(to_upset_nonCoding_sums)
+```
+
+### Candidates pan cancer
+
+```{r analysis_candidates, echo=F}
+library(tidyr)
+tumorReact_genes = tumorReact %>% select(gene_name, gene_id, coding_noncoding) %>% unique()
+table(tumorReact_genes$coding_noncoding)
+```
+
+## CTDB
+
+```{r CTDB, echo=F}
+length(unique(CTDB$CT_identifier))
+
+tumorReact_genes = tumorReact_genes %>% mutate(CTDB = case_when(gene_name %in% CTDB$gene_name ~ "CTDB",
+                                                                TRUE ~ "no"))
+table(tumorReact_genes$coding_noncoding, tumorReact_genes$CTDB)
+```
+
+## Systematic identification of genes with a cancer-testis expression pattern in 19 cancer types, Wang 2016 Nature Comm
+
+https://www.nature.com/articles/ncomms10499#Sec28
+
+
+(C1) high-confidence testis-specific coding genes:
+
+(C2) high-confidence testis-specific non-coding genes: GENCODE-annotated non-coding genes (v19) with SPMGTEx >0.9, SPMHBM >0.9 and SPMNJMU >0.9;
+
+(C3) moderate-confidence testis-specific coding genes: GENCODE-annotated protein-coding genes (v19) with SPMGTEx >0.9 and either SPMHBM >0.9 or SPMNJMU >0.9;
+
+(C4) moderate-confidence testis-specific non-coding genes: GENCODE-annotated non-coding genes (v19) with SPMGTEx >0.9 and either SPMHBM >0.9 or SPMNJMU >0.9;
+
+(C5) low-confidence TSGs: genes with SPMGTEx >0.9 but SPMHBM ≤0.9 and SPMNJMU ≤0.9;
+
+(C6) non-gene-level TSG: genes with SPMGTEx≤0.9.
+
+
+
+```{r CTWang2016, echo=F}
+data2A = read.csv("/projects_eg/projects/marta/Wang2016_SystematicIdentificationCT/SuppData2A_8565genes.csv", skip = 1)
+names(data2A)[1] = "gene_id"
+
+tumorReact_genes = merge(data2A, tumorReact_genes, by="gene_id", all.y=T)
+nrow(tumorReact_genes)
+table(tumorReact_genes$coding_noncoding)
+tumorReact_genes[["Classification.mRNA."]][is.na(tumorReact_genes[["Classification.mRNA."]])] <- "absent"
+table(tumorReact_genes$Classification.mRNA., tumorReact_genes$coding_noncoding)
+table(tumorReact_genes$Classification.mRNA., tumorReact_genes$CTDB)
+
+tumorReact_genes %>% subset(coding_noncoding == "protein_coding" & Classification.mRNA. == "absent") %>% select(gene_name, coding_noncoding , CTDB)
+
+tumorReact_genes %>% subset(coding_noncoding == "noncoding" & Classification.mRNA. == "absent") %>% select(gene_name, coding_noncoding , CTDB)
+```
+
+## Chr Position
+
+Bernat Gel & Eduard Serra. (2017). karyoploteR: an R/Bioconductor package to plot customizable genomes displaying arbitrary data. Bioinformatics, 31–33. doi:10.1093/bioinformatics/btx346
+
+```{r karyoploteR, echo=F}
+gtf_file = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/newReference_Resconstructed/gencode.v38.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.gtf"
+gtf_data = import(gtf_file, format = "gtf")
+
+GRanges_GTF = as(gtf_data, "GRanges")
+GRanges_GTF$gene_id = gsub("\\..*","",GRanges_GTF$gene_id)
+
+GRanges_GTF_tumorReact = GRanges_GTF %>% subset(gene_id %in% tumorReact_genes$gene_id) %>% subset(type == "transcript") 
+GRanges_GTF_tumorReact$gene_type[is.na(GRanges_GTF_tumorReact$gene_type)] <- "novel"
+
+GRanges_GTF_tumorReact_CODING = GRanges_GTF_tumorReact %>% subset(gene_type == "protein_coding")
+length(GRanges_GTF_tumorReact_CODING$gene_id)
+
+
+GRanges_GTF_tumorReact_NONCODING = GRanges_GTF_tumorReact %>% subset(gene_type != "protein_coding")
+mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name <- ifelse(
+  is.na(mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name),
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_id,
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name
+)
+length(GRanges_GTF_tumorReact_NONCODING$gene_id)
+
+# setdiff(tumorReact_genes %>% subset(coding_noncoding == "noncoding") %>% pull(gene_id), GRanges_GTF_tumorReact_NONCODING$gene_id) 
+# intersect(tumorReact_genes %>% subset(coding_noncoding == "noncoding") %>% pull(gene_id), GRanges_GTF_tumorReact_NONCODING$gene_id)
+
+png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr_labels.png"), height=9.26, width=15.20, units = "in", res=400)
+kp <- plotKaryotype(genome="hg38")
+kpPlotMarkers(kp, data=GRanges_GTF_tumorReact_CODING, labels=GRanges_GTF_tumorReact_CODING$gene_name,
+              text.orientation = "horizontal",
+              r1=0.5, cex=0.6, adjust.label.position = T, label.color = "red",  line.color = "red")
+kpPlotMarkers(kp, data=GRanges_GTF_tumorReact_NONCODING, labels=GRanges_GTF_tumorReact_NONCODING$gene_name, text.orientation = "horizontal",
+              r1=0.5, cex=0.6, adjust.label.position = T,
+              label.color = "blue", line.color = "blue")
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("red", "blue"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend titledev.off()
+
+png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr.png"), height=9.26, width=15.20, units = "in", res=400)
+kp <- plotKaryotype(genome="hg38")
+# Plot the coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_CODING,
+           y0=0, y1=0.5, col="red") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_CODING,
+         y=0.5, col="red", pch=19, cex=0.6) # Add dots
+
+# Plot the non-coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_NONCODING,
+           y0=0, y1=0.5, col="blue") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_NONCODING,
+         y=0.5, col="blue", pch=19, cex=0.6) # Add dots
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("red", "blue"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend title
+dev.off()
+```
+
+## Thymus expression
+
+If present in thymus, not reexpressed but mutations
+
+```{r thymus, echo=F}
+thymus_candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/quantification_thymus/table_of_counts_TPMs_thymus_TOv3xlog2ratio3xmean.csv")
+thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/quantification_thymus/thymus_summary_TOv3xlog2ratio3xmean.csv")
+names(thymus_candidates_summary) = c("X","transcript_id","mean_mTEC","median_mTEC","max_mTEC","gene_id","gene_type","gene_name")
+thymus_candidates_summary = merge(thymus_candidates_summary, tumorReact_genes, by=c("gene_id","gene_name"))
+# thymus_candidates_summary$log_mean_mTEC = log2(thymus_candidates_summary$mean_mTEC+0.00001)
+# thymus_candidates_summary$log_median_mTEC = log2(thymus_candidates_summary$median_mTEC+0.00001)
+
+a = ggplot(thymus_candidates_summary, aes(x=coding_noncoding, y=median_mTEC)) +
+  geom_quasirandom() +
+  geom_text_repel(data = subset(thymus_candidates_summary, mean_mTEC > 0.5),aes(label=gene_name), color="red") +
+  geom_hline(yintercept = 0.5) +
+  labs(x="",
+       title = "Mean mTEC expression") +
+    theme_minimal()
+
+
+b = ggplot(thymus_candidates_summary, aes(x=coding_noncoding, y=median_mTEC)) +
+  geom_quasirandom() +
+  geom_text_repel(data = subset(thymus_candidates_summary, median_mTEC > 0.5),aes(label=gene_name), color="red") +
+  geom_hline(yintercept = 0.5) +
+  labs(x="",
+       title = "Median mTEC expression") +
+  theme_minimal()
+
+c = ggplot(thymus_candidates_summary, aes(x=coding_noncoding, y=log(median_mTEC + 0.000001))) +
+  geom_quasirandom() +
+  geom_text_repel(data = subset(thymus_candidates_summary, median_mTEC > 0.5),aes(label=gene_name), color="red") +
+  geom_hline(yintercept = log(0.5)) +
+  labs(x="",
+       title = "Median mTEC expression") +
+  theme_minimal()
+  
+ggarrange(a,b)
+ggarrange(a,c)
+ggsave(file.path(plots_wd, "PNG/TOv3xlog2ratio3xMEAN_median_mTEC.png"))
+
+tumorReact_Thymus = tumorReact %>% subset(gene_id %in% thymus_candidates_summary$gene_id) %>% select(gene_id, gene_name, coding_noncoding, ctype, num_patients_overexpr, percentage_num_patients_overexpr, total_n) %>% unique()
+tumorReact_Thymus = merge(tumorReact_Thymus, thymus_candidates_summary %>% select(median_mTEC, gene_id), by="gene_id")
+tumorReact_Thymus = tumorReact_Thymus %>% mutate(thymus_expressed = case_when(median_mTEC > 0.5 ~ "yes",
+                                                                              TRUE ~ "no"))
+
+## pancancer
+tumorReact_Thymus_pancancer = tumorReact_Thymus %>% select(-c(ctype, num_patients_overexpr, percentage_num_patients_overexpr, total_n)) %>% unique() %>% group_by(coding_noncoding, thymus_expressed) %>% count() %>% group_by(coding_noncoding) %>% mutate(proportion = n / sum(n)) 
+table(tumorReact_Thymus_pancancer$coding_noncoding, tumorReact_Thymus_pancancer$thymus_expressed)
+
+ggplot(tumorReact_Thymus_pancancer, aes(x=coding_noncoding, fill=thymus_expressed, y=n)) +
+  geom_bar(stat="identity", position="fill") +
+  geom_text(aes(label=n),position = position_fill(vjust = 0.5)) +
+  scale_fill_manual(values=c("grey","#E26320")) +
+  labs(x="",
+       y="Fraction of TS/TR genes\nExpressed in mTECs",
+       title="Expression of TS/TR genes in medullary epitelial cells of the human thymus",
+       fill="Expression in mTECs") +
+  theme_minimal()
+ggsave(file.path(plots_wd, "PNG/TOv3xlog2ratio3xMEAN_fraction_mTECsexpression.png"))
+
+## ctype
+# tumorReact_Thymus_counts = tumorReact_Thymus %>% group_by(coding_noncoding, thymus_expressed, ctype) %>% count() 
+# 
+# ggplot(tumorReact_Thymus_counts, aes(x=coding_noncoding, fill=thymus_expressed, y=n)) +
+#   geom_bar(stat="identity", position="fill") +
+#   facet_wrap(~ ctype, scales="free_x", nrow=1)
+
+```
+
+```{r num_patients, echo=F}
+num_cancers = tumorReact %>% select(gene_name, ctype, percentage_num_patients_overexpr, num_patients_overexpr) %>% unique() %>% group_by(gene_name) %>% mutate(num_ctypes = n(), total_n = sum(num_patients_overexpr)) 
+
+tumorReact_pancancer = tumorReact %>% select(gene_name, gene_id, ctype, percentage_num_patients_overexpr, num_patients_overexpr, gene_type) %>% 
+  mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ gene_type,
+                                      TRUE ~ "noncoding")) %>% select(-gene_type)
+tumorReact_pancancer = merge(tumorReact_pancancer, num_cancers, by=c("ctype","gene_name","num_patients_overexpr","percentage_num_patients_overexpr"))
+
+ggplot(tumorReact_pancancer %>% select(gene_name, coding_noncoding, num_ctypes) %>% unique(), aes(x=reorder(gene_name, num_ctypes), y=num_ctypes)) +
+  geom_point() +
+  geom_hline(yintercept = 2) +
+  labs(x="Gene Name",
+       y="Number of cancer types",
+       title="Number of cancer types for TS/TR") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "none") +
+  facet_wrap(~ coding_noncoding, scales="free_x", nrow=2)
+
+## > 2
+tumorReact_pancancer = tumorReact_pancancer %>% subset(num_ctypes > 2) %>%
+  group_by(gene_name) %>%
+  filter(sum(percentage_num_patients_overexpr > 10) >= 3) %>%
+  ungroup() 
+
+ggplot(tumorReact_pancancer %>% select(gene_name, coding_noncoding, num_ctypes) %>% unique(), aes(x=reorder(gene_name, num_ctypes), y=num_ctypes)) +
+  geom_point() +
+  geom_hline(yintercept = 2) +
+    labs(x="Gene Name",
+       y="Number of cancer types",
+       title="Number of cancer types for TS/TR | Pancancer (> 2 with > 10%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "none") +
+  facet_wrap(~ coding_noncoding, scales="free_x", nrow=2)
+
+
+ggplot(tumorReact_pancancer, aes(x=reorder(gene_name, total_n), y=percentage_num_patients_overexpr)) +
+  geom_point() +
+  geom_hline(yintercept = 10) +
+  labs(x="Gene Name",
+   y="Percentage of patients per cancer type",
+   title="Percentage of patients per TS/TR and cancer type\nPancancer (> 2 with > 10%)") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle=90),
+        legend.position = "none") +
+  facet_wrap(~ coding_noncoding, scales="free_x", nrow=2)
+
+tumorReact_pancancer_short = tumorReact_pancancer %>% select(gene_name, total_n, coding_noncoding, num_ctypes) %>% unique()
+tumorReact_pancancer_short_ordered = tumorReact_pancancer_short[order(tumorReact_pancancer_short$total_n, decreasing = T),]
+
+immuno = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immuno.csv")
+immuno = immuno %>% select(gene_name, Peptide, source) %>% unique()
+tumorReact_pancancer_short_ordered_immuno = merge(tumorReact_pancancer_short_ordered, immuno, by="gene_name", all.x=T)
+names(tumorReact_pancancer_short_ordered_immuno)[5] = "Peptide_byPep"
+names(tumorReact_pancancer_short_ordered_immuno)[6] = "Source_byPep"
+
+
+immunobyGene = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_immunobyGene.csv")
+immunobyGene = immunobyGene %>% select(gene_name, source) %>% unique()
+
+tumorReact_pancancer_short_ordered_immuno = merge(tumorReact_pancancer_short_ordered_immuno, immunobyGene, by="gene_name", all.x=T)
+names(tumorReact_pancancer_short_ordered_immuno)[7] = "Source_byGene"
+
+tumorReact_pancancer_short_ordered_immuno %>% subset(coding_noncoding == "noncoding")
+tumorReact_pancancer_short_ordered_immuno %>% subset(coding_noncoding == "protein_coding")
+
+```
+
+## CT-X // non-X
+
+```{r CTX_nonX, echo=F}
+tumorReact_genes = merge(tumorReact_genes, annot, by=c("gene_name","gene_id"))
+tumorReact_genes = tumorReact_genes %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+                                                                  TRUE ~ "nonX"))
+table(tumorReact_genes$coding_noncoding, tumorReact_genes$X_nonX)
+
+X_tumorReact_genes = tumorReact_genes %>% subset(X_nonX == "X")
+X_tumorReact_genes = merge(X_tumorReact_genes, tumorReact %>% select(ctype, gene_name), by="gene_name")
+X_tumorReact_genes_counts = X_tumorReact_genes %>% group_by(ctype) %>% count()
+X_tumorReact_genes_counts_ordered = X_tumorReact_genes_counts[order(X_tumorReact_genes_counts$n, decreasing = TRUE), ]
+names(X_tumorReact_genes_counts_ordered)[2] = "CT-X"
+
+nonX_tumorReact_genes = tumorReact_genes %>% subset(X_nonX != "X" & coding_noncoding == "protein_coding")
+nonX_tumorReact_genes = merge(nonX_tumorReact_genes, tumorReact %>% select(ctype, gene_name), by="gene_name")
+nonX_tumorReact_genes_counts = nonX_tumorReact_genes %>% group_by(ctype) %>% count()
+nonX_tumorReact_genes_counts_ordered = nonX_tumorReact_genes_counts[order(nonX_tumorReact_genes_counts$n, decreasing = TRUE), ]
+names(nonX_tumorReact_genes_counts_ordered)[2] = "CT-nonX"
+
+tumorReact_genes_counts_ordered = merge(nonX_tumorReact_genes_counts_ordered, X_tumorReact_genes_counts_ordered, by="ctype", all=T)
+tumorReact_genes_counts_ordered
+```
+
+```{r correlation, echo=F}
+correlation_values_to_save = data.frame("type" = character(), 
+                                        "ctype" = character(), 
+                                        "value" = numeric(), 
+                                        stringsAsFactors = F)
+
+## maybe check correlation for BLCA; LUSC and LIHC
+data_completed_TSA = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q4_TestisRestricted_TumorSpecific/human/TTS_TPM_patients.csv")
+data_completed_TSA = data_completed_TSA %>% subset(normal_tumor == "tumor")
+
+for (ctype_var in c("BLCA","LUSC","LIHC")) {
+  print(ctype_var)
+  ## how many patients in that ctype?
+  tumorReact_ctype = tumorReact %>% subset(ctype == ctype_var)
+  df = data_completed_TSA %>% subset(ctype == ctype_var)
+  
+  to_table = df %>% select(gene_name, gene_type) %>% unique()
+  print(table(to_table$gene_type))
+  
+  ## keep expression data to plot
+  df_expr = df %>% select(gene_name, patient, TPM) %>% subset(gene_name %in% tumorReact_ctype$gene_name) %>% pivot_wider(names_from = patient, values_from = TPM) %>% unique()
+  df_expr = as.data.frame(df_expr)
+
+  df_expr_values = mutate_all(df_expr[,-1], function(x) as.numeric(as.character(x)))
+  ## get log2TPM
+  df_log = log2(df_expr_values+1)
+
+  ## convert to matrix
+  matrix = as.matrix(df_log)
+  rownames(matrix) = df_expr$gene_name
+  matrix = na.omit(matrix)
+  nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+    
+    
+  ##### correlations
+  transposed = t(nozeros_matrix_log)
+  res2 <- rcorr(transposed)
+  cormat <- round(cor(transposed),2)
+      
+      
+  ####### 2. non-CTA ####### 
+  gene_names_ctype = df %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name) %>% pull(gene_name)
+  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  
+  if (length(gene_names_ctype) > 4) {
+      lncRNA_transposed = t(lncRNA_matrix)
+      res2 <- rcorr(lncRNA_transposed)
+      # A simple function to format the correlation matrix
+      # ++++++++++++++++++++++++++++
+      # flattenCorrMatrix
+      # ++++++++++++++++++++++++++++
+      # cormat : matrix of the correlation coefficients
+      # pmat : matrix of the correlation p-values
+      flattenCorrMatrix(res2$r, res2$P)
+      
+      lncRNA_cormat <- round(cor(lncRNA_transposed),2)
+      dim(lncRNA_cormat)
+      #### ----> CORRPLOT 2 - NON-CTA <----- #####
+        p <- {
+      corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
+               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+        recordPlot() 
+      }
+      
+      png(paste0(plots_wd,"/PNG/corrplot_nonCTA_TOv3xlog2ratio3xMEAN_",ctype_var,".png"))
+      replayPlot(p)
+      dev.off()
+      # pdf(paste0(plots_wd,"/PDF/corrplot_nonCTA_TOv3xlog2ratio3xMEAN_",ctype_var,".pdf"))
+      # replayPlot(p)
+      # dev.off()
+  }
+  
+  ####### 3. CTA ####### 
+  gene_names_ctype = df %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
+  if (length(gene_names_ctype) > 4) {
+
+    CTA_transposed = t(CTA_matrix)
+    res2 <- rcorr(CTA_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+    
+    CTA_cormat <- round(cor(CTA_transposed),2)
+    dim(CTA_cormat)
+    
+    ##### ----> CORRPLOT 3 - CTA <----- #####
+        p <- {
+    corrplot(CTA_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_CTA_TOv3xlog2ratio3xMEAN_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    # pdf(paste0(plots_wd,"/PDF/corrplot_CTA_TOv3xlog2ratio3xMEAN_",ctype_var,".pdf"))
+    # replayPlot(p)
+    # dev.off()
+    
+    CTA_cormat = data.frame(CTA_cormat)
+    CTA_cormat$A = rownames(CTA_cormat)
+    CTA_cormat = CTA_cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
+    ## which group we want to compare?
+    x_nonX_df = df %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+                                                                TRUE ~ "nonX")) %>% select(-chr)
+    chr_X = x_nonX_df %>% subset(X_nonX == "X")
+    chr_nonX = x_nonX_df %>% subset(X_nonX == "nonX")
+    
+    
+    CTA_cormat = CTA_cormat %>% mutate(A_chr = case_when(A %in% chr_X$gene_name ~ "X", 
+                                                     TRUE ~ "non-X")) 
+    CTA_cormat = CTA_cormat %>%
+      mutate(B_chr = case_when(B %in% chr_nonX$gene_name ~ "non-X", 
+                                   TRUE ~ "X")) 
+    
+    CTA_cormat %>% head
+    CTA_cormat_nonX = CTA_cormat %>% subset(A_chr == "non-X" & B_chr == "non-X")
+    CTA_cormat_X = CTA_cormat %>% subset(A_chr == "X" & B_chr == "X")
+    print("nonX")
+    print(mean(CTA_cormat_nonX$correlation))
+    correlation_values = data.frame("type"="CT-nonX",
+                          "value" = mean(CTA_cormat_nonX$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_nonX$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
+    print("X")
+    print(mean(CTA_cormat_X$correlation))
+        correlation_values = data.frame("type"="CT-X",
+                          "value" = mean(CTA_cormat_X$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_X$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
+  }
+  
+    ####### 4. CTA-Xchr ####### 
+  gene_names_ctype = df %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+  print("Num CT-X")
+  print(nrow(CTA_matrix_X))
+  
+  if (length(gene_names_ctype) > 4) {
+
+    CTAX_transposed = t(CTA_matrix_X)
+    res2 <- rcorr(CTAX_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+    
+    CTAX_cormat <- round(cor(CTAX_transposed),2)
+    dim(CTAX_cormat)
+    ##### ----> CORRPLOT 4 - CTA-X chr <----- #####
+          p <- {
+    corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_CTAX_TOv3xlog2ratio3xMEAN_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    # pdf(paste0(plots_wd,"/PDF/corrplot_CTAX_TOv3xlog2ratio3xMEAN_",ctype_var,".pdf"))
+    # replayPlot(p)
+    # dev.off()
+  
+  }
+  
+  ####### 5. CTA-nonXchr ####### 
+  gene_names_ctype = df %>% subset(gene_type == "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name) %>% pull(gene_name)
+  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+  print("Num CT-nonX")
+  print(nrow(CTA_matrix_nonX))
+  if (length(gene_names_ctype) > 4) {
+    CTAnonX_transposed = t(CTA_matrix_nonX)
+    res2 <- rcorr(CTAnonX_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+      
+    CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
+    dim(CTAnonX_cormat)
+    ##### ----> CORRPLOT 5 - CTA-nonX chr <----- #####
+    p <- {
+    corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_CTAnonX_TOv3xlog2ratio3xMEAN_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    # pdf(paste0(plots_wd,"/PDF/corrplot_CTAnonX_TOv3xlog2ratio3xMEAN_",ctype_var,".pdf"))
+    # replayPlot(p)
+    # dev.off()
+  }
+  
+  ### CTA vs nonCTA
+    gene_names_ctype = df %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name) %>% pull(gene_name)
+  matrix = nozeros_matrix_log[gene_names_ctype,]
+
+    transposed = t(matrix)
+    res2 <- rcorr(transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+    
+    cormat <- round(cor(transposed),2)
+    dim(cormat)
+    
+    cormat = data.frame(cormat)
+    cormat$A = rownames(cormat)
+    cormat = cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
+    ## which group we want to compare?
+    CTA_nonCTA_df = df %>% select(gene_name, gene_type) %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                                TRUE ~ "noncoding")) %>% select(-gene_type)
+    chr_CT = CTA_nonCTA_df %>% subset(coding_noncoding == "protein_coding") %>% unique()
+    chr_nonCT = CTA_nonCTA_df %>% subset(coding_noncoding == "noncoding") %>% unique()
+    
+    
+   cormat = cormat %>% mutate(A_CT = case_when(A %in% chr_CT$gene_name ~ "protein_coding", 
+                                                     TRUE ~ "noncoding")) 
+   cormat = cormat %>%
+      mutate(B_CT = case_when(B %in% chr_nonCT$gene_name ~ "noncoding", 
+                                   TRUE ~ "protein_coding")) 
+    
+    cormat %>% head
+    cormat_nonCT = cormat %>% subset(A_CT == "noncoding" & B_CT == "noncoding")
+    cormat_CT = cormat %>% subset(A_CT == "protein_coding" & B_CT == "protein_coding")
+    print("nonCT")
+    print(mean(cormat_nonCT$correlation))
+    correlation_values = data.frame("type"="noncoding",
+                          "value" = mean(cormat_nonCT$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_nonCT$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
+    print("CT")
+    print(mean(cormat_CT$correlation))
+        correlation_values = data.frame("type"="CT",
+                          "value" = mean(cormat_CT$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_CT$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
+  
+}
+
+ggplot(correlation_values_to_save %>% subset(type != "CT"), aes(x=ctype, y=value, color=type)) +
+  geom_point(shape=8) +
+  geom_line(aes(group=type)) +
+  theme_minimal()
+
+ggplot(correlation_values_to_save %>% subset(type != "CT"), aes(x=type, y=value, fill=type)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
+  labs(title="Correlation values",
+       x="",
+       y="Correlation coefficient") +
+  theme_minimal()
+ggsave(file.path(plots_wd,"PNG/corr_coeff_type.png"))
+
+# Check normality with Shapiro-Wilk test for each group
+shapiro_test_results <- correlation_values_to_save %>% filter(type != "CT") %>%
+  group_by(type)  %>%
+  dplyr::summarize(shapiro_p = shapiro.test(value)$p.value, .groups = "drop")
+
+# Check homogeneity of variances with Levene’s Test
+levene_test <- leveneTest(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+
+# If assumptions hold, perform ANOVA
+if(all(shapiro_test_results$shapiro_p > 0.05) && levene_test[["Pr(>F)"]][1] > 0.05) {
+  # Perform ANOVA
+  anova_result <- aov(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+  summary(anova_result)
+  
+  # If significant, perform Tukey HSD post-hoc test
+  tukey_result <- TukeyHSD(anova_result)
+  print(tukey_result)
+  
+} else {
+  # If assumptions do not hold, perform Kruskal-Wallis test
+  kruskal_result <- kruskal.test(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+  print(kruskal_result)
+  
+  # If significant, perform Dunn's test for post-hoc comparisons
+  if(kruskal_result$p.value < 0.05) {
+    dunn_result <- dunnTest(value ~ type, data = data, method="bh")
+    print(dunn_result)
+  }
+}
+
+```
+
+```{r X_nonX_barplot, echo=F}
+
+to_plot_barplot = data_completed_TSA %>% 
+  select(gene_name, gene_type, chr, ctype) %>% 
+  mutate(X_nonX = case_when(chr == "X" ~ "X", TRUE ~ "nonX")) %>% 
+  mutate(coding_noncoding_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "CT-X", gene_type != "protein_coding" ~ "noncoding", TRUE ~ "CT-nonX")) %>% unique() %>% 
+  group_by(coding_noncoding_chr, ctype) %>% 
+  count() %>% subset(ctype != "KIRP") %>% ungroup()
+to_plot_barplot = to_plot_barplot %>% add_row(coding_noncoding_chr = "CT-X", ctype = "COAD", n = 0)
+to_plot_barplot$ctype <- factor(
+  to_plot_barplot$ctype,
+  levels = c("LIHC", "BLCA", "LUSC", "BRCA", "LUAD", "PRAD", "KIRC", "COAD")
+)
+
+ggplot(to_plot_barplot, aes(x=ctype, y=n, fill=coding_noncoding_chr)) +
+    geom_bar(stat="identity", position="dodge") +
+    scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
+    labs(y="Number of TS/TR",
+         x="Cancer Type",
+         fill="Biotype") +
+    theme_classic()
+ggsave(file.path(plots_wd,"PNG/num_TSTR_per_ctype_chr.png"))
+
+```
+
+
+### How many MAGEA genes per ctype?
+
+```{r magea, echo=F}
+MAGEA = tumorReact %>% select(gene_name, ctype) %>% subset(grepl("MAGEA", gene_name)) %>% group_by(ctype) %>% count()
+```

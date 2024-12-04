@@ -26,9 +26,9 @@ module load Subread/2.0.3
 ########################
 
 # DIR=/users/genomics/marta/TCGA_RNASeq
-# DIR=/users/genomics/marta/cancers_RNASeq
+DIR=/users/genomics/marta/cancers_RNASeq
 # DIR=/projects_eg/projects/marta
-DIR=/users/genomics/marta
+# DIR=/users/genomics/marta
 
 if [ $p == "paired-end" ]; then
     if [ $strand == "firststrand" ]; then
