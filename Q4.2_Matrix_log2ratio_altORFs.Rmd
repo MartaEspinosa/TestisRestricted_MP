@@ -29,7 +29,7 @@ library(pheatmap)
 
 annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
 
-Q2_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Q2_TestisRestricted/human"
+Q2_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human"
 
 pre_save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q3_TestisRestrictedTumors/human"
 plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q4_TestisRestricted_TumorSpecific/human/plots"
@@ -203,7 +203,7 @@ col_annot = col_annot %>% select(-c(ctype))
 ## Matrix for expression
 
 ```{r TPMs_matrix_ctype_lncRNA, echo=F}
-data_completed_TSA = read.csv(file.path(save_wd,"TTS_TPM_patients.csv"))
+data_completed_TSA = read.csv(file.path(tumorReactDIR,"TTS_TPM_patients.csv"))
 data_completed_TSA = data_completed_TSA %>% subset(gene_id %in% TSA_TestisGTEx_Translated$gene_id)
 ```
 
