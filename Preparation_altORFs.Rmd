@@ -35,7 +35,7 @@ annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_Transcrip
 plots_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/PreparationPlots/MultiMap_altORFs"
 
 cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
-tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-LUAD","TCGA-BLCA")#,"TCGA-LIHC"]
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-LUAD","TCGA-BLCA")
 other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
 manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
 # deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
@@ -48,6 +48,7 @@ CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
                                        TRUE ~ "A"))
 CTDB = separate_rows(CTDB, gene_name, sep = "/")
 CTDB = separate_rows(CTDB, gene_name, sep = ",")
+CTDB_in_annot = CTDB %>% subset(gene_name %in% annot$gene_name)
 
 total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
                                 total_n = c(109,38,179,142,49,75,182,144))
@@ -107,7 +108,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 
 ## TestisORFs
 
-`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q1.1_TestisORFs_in1.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/TSTR_Pipeline/1_TestisORFs_in1.Rmd`
 
 ```{r testis, echo=F}
 testis = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
@@ -117,6 +118,15 @@ print("alt ORFs")
 table(testis %>% select(orfID, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
 print("Genes")
 table(testis %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+
+tp=testis %>% select(gene_id, gene_type, geneORFtype) %>% unique()
+table(tp$gene_type, tp$geneORFtype)
+```
+
+```{r testis_CTDB, echo=F}
+nrow(CTDB_in_annot)
+testis_CTDB = CTDB_in_annot %>% subset(gene_name %in% testis$gene_name)
+nrow(testis_CTDB)
 ```
 
 ```{r correlation_TPMs, echo=F}
@@ -153,8 +163,8 @@ ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM.png"))
 
 ## TestisRestricted - No Present in Proteome (BLASTP)
 
-`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2_TestisRestricted_in1.Rmd`
-`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q2.1_TestisRestricted_BLASTP_ncORFSvsCDS.ipynb`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/TSTR_Pipeline/2_TestisRestricted_in1.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/TSTR_Pipeline/3_TestisRestricted_BLASTP_ncORFSvsCDS.ipynb`
 
 ```{r testisRestricted_NoProteome, echo=F}
 testisRestr = read.csv('/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv')
@@ -172,6 +182,14 @@ print("alt ORFs")
 table(testisRestr %>% select(orfID, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
 print("Genes")
 table(testisRestr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+tp=testisRestr %>% select(gene_id, gene_type, geneORFtype) %>% unique()
+table(tp$gene_type, tp$geneORFtype)
+```
+
+```{r testisRestr_CTDB, echo=F}
+nrow(CTDB_in_annot)
+testisRestr_CTDB = CTDB_in_annot %>% subset(gene_name %in% testisRestr$gene_name)
+nrow(testisRestr_CTDB)
 ```
 
 ```{r blastp_ncORFs_CDS, echo=F}
@@ -225,11 +243,80 @@ ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr.png"), height=5, width
 
 ```
 
+```{r blastp_ncORFs_CDS_geneORFtype, echo=F}
+before = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/testisRestricted_GTEx_translatedONLYtestis.csv")
+before = before %>% select(orfID, gene_type, geneORFtype) %>% mutate(condition = "before")
+table(before$geneORFtype)
+after = testisRestr
+after = after %>% select(orfID, gene_type, geneORFtype) %>% mutate(condition = "after")
+table(after$geneORFtype)
+
+blastp = rbind(after,before)
+blastp = blastp %>% subset(geneORFtype != "protein_coding_canonical") %>% group_by(gene_type, geneORFtype, condition) %>% count()
+## how many are lost?
+blastp = blastp %>%
+  group_by(geneORFtype) %>%
+  summarise(
+    before = sum(n[condition == "before"], na.rm = TRUE),
+    after = sum(n[condition == "after"], na.rm = TRUE),
+    diff = before - after
+  ) %>%
+  mutate(
+    condition = "homology",
+    n = diff
+  ) %>%
+  select(geneORFtype, condition, n) %>%
+  bind_rows(blastp, .) %>%
+  arrange(geneORFtype, condition)
+
+blastp = blastp %>% subset(condition != "before") %>% group_by(geneORFtype) %>% mutate(proportion = round((n / sum(n))*100 ,2))
+blastp = blastp %>% mutate(condition_colored = case_when(condition == "after" & geneORFtype == "lncRNA_noncoding" ~ "after - lncRNA",
+                                                         condition == "after" & geneORFtype == "processed_pseudogene_noncoding" ~ "after - processed pseudogene",
+                                                         condition == "after" & geneORFtype == "novel_noncoding" ~ "after - novel",
+                                                         condition == "after" & geneORFtype == "protein_coding_uORF" ~ "after - uORF",
+                                                         condition == "after" & geneORFtype == "protein_coding_ouORF" ~ "after - ouORF",
+                                                         condition == "after" & geneORFtype == "protein_coding_dORF" ~ "after - dORF",
+                                                         condition == "after" & geneORFtype == "protein_coding_odORF" ~ "after - odORF",
+
+                                                         condition == "before" & geneORFtype == "lncRNA_noncoding" ~ "before - lncRNA",
+                                                         condition == "before" & geneORFtype == "processed_pseudogene_noncoding" ~ "before - processed pseudogene",
+                                                         condition == "before" & geneORFtype == "novel_noncoding" ~ "before - novel",
+                                                         condition == "before" & geneORFtype == "protein_coding_uORF" ~ "before - uORF",
+                                                         condition == "before" & geneORFtype == "protein_coding_ouORF" ~ "before - ouORF",
+                                                         condition == "before" & geneORFtype == "protein_coding_dORF" ~ "before - dORF",
+                                                         condition == "before" & geneORFtype == "protein_coding_odORF" ~ "before - odORF"                                                         ))
+ggplot(blastp, aes(x=geneORFtype, y=round(proportion,2), fill=condition_colored)) +
+  geom_bar(position="fill", stat="identity") +
+  geom_text(aes(label=proportion), position = position_fill(vjust = 0.5)) +
+  scale_fill_manual(values=c("after - lncRNA" = "#009E73",
+                           "after - processed pseudogene" = "#0090B2",
+                           "after - novel" = "#E69F00",
+                           "after - uORF" = "#B66DFF",
+                           "after - ouORF" = "#300049",
+                           "after - dORF" = "#7D0226",
+                           "after - odORF" = "#642822",
+
+                           "before - lncRNA" = "grey",
+                           "before - processed pseudogene" = "grey",
+                           "before - novel" = "grey",
+                           "before - uORF" = "grey",
+                           "before - ouORF" = "grey",
+                           "before - dORF" = "grey",
+                           "before - odORF" = "grey")) +
+  labs(x="Noncoding gene types",
+       y="Proportion of ncORFs",
+       title="ncORFs with homology with coding sequeneces") +
+  theme_classic() +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90))
+ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr_geneORFtype.png"), height=5, width=6)
+```
+
 ## TumorReactivated
 
 - Expressed 3 times more in tumor than in normal in at least 5% of the patients of at least 1 cancer type of the studied ones.
 
-`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q3.0_reconstructedTestis_log2ratio_altORFs.ipynb`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/TSTR_Pipeline/4_reconstructedTestis_log2ratio_altORFs.ipynb`
 <!-- `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4_TestisRestricted_OverexpressedTumors_in1.Rmd` - TOV3x -->
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.2_Matrix.Rmd`
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.3_Heatmap_TTS_ctype.Rmd` - log2ratio
@@ -250,6 +337,8 @@ print("altORFs")
 table(tumorReact_full %>% select(ORFpep, gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
 print("Genes")
 table(tumorReact_full %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+tp=tumorReact_full %>% select(gene_id, gene_type, geneORFtype) %>% unique()
+table(tp$gene_type, tp$geneORFtype)
 
 print("Per cancertype - genes")
 ctypes_tumorReact = tumorReact_full %>% mutate(coding_ncoding_gene = case_when(gene_type == "protein_coding" ~ "protein_coding",
