@@ -132,13 +132,14 @@ nrow(testis_CTDB)
 ```{r correlation_TPMs, echo=F}
 corr_TPMs = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/translationEfficiency_testis.withoutZeros.csv")
 
+### canonical
 ## sample1
 corr_TPMs %>% subset(sample == "Testis_1") %>% subset(geneORFtype == "protein_coding_canonical") %>%
   mutate(log_RNA_TPM = log(RNA_TPM),
          log_Ribo_TPM = log(Ribo_TPM)) %>%
   ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
   geom_point() +
-  labs(title="Testis 1") +
+  labs(title="Testis 1 | CDS") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testis1_RNA_Ribo_TPM.png"))
 ## sample2
@@ -147,7 +148,7 @@ corr_TPMs %>% subset(sample == "Testis_2") %>% subset(geneORFtype == "protein_co
          log_Ribo_TPM = log(Ribo_TPM)) %>%
   ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
   geom_point() +
-  labs(title="Testis 2") +
+  labs(title="Testis 2 | CDS") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testis2_RNA_Ribo_TPM.png"))
 ## sample3
@@ -156,9 +157,67 @@ corr_TPMs %>% subset(sample == "Testis_3") %>% subset(geneORFtype == "protein_co
          log_Ribo_TPM = log(Ribo_TPM)) %>%
   ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
   geom_point() +
-  labs(title="Testis 3") +
+  labs(title="Testis 3 | CDS") +
   theme_classic()
 ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM.png"))
+
+### noncoding
+## sample1
+corr_TPMs %>% subset(sample == "Testis_1") %>% subset(grepl("noncoding", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 1 | Noncoding") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis1_RNA_Ribo_TPM_noncoding.png"))
+## sample2
+corr_TPMs %>% subset(sample == "Testis_2") %>% subset(grepl("noncoding", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 2 | Noncoding") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis2_RNA_Ribo_TPM_noncoding.png"))
+## sample3
+corr_TPMs %>% subset(sample == "Testis_3") %>% subset(grepl("noncoding", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM)) +
+  geom_point() +
+  labs(title="Testis 3 | Noncoding") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM_noncoding.png"))
+
+### alternative ORFs
+## sample1
+corr_TPMs %>% subset(sample == "Testis_1") %>% subset(grepl("ORF", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM, color=geneORFtype)) +
+  geom_point(size=1, alpha=.2) +
+  labs(title="Testis 1 | altORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis1_RNA_Ribo_TPM_altORFs.png"))
+## sample2
+corr_TPMs %>% subset(sample == "Testis_2") %>% subset(grepl("ORF", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM, color=geneORFtype)) +
+  geom_point(size=1, alpha=.2) +
+  labs(title="Testis 2 | altORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis2_RNA_Ribo_TPM_altORFs.png"))
+## sample3
+corr_TPMs %>% subset(sample == "Testis_3") %>% subset(grepl("ORF", geneORFtype)) %>%
+  mutate(log_RNA_TPM = log(RNA_TPM),
+         log_Ribo_TPM = log(Ribo_TPM)) %>%
+  ggplot(., aes(x=log_RNA_TPM, y=log_Ribo_TPM, color=geneORFtype)) +
+  geom_point(size=1, alpha=.2) +
+  labs(title="Testis 3 | altORFs") +
+  theme_classic()
+ggsave(file.path(plots_wd,"PNG/testis3_RNA_Ribo_TPM_altORFs.png"))
 ```
 
 ## TestisRestricted - No Present in Proteome (BLASTP)
@@ -190,6 +249,7 @@ table(tp$gene_type, tp$geneORFtype)
 nrow(CTDB_in_annot)
 testisRestr_CTDB = CTDB_in_annot %>% subset(gene_name %in% testisRestr$gene_name)
 nrow(testisRestr_CTDB)
+testisRestr_CTDB
 ```
 
 ```{r blastp_ncORFs_CDS, echo=F}
@@ -309,7 +369,7 @@ ggplot(blastp, aes(x=geneORFtype, y=round(proportion,2), fill=condition_colored)
   theme_classic() +
   theme(legend.position = "none",
         axis.text.x = element_text(angle = 90))
-ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr_geneORFtype.png"), height=5, width=6)
+ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr_geneORFtype.png"), height=7, width=6)
 ```
 
 ## TumorReactivated
@@ -318,16 +378,17 @@ ggsave(file.path(plots_wd,"PNG/blastpHomology_testisRestr_geneORFtype.png"), hei
 
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/TSTR_Pipeline/4_reconstructedTestis_log2ratio_altORFs.ipynb`
 <!-- `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4_TestisRestricted_OverexpressedTumors_in1.Rmd` - TOV3x -->
-`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.2_Matrix.Rmd`
+`/home/marta/PROJECT_SCRIPTS/TestisRestricted_MPTSTR_Pipeline/5_Matrix_log2ratio_altORFs.Rmd`
 `/home/marta/PROJECT_SCRIPTS/TestisRestricted_MP/Q4.3_Heatmap_TTS_ctype.Rmd` - log2ratio
 
 ```{r tumorReactivated, echo=FALSE}
 tumorReact = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv")
-patients = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv")
 tumorReact = tumorReact %>% mutate(geneORFtype = paste0(gene_type,"_",orfType))
 
-tumorReact_full = merge(patients, tumorReact %>% select(gene_name, length_aa, start_codon, ORFpep, orfType, geneORFtype), by=c("gene_name"), all.y=T)
+patients = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv")
 
+## how many patients
+tumorReact_full = merge(patients, tumorReact %>% select(gene_name, length_aa, start_codon, ORFpep, orfType, geneORFtype), by=c("gene_name"), all.y=T)
 tumorReact_full = merge(tumorReact_full, total_num_patients, by="ctype", all.x=T)
 # tumorReact_full = tumorReact_full %>% mutate(geneORFtype = paste0(gene_type,"_",orfType))
 
@@ -353,6 +414,11 @@ ctypes_tumorReact_orfs = tumorReact_full %>% mutate(coding_ncoding = case_when(g
 table(ctypes_tumorReact_orfs$coding_ncoding, ctypes_tumorReact_orfs$ctype)
 table(ctypes_tumorReact_orfs$ctype)
 ```
+```{r tumor_counts, echo=F}
+TSTR_expr = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_Expression.csv")
+TSTR_expr = TSTR_expr %>% select(-c(X, index)) 
+TSTR_expr %>% head
+```
 
 ```{r perpatient, echo=F}
 candidates_per_patient = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv")
@@ -369,7 +435,8 @@ ggsave(file.path(plots_wd, "PNG/TSTR_per_patient.png"))
 ```
 
 ```{r correlation_npatients_nTSTR, echo=F}
-tumorReact_full %>% select(gene_id, total_n, ctype) %>% unique() %>% group_by(ctype, total_n) %>% count() %>%
+tumorReact_full_genes = tumorReact_full %>% select(gene_id, total_n, ctype) %>% unique()
+tumorReact_full_genes %>% group_by(ctype, total_n) %>% count() %>%
   ggplot(., aes(x=total_n, y=n, color=ctype)) +
   geom_point(stat="identity", size=5) +
   geom_text(aes(label=ctype), hjust = -0.3, size=3, fontface = "bold") +
@@ -385,6 +452,14 @@ tumorReact_full %>% select(gene_id, total_n, ctype) %>% unique() %>% group_by(ct
 ggsave(file.path(plots_wd, "PNG/TSTR_numpatients_scatter.png"), height=5.08, width=4.80)
 
 ```
+
+
+
+
+
+
+
+
 
 ## Correlation testis expression vs tumor expression?
 
@@ -414,12 +489,12 @@ names(testis_TPMs_stats) = c("transcript_id","gene_id","gene_type","gene_name","
 
 
 ### Testis-Tumor
-testis_tumor_TPMs = merge(filtered_data_TOv3x_long, testis_TPMs_stats, by=c("transcript_id","gene_id","gene_type","gene_name"))
+testis_tumor_TPMs = merge(TSTR_expr, testis_TPMs_stats, by=c("transcript_id","gene_id","gene_type","gene_name"))
 ## remove the zeros, show mean of patients for which it is Overexpressed
-testis_tumor_TPMs = testis_tumor_TPMs %>% subset(normal_tumor == "tumor") %>% subset(forced_TPM > 0) 
-testis_tumor_TPMs = testis_tumor_TPMs %>% group_by(gene_name, gene_type, ctype, mean_testis, median_testis) %>% mutate(mean_tumor = mean(forced_TPM),
-                                                                                          median_tumor = median(forced_TPM))
-testis_tumor_TPMs = testis_tumor_TPMs %>% select(gene_name, gene_type, mean_tumor, median_tumor, mean_testis, median_testis) %>% unique()
+testis_tumor_TPMs = testis_tumor_TPMs %>% subset(normal_tumor == "tumor") %>% subset(TPM > 0) 
+testis_tumor_TPMs = testis_tumor_TPMs %>% group_by(gene_name, gene_type, ctype, mean_testis, median_testis) %>% mutate(mean_tumor = mean(TPM),
+                                                                                          median_tumor = median(TPM))
+testis_tumor_TPMs = testis_tumor_TPMs %>% select(gene_name, gene_id, gene_type, mean_tumor, median_tumor, mean_testis, median_testis, ctype) %>% unique()
 
 ### MEAN tumor zeros removed
 testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
@@ -455,6 +530,83 @@ testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_
   facet_wrap(~ ctype)
 ggsave(file.path(plots_wd, "PNG/TSTR_TestisExpr_TumorExpr.png"), width=7, height=7)
 ```
+
+```{r testisGTEx_tumor_TPMs, echo=F}
+gtex = read.table("/data/genomics/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+names(gtex)[1] = "gene_id"
+nrow(gtex)
+gtex$gene_id = gsub("\\..*","",gtex$gene_id)
+
+gtex_testis_tumor = gtex %>% subset(gene_id %in% testis_tumor_TPMs$gene_id) %>% select(gene_id, Testis)
+gtex_testis_tumor = merge(gtex_testis_tumor, annot, by="gene_id", all.x=T)
+
+gtex_testis_tumor = gtex_testis_tumor
+
+### Testis-Tumor
+testis_tumor_TPMs = merge(TSTR_expr, gtex_testis_tumor, by=c("transcript_id","gene_id","gene_type","gene_name"))
+## remove the zeros, show mean of patients for which it is Overexpressed
+testis_tumor_TPMs = testis_tumor_TPMs %>% subset(normal_tumor == "tumor") %>% subset(TPM > 0) 
+testis_tumor_TPMs = testis_tumor_TPMs %>% group_by(gene_name, gene_type, ctype, Testis) %>% mutate(mean_tumor = mean(TPM),
+                                                                                          median_tumor = median(TPM))
+testis_tumor_TPMs = testis_tumor_TPMs %>% select(gene_name, gene_type, mean_tumor, median_tumor, Testis, ctype) %>% unique()
+
+### MEAN tumor zeros removed
+# testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+#                                                           TRUE ~ "noncoding")) %>%
+#   ggplot(., aes(x=mean_tumor, y=Testis, color=coding_noncoding)) +
+#   geom_point() +
+#   geom_text_repel(aes(label=gene_name)) +
+#   labs(x="Mean TPM Tumor Samples (zeros removed)",
+#        y="Mean TPM Testis Samples",
+#        title="Correlation expression Testis vs Tumor") +
+#   scale_x_continuous(limits=c(0,275)) +
+#   scale_color_manual(values=c("#DFA398","#3B3960")) +
+#   theme_minimal() +
+#   facet_wrap(~ ctype)
+
+### MEAN tumor zeros removed
+testis_tumor_TPMs %>% mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "protein_coding",
+                                                          TRUE ~ "noncoding")) %>%
+  ggplot(., aes(x=log(mean_tumor), y=log(Testis), color=coding_noncoding)) +
+  geom_point() +
+  # geom_smooth(method = "lm", se = FALSE, aes(color=coding_noncoding)) +
+   # stat_cor(label.y = c(5.2, 4.8, 4.3, 3.8), label.x = c(1,1,1,1), aes(group=coding_noncoding, color = coding_noncoding), size=3) +
+  labs(x="log(Median TPM) Tumor Samples (zeros removed)",
+       y="log(Median TPM) Testis GTEx",
+       title="Correlation expression Testis vs Tumor") +
+  # scale_y_continuous(limits=c(-2.5,6)) +
+  # scale_x_continuous(limits=c(-2.5,6)) +
+  geom_vline(xintercept=0, size=.2) +
+  geom_hline(yintercept=0, size=.2) +
+  scale_color_manual(values=c("#DFA398","#3B3960")) +
+  theme_minimal() +
+  theme(legend.position="top") +
+  facet_wrap(~ ctype)
+ggsave(file.path(plots_wd, "PNG/TSTR_GTEx_TumorExpr.png"), width=7, height=7)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## Comparisons, from TestisSpecific, which are Reactivated and which are not
 

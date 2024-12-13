@@ -98,50 +98,12 @@ flattenCorrMatrix <- function(cormat, pmat) {
 ## Work with matrices
 
 ```{r import_data, echo=F}
-# TSA_TestisGTEx_Translated = read.csv(file.path(save_wd,"TSA_TestisRestrictedGTEx_Translated_Ctypes.csv"))
 TSA_TestisGTEx_Translated = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
 
-# data_completed_TSA = data.frame(transcript_id = character(),
-#                               Length = numeric(),
-#                               sample = character(),
-#                               TPM = numeric(),
-#                               patient = factor(),
-#                             normal_tumor = factor(),
-#                             project = character(),
-#                             ctype = character(),
-#                               stringsAsFactors = F)
-# 
-# for (ctype_var in cancers) {
-#   print(ctype_var)
-# 
-#   temp_TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype == ctype_var)
-# 
-#   ## table of counts
-#   df = read.csv(paste0(cancers_dir,"/merged_fc_",ctype_var,".csv"))
-#   ## pivot to make it easier to join
-#   df_long = df %>% pivot_longer(cols=-c(Length, transcript_id), values_to = "TPM", names_to = "sample")
-#   df_long$sample = gsub("\\.","-", df_long$sample)
-#   df_long$sample = gsub("^X","",df_long$sample)
-# 
-#   ## patients
-#   temp_patients = read.csv(paste0(cancers_dir,"/merged_patients_",ctype_var,".csv"))
-#   temp_patients = temp_patients %>% pivot_longer(cols=c("normal","tumor"), names_to = "normal_tumor", values_to = "sample")
-# 
-#   data_completed = merge(temp_patients, df_long, by="sample")
-#   data_completed$ctype = ctype_var
-# 
-#   ## select the TTS per ctype
-#   data_completed_TSA_temp = data_completed %>% subset(transcript_id %in% temp_TSA_TestisGTEx_Translated$transcript_id)
-#   data_completed_TSA = rbind(data_completed_TSA, data_completed_TSA_temp)
-# 
-# }
-# 
-# ## add more info about the genes
-# data_completed_TSA = merge(data_completed_TSA, annot, by="transcript_id")
-# 
-# ## save the data
-# write.csv(data_completed_TSA, file.path(tumorReactDIR,"TTS_TPM_patients.csv"), row.names=F)
+TSTR_expr = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_Expression.csv")
+TSTR_expr = TSTR_expr %>% select(-c(X, index)) 
+TSTR_expr = merge(TSTR_expr, annot, by=c('transcript_id','gene_id','gene_name','gene_type'))
 ```
 
 ```{r patients_matrix_ctype, echo=F}
@@ -202,44 +164,44 @@ col_annot = col_annot %>% select(-c(ctype))
 
 ## Matrix for expression
 
-```{r TPMs_matrix_ctype_lncRNA, echo=F}
-data_completed_TSA = read.csv(file.path(tumorReactDIR,"TTS_TPM_patients.csv"))
-data_completed_TSA = data_completed_TSA %>% subset(gene_id %in% TSA_TestisGTEx_Translated$gene_id)
-```
-
 
 ```{r read_data, echo=F}
 patients_data = read.csv(file.path(cancers_dir, "log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
 names(patients_data)[7] = "patient"
-step1 = merge(data_completed_TSA %>% subset(normal_tumor == "tumor") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select(gene_id,patient,ctype), by=c("gene_id","patient","ctype"))
+## get patients in which the gene is TSTR
+step1 = merge(TSTR_expr %>% subset(normal_tumor == "tumor") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select(gene_id,patient,ctype), by=c("gene_id","patient","ctype"))
+step1 = step1 %>% subset(TPM > 1)
 nrow(step1)
-step2 = merge(step1, data_completed_TSA  %>% subset(normal_tumor == "tumor") %>% select(patient, ctype, gene_id, gene_name, gene_type, transcript_id, chr, Length, project), by=c("gene_id","patient","ctype"), all.y=T)
+## add a forced 0 TPM in the patients where the gene is not TSTR
+step2 = merge(step1, TSTR_expr %>% subset(normal_tumor == "tumor") %>% select(patient, ctype, gene_id, gene_name, gene_type, transcript_id, chr, Length, project), by=c("gene_id","patient","ctype"), all.y=T)
 nrow(step2)
 step2[is.na(step2)] = 0
 names(step2)[4] = "forced_tumor_expr"
-# data_completed_TSA_wide = data_completed_TSA %>% select(-c(X, sample)) %>% pivot_wider(names_from="normal_tumor", values_from = "TPM")
-# # ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
-# data_completed_TSA_forced = data_completed_TSA_wide %>% mutate(forced_tumor_expr = case_when(normal < 0.1 & tumor > 1 ~ tumor,
-#                                                                                   TRUE ~ 0))
+# ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
 write.csv(step2, file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients.csv"), row.names=F)
 
 
 ### force for normals as well
-step1_2 = merge(data_completed_TSA %>% subset(normal_tumor == "normal") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select("gene_id","patient","ctype"), by=c("gene_id","patient","ctype"))
-step2_2 = merge(step2, step1_2, by=c("ctype","gene_id","patient"))
-nrow(step2_2)
-step3_2 = step2_2 %>% mutate(forced_normal_expr = case_when(forced_tumor_expr == 0 ~ 0,
-                                                            TRUE ~ TPM)) %>% select(-TPM)
-step3_2[is.na(step3_2)] = 0
+# step1_2 = merge(TSTR_expr %>% subset(normal_tumor == "normal") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select("gene_id","patient","ctype"), by=c("gene_id","patient","ctype"))
+# step2_2 = merge(step2, step1_2, by=c("ctype","gene_id","patient"))
+# nrow(step2_2)
+# step3_2 = step2_2 %>% mutate(forced_normal_expr = case_when(forced_tumor_expr == 0 ~ 0,
+#                                                             TRUE ~ TPM)) %>% select(-TPM)
+# step3_2[is.na(step3_2)] = 0
+# 
+# write.csv(step3_2, file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients_normals.csv"), row.names=F)
 
-write.csv(step3_2, file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients_normals.csv"), row.names=F)
 
-data_completed_TSA_forced = read.csv(file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients.csv"))
+data_completed_TSA_forced = step2
 data_completed_TSA_forced = data_completed_TSA_forced %>% subset(ctype != "KIRP")
 data_completed_TSA_wide = data_completed_TSA_forced %>% subset(forced_tumor_expr > 0)
 ## select only the patients for which the gene is TSA
 ## we compute the median of the patients that express the gene in a tumor-specific manner
 data_completed_TSA_wide = data_completed_TSA_wide %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(forced_tumor_expr)) %>% ungroup()
+
+## counting
+counting_genes = data_completed_TSA_forced %>% select(gene_id, gene_type, ctype) %>% unique()
+table(counting_genes$ctype, counting_genes$gene_type)
 ```
 
 ```{r median_heatmap, echo=F}
@@ -322,6 +284,58 @@ ordered_labels_col_lncRNA = lncRNA_ph$tree_col$labels[col.order]
 row.order = lncRNA_ph$tree_row$order
 ordered_labels_row_lncRNA = lncRNA_ph$tree_row$labels[row.order]
 save_pheatmap_pdf(lncRNA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_lncRNA_TOv3x5percentlog2ratio3x.pdf"))
+
+####### X / vs nonX
+chrX = data_completed_TSA_wide %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+nrow(chrX)
+chrA = data_completed_TSA_wide %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+nrow(chrA)
+
+## chrX
+chrX_matrix = nozeros_matrix_log[chrX$gene_name, ]
+chrX_matrix_non_zero <- chrX_matrix[, apply(chrX_matrix, 2, function(x) any(x != 0))]
+
+chrX_ph = pheatmap(chrX_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "red"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | chrX")
+save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_chrX_TOv3x5percentlog2ratio3x.pdf"))
+col.order = chrX_ph$tree_col$order
+ordered_labels_col_chrX = chrX_ph$tree_col$labels[col.order]
+
+row.order = chrX_ph$tree_row$order
+ordered_labels_row_chrX = chrX_ph$tree_row$labels[row.order]
+
+## chrA
+chrA_matrix = nozeros_matrix_log[chrA$gene_name, ]
+chrA_matrix_non_zero <- chrA_matrix[, apply(chrA_matrix, 2, function(x) any(x != 0))]
+
+chrA_ph = pheatmap(chrA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "red"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | autosomes")
+col.order = chrA_ph$tree_col$order
+ordered_labels_col_chrA = chrA_ph$tree_col$labels[col.order]
+
+row.order = chrA_ph$tree_row$order
+ordered_labels_row_chrA = chrA_ph$tree_row$labels[row.order]
+save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_chrA_TOv3x5percentlog2ratio3x.pdf"))
 ```
 
 ## Correlation
@@ -349,7 +363,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
     p = pmat[ut]
   )
 }
-flattenCorrMatrix(res2$r, res2$P)
+# flattenCorrMatrix(res2$r, res2$P)
 
 
 library(corrplot)
@@ -399,7 +413,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
     p = pmat[ut]
   )
 }
-flattenCorrMatrix(res2$r, res2$P)
+# flattenCorrMatrix(res2$r, res2$P)
 
 
 lncRNA_cormat <- round(cor(lncRNA_transposed),2)
@@ -426,7 +440,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
     p = pmat[ut]
   )
 }
-flattenCorrMatrix(res2$r, res2$P)
+# flattenCorrMatrix(res2$r, res2$P)
 
 
 CTA_cormat <- round(cor(CTA_transposed),2)
@@ -477,7 +491,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
     p = pmat[ut]
   )
 }
-flattenCorrMatrix(res2$r, res2$P)
+# flattenCorrMatrix(res2$r, res2$P)
 
 
 CTAX_cormat <- round(cor(CTAX_transposed),2)
@@ -504,7 +518,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
     p = pmat[ut]
   )
 }
-flattenCorrMatrix(res2$r, res2$P)
+# flattenCorrMatrix(res2$r, res2$P)
 
 
 CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
@@ -553,24 +567,11 @@ ggsave(file.path(plots_wd, "PDF/TOv3xlog2ratio3xburden_coding_vs_noncoding.pdf")
 ## Matrix for patients
 
 ```{r patients_matrix_ctype2, echo=F}
-TSA_TestisGTEx_Translated = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
-TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
-TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% mutate(n_percent = case_when(ctype == "BRCA" ~ num_patients_overexpr/109,
-                                                                                       ctype == "BLCA" ~ num_patients_overexpr/38,
-                                                                                       ctype == "LUAD" ~ num_patients_overexpr/179,
-                                                                                       ctype == "KIRC" ~ num_patients_overexpr/142,
-                                                                                       ctype == "LUSC" ~ num_patients_overexpr/49,
-                                                                                       ctype == "PRAD" ~ num_patients_overexpr/75,
-                                                                                       ctype == "LIHC" ~ num_patients_overexpr/182,
-                                                                                       ctype == "COAD" ~ num_patients_overexpr/144))
-
-
-
+patients_data = merge(patients_data, annot, by=c("transcript_id","gene_id","gene_type","gene_name"))
 ##### lncRNAs ######
-patient_ctype_mat_lncRNA = TSA_TestisGTEx_Translated %>% subset(gene_type != "protein_coding") %>% select(gene_name, ctype, n_percent) %>% unique()
-patient_ctype_mat_lncRNA$n_percent = str_remove_all(patient_ctype_mat_lncRNA$n_percent," ")
-patient_ctype_mat_lncRNA$n_percent = as.numeric(patient_ctype_mat_lncRNA$n_percent)
-patient_ctype_mat_lncRNA_wide = patient_ctype_mat_lncRNA %>% pivot_wider(names_from = "ctype", values_from = "n_percent")
+patient_ctype_mat_lncRNA = patients_data %>% subset(gene_type != "protein_coding") %>% select(gene_name, ctype, percentage_num_patients_overexpr) %>% unique()
+patient_ctype_mat_lncRNA$percentage_num_patients_overexpr = as.numeric(patient_ctype_mat_lncRNA$percentage_num_patients_overexpr)
+patient_ctype_mat_lncRNA_wide = patient_ctype_mat_lncRNA %>% pivot_wider(names_from = "ctype", values_from = "percentage_num_patients_overexpr")
 patient_ctype_mat_lncRNA_wide$max = apply(patient_ctype_mat_lncRNA_wide[,2:ncol(patient_ctype_mat_lncRNA_wide)], 1, max, na.rm=TRUE)
 patient_ctype_mat_lncRNA_wide = patient_ctype_mat_lncRNA_wide %>% subset(max > 0.05) %>% select(-max) ## 5% of the patients in one cancer type
 ## replace NAs by zeros
@@ -579,10 +580,9 @@ lncRNAs_mat = patient_ctype_mat_lncRNA_wide$gene_name
 patient_ctype_mat_lncRNA_wide = as.matrix(patient_ctype_mat_lncRNA_wide)
 
 ##### CTA ######
-patient_ctype_mat_CTA = TSA_TestisGTEx_Translated %>% subset(gene_type == "protein_coding") %>% select(gene_name, ctype, n_percent) %>% unique()
-patient_ctype_mat_CTA$n_percent = str_remove_all(patient_ctype_mat_CTA$n_percent," ")
-patient_ctype_mat_CTA$n_percent = as.numeric(patient_ctype_mat_CTA$n_percent)
-patient_ctype_mat_CTA_wide = patient_ctype_mat_CTA %>% pivot_wider(names_from = "ctype", values_from = "n_percent")
+patient_ctype_mat_CTA = patients_data %>% subset(gene_type == "protein_coding") %>% select(gene_name, ctype, percentage_num_patients_overexpr) %>% unique()
+patient_ctype_mat_CTA$percentage_num_patients_overexpr = as.numeric(patient_ctype_mat_CTA$percentage_num_patients_overexpr)
+patient_ctype_mat_CTA_wide = patient_ctype_mat_CTA %>% pivot_wider(names_from = "ctype", values_from = "percentage_num_patients_overexpr")
 patient_ctype_mat_CTA_wide$max = apply(patient_ctype_mat_CTA_wide[,2:ncol(patient_ctype_mat_CTA_wide)], 1, max, na.rm=TRUE)
 patient_ctype_mat_CTA_wide = patient_ctype_mat_CTA_wide %>% subset(max > 0.05) %>% select(-max) ## 5% of the patients in one cancer type
 ## replace NAs by zeros
@@ -590,6 +590,28 @@ patient_ctype_mat_CTA_wide[is.na(patient_ctype_mat_CTA_wide)] = 0
 CTAs_mat = patient_ctype_mat_CTA_wide$gene_name
 patient_ctype_mat_CTA_wide = as.matrix(patient_ctype_mat_CTA_wide)
 
+##### chrX ######
+patient_ctype_mat_chrX = patients_data %>% subset(chr == "X") %>% select(gene_name, ctype, percentage_num_patients_overexpr) %>% unique()
+patient_ctype_mat_chrX$percentage_num_patients_overexpr = as.numeric(patient_ctype_mat_chrX$percentage_num_patients_overexpr)
+patient_ctype_mat_chrX_wide = patient_ctype_mat_chrX %>% pivot_wider(names_from = "ctype", values_from = "percentage_num_patients_overexpr")
+patient_ctype_mat_chrX_wide$max = apply(patient_ctype_mat_chrX_wide[,2:ncol(patient_ctype_mat_chrX_wide)], 1, max, na.rm=TRUE)
+patient_ctype_mat_chrX_wide = patient_ctype_mat_chrX_wide %>% subset(max > 0.05) %>% select(-max) ## 5% of the patients in one cancer type
+## replace NAs by zeros
+patient_ctype_mat_chrX_wide[is.na(patient_ctype_mat_chrX_wide)] = 0
+chrXs_mat = patient_ctype_mat_chrX_wide$gene_name
+patient_ctype_mat_chrX_wide = as.matrix(patient_ctype_mat_chrX_wide)
+
+##### CTA ######
+patient_ctype_mat_chrA = patients_data %>% subset(chr != "X") %>% select(gene_name, ctype, percentage_num_patients_overexpr) %>% unique()
+patient_ctype_mat_chrA$percentage_num_patients_overexpr = str_remove_all(patient_ctype_mat_chrA$percentage_num_patients_overexpr," ")
+patient_ctype_mat_chrA$percentage_num_patients_overexpr = as.numeric(patient_ctype_mat_chrA$percentage_num_patients_overexpr)
+patient_ctype_mat_chrA_wide = patient_ctype_mat_chrA %>% pivot_wider(names_from = "ctype", values_from = "percentage_num_patients_overexpr")
+patient_ctype_mat_chrA_wide$max = apply(patient_ctype_mat_chrA_wide[,2:ncol(patient_ctype_mat_chrA_wide)], 1, max, na.rm=TRUE)
+patient_ctype_mat_chrA_wide = patient_ctype_mat_chrA_wide %>% subset(max > 0.05) %>% select(-max) ## 5% of the patients in one cancer type
+## replace NAs by zeros
+patient_ctype_mat_chrA_wide[is.na(patient_ctype_mat_chrA_wide)] = 0
+chrAs_mat = patient_ctype_mat_chrA_wide$gene_name
+patient_ctype_mat_chrA_wide = as.matrix(patient_ctype_mat_chrA_wide)
 ## select geneName and geneType
 gname_gtype = TSA_TestisGTEx_Translated %>% select(gene_name, gene_type) %>% unique()
 
@@ -679,5 +701,79 @@ ph_CTA_patients = pheatmap(ph_CTA_patients_matrix, cluster_rows = F, cluster_col
          fontsize = 6,
          main="TOv3x CTA | percentage of patients (at least 5% in one cancer type)")
 save_pheatmap_pdf(ph_CTA_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_CTA.pdf"))
+
+```
+
+```{r heatmaps_chrX, echo=F}
+### chrX
+# Remove leading/trailing spaces
+patient_ctype_mat_chrX_wide = apply(patient_ctype_mat_chrX_wide, 2, function(x) gsub("^\\s+|\\s+$", "", x))
+
+# Set the first column (gene_name) as rownames
+rownames(patient_ctype_mat_chrX_wide) = patient_ctype_mat_chrX_wide[, 1]
+patient_ctype_mat_chrX_wide = patient_ctype_mat_chrX_wide[, -1]
+# Convert the values (except the gene names) to numeric
+patient_ctype_mat_chrX_wide = apply(patient_ctype_mat_chrX_wide, 2, as.numeric)
+rownames(patient_ctype_mat_chrX_wide) = chrXs_mat
+## remove those where everything is 0
+patient_ctype_mat_chrX_wide = patient_ctype_mat_chrX_wide[,colSums(patient_ctype_mat_chrX_wide) > 0]
+
+
+# Numbers greater than 0.1 are kept, others are replaced with an empty string
+ordered_labels_row_chrX = intersect(ordered_labels_row_chrX, rownames(patient_ctype_mat_chrX_wide))
+
+ph_chrX_patients_matrix = patient_ctype_mat_chrX_wide[ordered_labels_row_chrX, ordered_labels_col_chrX]
+# Numbers greater than 0.1 are kept, others are replaced with an empty string
+display_numbers_custom = ifelse(ph_chrX_patients_matrix > 0.1, round(ph_chrX_patients_matrix,2), "")
+
+ph_chrX_patients = pheatmap(ph_chrX_patients_matrix, cluster_rows = F, cluster_cols = F,scale="none",
+         # display_numbers = display_numbers_custom,  # Only display numbers > 0.1
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         annotation_col = col_annot,  # Annotation data frame
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         fontsize = 6,
+         main="TOv3x chrX | percentage of patients (at least 5% in one cancer type)")
+save_pheatmap_pdf(ph_chrX_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_chrX.pdf"))
+
+```
+
+```{r heatmaps_chrA, echo=F}
+### chrA
+# Remove leading/trailing spaces
+patient_ctype_mat_chrA_wide = apply(patient_ctype_mat_chrA_wide, 2, function(x) gsub("^\\s+|\\s+$", "", x))
+
+# Set the first column (gene_name) as rownames
+rownames(patient_ctype_mat_chrA_wide) = patient_ctype_mat_chrA_wide[, 1]
+patient_ctype_mat_chrA_wide = patient_ctype_mat_chrA_wide[, -1]
+# Convert the values (except the gene names) to numeric
+patient_ctype_mat_chrA_wide = apply(patient_ctype_mat_chrA_wide, 2, as.numeric)
+rownames(patient_ctype_mat_chrA_wide) = chrAs_mat
+## remove those where everything is 0
+patient_ctype_mat_chrA_wide = patient_ctype_mat_chrA_wide[,colSums(patient_ctype_mat_chrA_wide) > 0]
+
+
+# Numbers greater than 0.1 are kept, others are replaced with an empty string
+ordered_labels_row_chrA = intersect(ordered_labels_row_chrA, rownames(patient_ctype_mat_chrA_wide))
+
+ph_chrA_patients_matrix = patient_ctype_mat_chrA_wide[ordered_labels_row_chrA, ordered_labels_col_chrA]
+# Numbers greater than 0.1 are kept, others are replaced with an empty string
+display_numbers_custom = ifelse(ph_chrA_patients_matrix > 0.1, round(ph_chrA_patients_matrix,2), "")
+
+ph_chrA_patients = pheatmap(ph_chrA_patients_matrix, cluster_rows = F, cluster_cols = F,scale="none",
+         # display_numbers = display_numbers_custom,  # Only display numbers > 0.1
+         annotation_names_col = FALSE, 
+         annotation_names_row = FALSE,
+         show_colnames = TRUE,
+         annotation_col = col_annot,  # Annotation data frame
+         annotation_row = row_annotation,
+         annotation_colors = mycolors,  # Custom colors
+         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         fontsize = 6,
+         main="TOv3x chrA | percentage of patients (at least 5% in one cancer type)")
+save_pheatmap_pdf(ph_chrA_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_chrA.pdf"))
 
 ```
