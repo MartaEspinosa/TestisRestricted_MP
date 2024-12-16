@@ -100,10 +100,11 @@ flattenCorrMatrix <- function(cormat, pmat) {
 ```{r import_data, echo=F}
 TSA_TestisGTEx_Translated = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
 TSA_TestisGTEx_Translated = TSA_TestisGTEx_Translated %>% subset(ctype != "KIRP")
+temp = TSA_TestisGTEx_Translated %>% select(gene_id, gene_type) %>% unique()
+table(temp$gene_type)
 
-TSTR_expr = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_Expression.csv")
-TSTR_expr = TSTR_expr %>% select(-c(X, index)) 
-TSTR_expr = merge(TSTR_expr, annot, by=c('transcript_id','gene_id','gene_name','gene_type'))
+TSTR_expr = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_Expression_tumor.csv")
+table(TSTR_expr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
 ```
 
 ```{r patients_matrix_ctype, echo=F}
@@ -166,47 +167,21 @@ col_annot = col_annot %>% select(-c(ctype))
 
 
 ```{r read_data, echo=F}
-patients_data = read.csv(file.path(cancers_dir, "log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
-names(patients_data)[7] = "patient"
-## get patients in which the gene is TSTR
-step1 = merge(TSTR_expr %>% subset(normal_tumor == "tumor") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select(gene_id,patient,ctype), by=c("gene_id","patient","ctype"))
-step1 = step1 %>% subset(TPM > 1)
-nrow(step1)
-## add a forced 0 TPM in the patients where the gene is not TSTR
-step2 = merge(step1, TSTR_expr %>% subset(normal_tumor == "tumor") %>% select(patient, ctype, gene_id, gene_name, gene_type, transcript_id, chr, Length, project), by=c("gene_id","patient","ctype"), all.y=T)
-nrow(step2)
-step2[is.na(step2)] = 0
-names(step2)[4] = "forced_tumor_expr"
-# ## if the gene is not TS in that patient, although it is expressed in the tumor sample, we will force the expression to 0
-write.csv(step2, file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients.csv"), row.names=F)
-
-
-### force for normals as well
-# step1_2 = merge(TSTR_expr %>% subset(normal_tumor == "normal") %>% select(gene_id, patient, ctype, TPM), patients_data %>% select("gene_id","patient","ctype"), by=c("gene_id","patient","ctype"))
-# step2_2 = merge(step2, step1_2, by=c("ctype","gene_id","patient"))
-# nrow(step2_2)
-# step3_2 = step2_2 %>% mutate(forced_normal_expr = case_when(forced_tumor_expr == 0 ~ 0,
-#                                                             TRUE ~ TPM)) %>% select(-TPM)
-# step3_2[is.na(step3_2)] = 0
-# 
-# write.csv(step3_2, file.path(tumorReactDIR,"TOv3xlog2ratio3xMEAN_forcedTPM_patients_normals.csv"), row.names=F)
-
-
-data_completed_TSA_forced = step2
-data_completed_TSA_forced = data_completed_TSA_forced %>% subset(ctype != "KIRP")
-data_completed_TSA_wide = data_completed_TSA_forced %>% subset(forced_tumor_expr > 0)
 ## select only the patients for which the gene is TSA
+data_completed_TSA_wide = TSTR_expr %>% subset(forced_TPM > 0)
+
 ## we compute the median of the patients that express the gene in a tumor-specific manner
-data_completed_TSA_wide = data_completed_TSA_wide %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(forced_tumor_expr)) %>% ungroup()
+data_completed_TSA_median = data_completed_TSA_wide %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(forced_TPM)) %>% ungroup()
+data_completed_TSA_median = merge(data_completed_TSA_median, annot, by=c("gene_id","transcript_id","gene_type","gene_name"))
 
 ## counting
-counting_genes = data_completed_TSA_forced %>% select(gene_id, gene_type, ctype) %>% unique()
+counting_genes = data_completed_TSA_median %>% select(gene_id, gene_type, ctype) %>% unique()
 table(counting_genes$ctype, counting_genes$gene_type)
 ```
 
 ```{r median_heatmap, echo=F}
 ## keep expression data to plot
-df_expr = data_completed_TSA_wide %>% select(gene_name, ctype, medianTPM) %>% unique() %>% pivot_wider(names_from = ctype, values_from = medianTPM) %>% unique() %>% subset(gene_name %in% rownames(row_annotation))
+df_expr = data_completed_TSA_median %>% select(gene_name, ctype, medianTPM) %>% unique() %>% pivot_wider(names_from = ctype, values_from = medianTPM) %>% unique() %>% subset(gene_name %in% rownames(row_annotation))
 df_expr = as.data.frame(df_expr)
 df_expr[is.na(df_expr)] = 0
 
@@ -236,8 +211,8 @@ ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clust
        main=paste0("Median logTPM of Testis/Tumor Specific genes (TOv3x)"))
 save_pheatmap_pdf(ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_all_TOv3x5percentlog2ratio3x.pdf"))
 
-lncRNA = data_completed_TSA_wide %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
-CTA = data_completed_TSA_wide %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+lncRNA = data_completed_TSA_median %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+CTA = data_completed_TSA_median %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
   
 ## CTA
 CTA_matrix = nozeros_matrix_log[CTA$gene_name, ]
@@ -286,9 +261,9 @@ ordered_labels_row_lncRNA = lncRNA_ph$tree_row$labels[row.order]
 save_pheatmap_pdf(lncRNA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_lncRNA_TOv3x5percentlog2ratio3x.pdf"))
 
 ####### X / vs nonX
-chrX = data_completed_TSA_wide %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+chrX = data_completed_TSA_median %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
 nrow(chrX)
-chrA = data_completed_TSA_wide %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+chrA = data_completed_TSA_median %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
 nrow(chrA)
 
 ## chrX
@@ -378,7 +353,7 @@ cormat = data.frame(cormat)
 cormat$A = rownames(cormat)
 cormat = cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
 
-biotypes = data_completed_TSA_wide %>% select(gene_name, gene_type) %>% distinct()
+biotypes = data_completed_TSA_median %>% select(gene_name, gene_type) %>% distinct()
 lncRNA_biotypes = biotypes %>% subset(gene_type != "protein_coding")
 proteincoding_biotypes = biotypes %>% subset(gene_type == "protein_coding")
 
@@ -452,7 +427,7 @@ CTA_cormat = data.frame(CTA_cormat)
 CTA_cormat$A = rownames(CTA_cormat)
 CTA_cormat = CTA_cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
 ## which group we want to compare?
-x_nonX_df = data_completed_TSA_wide %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+x_nonX_df = data_completed_TSA_median %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
                                                             TRUE ~ "nonX")) %>% select(-chr)
 chr_X = x_nonX_df %>% subset(X_nonX == "X")
 chr_nonX = x_nonX_df %>% subset(X_nonX == "nonX")
@@ -533,9 +508,9 @@ corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
 
 ```{r CTAB, echo=F}
 ## How many CT of the defined in CTdatabase are expressed > 1 TPM in at least 10% of the patients - tumor samples?
-burden_TTS = data_completed_TSA_forced %>% 
-  select(ctype, gene_name, gene_type, forced_tumor_expr, patient) %>% 
-  subset (forced_tumor_expr > 0) %>% 
+burden_TTS = data_completed_TSA_wide %>% 
+  select(ctype, gene_name, gene_type, forced_TPM, patient) %>% 
+  subset (forced_TPM > 0) %>% 
   mutate(coding_noncoding = case_when(gene_type == "protein_coding" ~ "coding",
                                       TRUE ~ "noncoding")) %>% 
   group_by(ctype, coding_noncoding, patient) %>%
@@ -567,7 +542,10 @@ ggsave(file.path(plots_wd, "PDF/TOv3xlog2ratio3xburden_coding_vs_noncoding.pdf")
 ## Matrix for patients
 
 ```{r patients_matrix_ctype2, echo=F}
+patients_data = read.csv(file.path(cancers_dir, "log2ratio3x/cancertypes/TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
+names(patients_data)[7] = "patient"
 patients_data = merge(patients_data, annot, by=c("transcript_id","gene_id","gene_type","gene_name"))
+
 ##### lncRNAs ######
 patient_ctype_mat_lncRNA = patients_data %>% subset(gene_type != "protein_coding") %>% select(gene_name, ctype, percentage_num_patients_overexpr) %>% unique()
 patient_ctype_mat_lncRNA$percentage_num_patients_overexpr = as.numeric(patient_ctype_mat_lncRNA$percentage_num_patients_overexpr)
@@ -657,6 +635,7 @@ ph_patients = pheatmap(ph_lncRNA_patients_matrix,  cluster_rows = F, cluster_col
          annotation_names_col = FALSE, 
          annotation_names_row = FALSE,
          show_colnames = TRUE,
+        show_rownames = F,
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
@@ -694,6 +673,7 @@ ph_CTA_patients = pheatmap(ph_CTA_patients_matrix, cluster_rows = F, cluster_col
          annotation_names_col = FALSE, 
          annotation_names_row = FALSE,
          show_colnames = TRUE,
+        show_rownames = F,
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
@@ -768,6 +748,7 @@ ph_chrA_patients = pheatmap(ph_chrA_patients_matrix, cluster_rows = F, cluster_c
          annotation_names_col = FALSE, 
          annotation_names_row = FALSE,
          show_colnames = TRUE,
+        show_rownames = F,
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
