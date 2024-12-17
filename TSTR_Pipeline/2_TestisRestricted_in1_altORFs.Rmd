@@ -299,7 +299,7 @@ We will use GTEx to filter those genes whose expression in other tissues is high
 In cases where several "sub-tissues" are available, we kept the highest value.
 
 ```{r, reading_GTEx, echo=F}
-gtex = read.table("/data/genomics/marta/genomes/GTEx/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+gtex = read.table("/data/genomics/marta/genomes/GTEx/v10/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
 names(gtex)[1] = "gene_id"
 nrow(gtex)
 gtex$gene_id = gsub("\\..*","",gtex$gene_id)
