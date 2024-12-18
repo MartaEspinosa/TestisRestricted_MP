@@ -40,12 +40,14 @@ ctype_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC",
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers"
 
-mycolors = list("gene_type" = c("protein_coding"="#CC79A7",
-                               "lncRNA" = "#009E73",
-                               "processed_pseudogene" = "#0090B2",
-                               "novel" = "#E69F00"),
-                           "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
-    
+mycolors = list("gene_typ"=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68"),
+  "X_nonX" = c("X" = c("#833437"), "nonX" = "#646c31"))
+
+biotypecolors = mycolors
+
 save_pheatmap_pdf <- function(x, filename, width=7, height=7) {
    stopifnot(!missing(x))
    stopifnot(!missing(filename))
@@ -177,13 +179,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     col_annot = unique(col_annot)
     rownames(col_annot) = col_annot$patient
     col_annot = col_annot %>% select(-c(patient))
-  
-    biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
-                               "lncRNA" = "#009E73",
-                               "processed_pseudogene" = "#0090B2",
-                               "novel" = "#E69F00"),
-                           "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
-  
+
     
     ## heatmap_all_geneTypes
     ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
@@ -195,7 +191,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
            show_colnames = FALSE,
            # cutree_cols = 3,
            annotation_colors = biotypecolors,
-           color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
            fontsize = 6,
            main=paste0("Testis/Tumor Specific genes",  ctype_var))
     col.order = ph$tree_col$order
@@ -222,7 +218,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       ##### ----> CORRPLOT 1 - ALL GENES <----- #####
       p <- {
         corrplot(cormat, type = "lower", order = "hclust", method="circle",
-               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation all TTS genes",  ctype_var),  mar=c(0,0,1,0));
+               tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation all TTS genes",  ctype_var),  mar=c(0,0,1,0));
         recordPlot() 
       }
       
@@ -288,7 +284,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       ##### ----> CORRPLOT 2 - NON-CTA <----- #####
         p <- {
       corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-               tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+               tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
         recordPlot() 
       }
       
@@ -321,7 +317,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 3 - CTA <----- #####
         p <- {
     corrplot(CTA_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -389,7 +385,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 4 - CTA-X chr <----- #####
           p <- {
     corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation CTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -423,7 +419,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 5 - CTA-nonX chr <----- #####
     p <- {
     corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation CTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation CTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -455,7 +451,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 6 - lncRNA <----- #####
     p <- {
     corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6, title=paste0("Correlation lncRNA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation lncRNA TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
@@ -480,19 +476,19 @@ corrplot_values_all = read.csv(file.path(save_wd,"corrplot_values_TOv3x5percent.
 corrplot_values_all = corrplot_values_all %>% pivot_longer(cols=-c("type"), names_to = "ctype", values_to = "coexpression_corr")
 corrplot_values_all$coexpression_corr = as.numeric(corrplot_values_all$coexpression_corr)
 ######### plot
-ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression_corr, color=type)) +
-  geom_point(size=5) +
-  geom_line(aes(group=type)) +
-  scale_color_manual(values = c("Non-coding" = "#bcbddc",
-                                "CT-nonX" = "#807dba",
-                                "CT-X" = "#3f007d")) +
-  labs(y="Coexpression coefficient",
-       x="",
-       color="Condition",
-       title="Comparison of coexpression Correlation per condition") +
-  theme_minimal()
-ggsave(file.path(plots_wd,"PNG/coexpr_coef_TOv3x5percent.png"))
-ggsave(file.path(plots_wd,"PDF/coexpr_coef_TOv3x5percent.pdf"))
+# ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression_corr, color=type)) +
+#   geom_point(size=5) +
+#   geom_line(aes(group=type)) +
+#   scale_color_manual(values = c("Non-coding" = "#bcbddc",
+#                                 "CT-nonX" = "#807dba",
+#                                 "CT-X" = "#3f007d")) +
+#   labs(y="Coexpression coefficient",
+#        x="",
+#        color="Condition",
+#        title="Comparison of coexpression Correlation per condition") +
+#   theme_minimal()
+# ggsave(file.path(plots_wd,"PNG/coexpr_coef_TOv3x5percent.png"))
+# ggsave(file.path(plots_wd,"PDF/coexpr_coef_TOv3x5percent.pdf"))
 
 corrplot_values_all_toheatmap = corrplot_values_all %>% 
   mutate(corr = case_when(is.na(coexpression_corr) ~ 0,
@@ -507,7 +503,7 @@ corrplot_values_all_toheatmap$type = NULL
 
 types = rownames(corrplot_values_all_toheatmap)
 # corrplot_values_all_toheatmap 
-pheatmap(corrplot_values_all_toheatmap, cluster_rows = F, cluster_cols = F, scale="column", display_numbers = round(corrplot_values_all_toheatmap,2))
+# pheatmap(corrplot_values_all_toheatmap, cluster_rows = F, cluster_cols = F, scale="column", display_numbers = round(corrplot_values_all_toheatmap,2))
 
 ```
 
@@ -533,243 +529,15 @@ chr_info_pancancer_counts$chr = factor(chr_info_pancancer_counts$chr, levels=c("
 ggplot(chr_info_pancancer_counts, aes(x=chr, y=n, fill=gene_type)) +
   geom_bar(stat="identity", position="fill") +
   geom_text(aes(label=n), position = position_fill(vjust = .5)) +
-      scale_fill_manual(values=c("protein_coding"="#CC79A7",
-                             "lncRNA" = "#009E73",
-                             "processed_pseudogene" = "#0090B2",
-                             "novel" = "#E69F00")) +
+      scale_fill_manual(values=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) +
   labs(title="Tumor Overexpressed 3x genes in 5% of the patients of at least 1 cancer type") +
   theme_minimal()
 ggsave(file.path(plots_wd,"PNG/chrdistr_TOv3x.png"))
 ggsave(file.path(plots_wd,"PDF/chrdistr_TOv3x.pdf"))
 
-```
-
-```{r heatmap_normals, echo=F}
-# for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
-#   print(ctype_var)
-#   
-#   ##############################################################################
-#   ##############################################################################
-#   ######################### TUMOR SAMPLES ######################################
-#   ##############################################################################  
-#   ##############################################################################
-#   
-#   ## how many patients in that ctype?
-#   n_ctype = ctype_patients %>% subset(ctype == ctype_var) %>% pull(num_patients)
-#   candidates_ctype = candidates %>% subset(ctype == ctype_var)
-#   
-#   df = data_completed_TSA_forced %>% subset(ctype == ctype_var) %>% subset(gene_id %in% candidates_ctype$gene_id)
-#   
-#   ## in how many patients is the gene TS?
-#   # counting_1TPM = df %>% select(gene_name, gene_type, patient, forced_TPM) %>% subset(forced_TPM > 0) %>% group_by(gene_name) %>% count()
-#   # df = merge(df, counting_1TPM, by="gene_name")
-#   # df$total_n = n_ctype
-#   # 
-#   # ## calculate the percentage and keep only those TS in > 5% 
-#   # df$percentage_n = (df$n / n_ctype)* 100
-#   df = df %>% unique()
-#   df_5percent = df #%>% subset(percentage_n > 5)
-#   ## if dataframe not empty
-#   if (dim(df_5percent)[1] > 0) {
-# 
-#     df_5percent = df_5percent %>% unique()
-#     to_table = df_5percent %>% select(gene_name, gene_type) %>% unique()
-#     print(table(to_table$gene_type))
-#     
-#     ## keep expression data to plot
-#     df_5percent_expr = df_5percent %>% select(gene_name, patient, forced_TPM) %>% pivot_wider(names_from = patient, values_from = forced_TPM) %>% unique()
-#     df_5percent_expr = as.data.frame(df_5percent_expr)
-#   
-#     df_5percent_expr_values = mutate_all(df_5percent_expr[,-1], function(x) as.numeric(as.character(x)))
-#     ## get log2TPM
-#     df_log = log2(df_5percent_expr_values+1)
-#   
-#     ## convert to matrix
-#     matrix = as.matrix(df_log)
-#     rownames(matrix) = df_5percent_expr$gene_name
-#     matrix = na.omit(matrix)
-#     nozeros_matrix_log = matrix[,colSums(matrix) > 0]
-#     
-#     
-#     
-#     ## row annotation
-#     row_annot = df %>% select(gene_name, gene_type) %>% subset(gene_name %in% df_5percent_expr$gene_name)
-#     row_annot = row_annot %>% select(gene_name, gene_type)
-#     row_annot = unique(row_annot)
-#     rownames(row_annot) = row_annot$gene_name
-#     
-#     row_annot_chr = merge(annot, row_annot, by=c("gene_name"))
-#     row_annot_chr = row_annot_chr %>% select(gene_name, chr) %>% unique()
-#     rownames(row_annot_chr) = row_annot_chr$gene_name
-#     row_annot_chr = row_annot_chr %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
-#                                                                 TRUE ~ "nonX"))
-#     row_annot_chr = row_annot_chr %>% select(X_nonX)
-#     row_annot = row_annot %>% select(-c(gene_name))
-# 
-#     row_annotation = data.frame("X_nonX" = row_annot_chr,
-#                                 "gene_type" = row_annot)
-#     ## col annotation
-#     col_annot = df_5percent %>% select(patient, project) %>% subset(patient %in% colnames(df_5percent_expr_values))
-#     col_annot = unique(col_annot)
-#     rownames(col_annot) = col_annot$patient
-#     col_annot = col_annot %>% select(-c(patient))
-#   
-#     biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
-#                                "lncRNA" = "#009E73",
-#                                "processed_pseudogene" = "#0090B2",
-#                                "novel" = "#E69F00"),
-#                            "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
-#   
-#     tumor_matrix = nozeros_matrix_log
-#     max_value = max(tumor_matrix)
-#     ## heatmap_all_geneTypes
-#     ph_tumor = pheatmap(tumor_matrix, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
-#            # treeheight_row = 0, treeheight_col = 0,
-#            breaks = seq(0,max_value, length.out=101), 
-#            annotation_row = row_annotation,
-#            annotation_col= col_annot,
-#            annotation_names_col = FALSE,
-#            annotation_names_row = FALSE,
-#            show_colnames = FALSE,
-#            # cutree_cols = 3,
-#            annotation_colors = biotypecolors,
-#            color=colorRampPalette(c("lightyellow", "red"))(100),
-#            fontsize = 6,
-#            main=paste0("Testis/Tumor Specific genes",  ctype_var))
-#     col.order = ph_tumor$tree_col$order
-#     ordered_labels_col = ph_tumor$tree_col$labels[col.order]
-# 
-#     row.order = ph_tumor$tree_row$order
-#     ordered_labels_row = ph_tumor$tree_row$labels[row.order]
-#     
-#     save_pheatmap_pdf(ph_tumor, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,".pdf"))
-# 
-#   ##############################################################################
-#   ##############################################################################
-#   ######################### TUMOR SAMPLES WITHOUT FORCING ZEROS#################
-#   ##############################################################################  
-#   ##############################################################################
-#     df = data_completed_TSA_normals %>% select(-forced_TPM) %>% subset(ctype == ctype_var) %>% subset(gene_name %in% rownames(tumor_matrix)) %>% subset(patient %in% colnames(tumor_matrix))
-#   
-#     df = df %>% unique()
-# 
-#     ## keep expression data to plot
-#     df_expr = df %>% select(gene_name, patient, TPM) %>% pivot_wider(names_from = patient, values_from = TPM) %>% unique()
-#     df_expr = as.data.frame(df_expr)
-#   
-#     df_expr_values = mutate_all(df_expr[,-1], function(x) as.numeric(as.character(x)))
-#     ## get log2TPM
-#     df_log = log2(df_expr_values+1)
-#   
-#     ## convert to matrix
-#     matrix = as.matrix(df_log)
-#     rownames(matrix) = df_expr$gene_name
-#     matrix = na.omit(matrix)
-# 
-#    tumor_noforced_matrix = matrix[ordered_labels_row, ordered_labels_col]
-# 
-#     ## heatmap_all_geneTypes
-#     ph_tumornoforced = pheatmap(tumor_noforced_matrix, cluster_rows = F, cluster_cols = F,
-#            # treeheight_row = 0, treeheight_col = 0,
-#            breaks = seq(0,max_value, length.out=101), 
-#            annotation_row = row_annotation,
-#            annotation_col= col_annot,
-#            annotation_names_col = FALSE,
-#            annotation_names_row = FALSE,
-#            show_colnames = FALSE,
-#            # cutree_cols = 3,
-#            annotation_colors = biotypecolors,
-#            color=colorRampPalette(c("lightyellow", "red"))(100),
-#            fontsize = 6,
-#            main=paste0("Testis/Tumor Specific genes in tumor samples (all values) | ",  ctype_var))
-#     save_pheatmap_pdf(ph_tumornoforced, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,"_tumorsNoforced.pdf"))
-#     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,".pdf"))
-#     
-#     
-#   ##############################################################################
-#   ##############################################################################
-#   ######################### NORMAL SAMPLES #####################################
-#   ##############################################################################  
-#   ##############################################################################
-#     df = data_completed_TSA_normals %>% subset(ctype == ctype_var) %>% subset(gene_name %in% rownames(tumor_matrix)) %>% subset(patient %in% colnames(tumor_matrix))
-#   
-#     df = df %>% unique()
-# 
-#     ## keep expression data to plot
-#     df_expr = df %>% select(gene_name, patient, TPM) %>% pivot_wider(names_from = patient, values_from = TPM) %>% unique()
-#     df_expr = as.data.frame(df_expr)
-#   
-#     df_expr_values = mutate_all(df_expr[,-1], function(x) as.numeric(as.character(x)))
-#     ## get log2TPM
-#     df_log = log2(df_expr_values+1)
-#   
-#     ## convert to matrix
-#     matrix = as.matrix(df_log)
-#     rownames(matrix) = df_expr$gene_name
-#     matrix = na.omit(matrix)
-# 
-#     normal_matrix = matrix[ordered_labels_row, ordered_labels_col]
-# 
-#     ## heatmap_all_geneTypes
-#     ph_normal = pheatmap(normal_matrix, cluster_rows = F, cluster_cols = F,
-#            # treeheight_row = 0, treeheight_col = 0,
-#            breaks = seq(0,max_value, length.out=101), 
-#            annotation_row = row_annotation,
-#            annotation_col= col_annot,
-#            annotation_names_col = FALSE,
-#            annotation_names_row = FALSE,
-#            show_colnames = FALSE,
-#            # cutree_cols = 3,
-#            annotation_colors = biotypecolors,
-#            color=colorRampPalette(c("lightyellow", "blue"))(100),
-#            fontsize = 6,
-#            main=paste0("Testis/Tumor Specific genes in normal samples ",  ctype_var))
-#     save_pheatmap_pdf(ph_normal, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,"_normals.pdf"))
-#     # save_pheatmap_pdf(ph, paste0(plots_wd,"/PDF/pheatmap_ctype_var,".pdf"))
-#     
-#     
-#     
-#   ##############################################################################
-#   ##############################################################################
-#   ######################### NORMAL SAMPLES FORCED ZERO #########################
-#   ##############################################################################  
-#   ##############################################################################
-#     df = data_completed_TSA_forced_normals %>% subset(ctype == ctype_var) %>% subset(gene_name %in% rownames(tumor_matrix)) %>% subset(patient %in% colnames(tumor_matrix))
-#   
-#     df = df %>% unique()
-# 
-#     ## keep expression data to plot
-#     df_expr = df %>% select(gene_name, patient, forced_TPM) %>% pivot_wider(names_from = patient, values_from = forced_TPM) %>% unique()
-#     df_expr = as.data.frame(df_expr)
-#   
-#     df_expr_values = mutate_all(df_expr[,-1], function(x) as.numeric(as.character(x)))
-#     ## get log2TPM
-#     df_log = log2(df_expr_values+1)
-#     df_log[is.na(df_log)] = 0
-#     ## convert to matrix
-#     matrix = as.matrix(df_log)
-#     rownames(matrix) = df_expr$gene_name
-#     matrix = na.omit(matrix)
-# 
-#     normal_matrix_forced = matrix[ordered_labels_row, ordered_labels_col]
-# 
-#     ## heatmap_all_geneTypes
-#     ph_normal = pheatmap(normal_matrix_forced, cluster_rows = F, cluster_cols = F,
-#            # treeheight_row = 0, treeheight_col = 0,
-#            breaks = seq(0,max_value, length.out=101), 
-#            annotation_row = row_annotation,
-#            annotation_col= col_annot,
-#            annotation_names_col = FALSE,
-#            annotation_names_row = FALSE,
-#            show_colnames = FALSE,
-#            # cutree_cols = 3,
-#            annotation_colors = biotypecolors,
-#            color=colorRampPalette(c("lightyellow", "blue"))(100),
-#            fontsize = 6,
-#            main=paste0("Testis/Tumor Specific genes in normal samples ",  ctype_var))
-#     save_pheatmap_pdf(ph_normal, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_",ctype_var,"_normals_forcedTPM.pdf"))
-#   }
-# }
 ```
 
 ```{r heatmaps_tumor_normal, echo=F}
@@ -826,14 +594,6 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   rownames(col_annot) = col_annot$patient
   col_annot = col_annot %>% select(-c(patient))
 
-  biotypecolors = list("gene_type" = c("protein_coding"="#CC79A7",
-                             "lncRNA" = "#009E73",
-                             "processed_pseudogene" = "#0090B2",
-                             "novel" = "#E69F00"),
-                         "X_nonX" = c("X" = c("red"), "nonX" = "grey"))
-  
-    
-    
   ## heatmap_all_geneTypes
   ph_tumor_log2ratio3x = pheatmap(tumor_log2ratio3x, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
          # treeheight_row = 0, treeheight_col = 0,
@@ -845,7 +605,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = FALSE,
          # cutree_cols = 3,
          annotation_colors = biotypecolors,
-         color=colorRampPalette(c("lightyellow", "red"))(100),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in tumor samples | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(ph_tumor_log2ratio3x, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_",ctype_var,"_tumors.pdf"))
@@ -879,7 +639,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = F,
          # cutree_cols = 3,
          annotation_colors = mycolors,
-         color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in tumor samples | CTA | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(cta_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_CTA_",ctype_var,"_tumors.pdf"))
@@ -903,7 +663,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = F,
          # cutree_cols = 3,
          annotation_colors = mycolors,
-         color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in tumor samples | lncRNA | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(lncRNA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_lncRNA_",ctype_var,"_tumors.pdf"))
@@ -928,7 +688,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = F,
          # cutree_cols = 3,
          annotation_colors = mycolors,
-         color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in tumor samples | chrX | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrX_",ctype_var,"_tumors.pdf"))
@@ -952,7 +712,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = F,
          # cutree_cols = 3,
          annotation_colors = mycolors,
-         color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in tumor samples | chrA | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrA_",ctype_var,"_tumors.pdf"))
@@ -1010,7 +770,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
          show_colnames = FALSE,
          # cutree_cols = 3,
          annotation_colors = biotypecolors,
-         color=colorRampPalette(c("lightyellow", "blue"))(100),
+         color=colorRampPalette(c("lightyellow", "#2f3f81"))(100),
          fontsize = 6,
          main=paste0("Testis/Tumor Specific genes in normal samples | TOv3x + log2ratio 3x | ",  ctype_var))
   save_pheatmap_pdf(ph_normal_log2ratio3x, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_",ctype_var,"_normals.pdf"))

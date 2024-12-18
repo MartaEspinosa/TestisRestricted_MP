@@ -230,12 +230,16 @@ Questions: How many ncORFs in lncRNAs/processed pseudogenes are translated in te
 
 ```{r length, echo=F}
 # my_comparisons = list(c("lncRNA","processed_pseudogene"), c("protein_coding","processed_pseudogene"), c("protein_coding","lncRNA"), c("lncRNA","novel"), c("novel","processed_pseudogene"), c("novel","protein_coding"))
-ggplot(ribORF_humanTestis_in1, aes(x=reorder(geneORFtype, length), y=length)) +
+ggplot(ribORF_humanTestis_in1, aes(x=reorder(geneORFtype, length), y=length, fill=geneORFtype)) +
   geom_boxplot() +
-  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
-  #                        "lncRNA" = "#009E73",
-  #                        "processed_pseudogene" = "#0090B2",
-  #                          "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +
   scale_y_continuous(trans="log10") +
   labs(x="Biotype",
        y="Length (nt)",
@@ -256,10 +260,10 @@ ribORF_humanTestis_in1$length_aa = ribORF_humanTestis_in1$length/3
 ggplot(ribORF_humanTestis_in1, aes(x=length_aa, fill=gene_type, color="black")) +
   geom_density(alpha=.5, color="black") +
   geom_xsideboxplot(orientation = "y", width=4, color="black") +
-  scale_fill_manual(values=c("protein_coding"="#CC79A7",
-                         "lncRNA" = "#009E73",
-                         "processed_pseudogene" = "#0090B2",
-                                               "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding"="#ead890",
+                         "lncRNA" = "#cd4f38",
+                         "processed_pseudogene" = "#e48c2a",
+                                               "novel" = "#637c68")) +
   scale_x_continuous(trans="log10") +
   geom_vline(xintercept=100) +
   labs(fill="Biotype",
@@ -273,10 +277,10 @@ ggplot(ribORF_humanTestis_in1, aes(x=length_aa, fill=gene_type, color="black")) 
 
 ggplot(ribORF_humanTestis_in1, aes(x=length_aa, fill=gene_type, color="black")) +
   geom_density(alpha=.5, color="black") +
-  scale_fill_manual(values=c("protein_coding"="#CC79A7",
-                         "lncRNA" = "#009E73",
-                         "processed_pseudogene" = "#0090B2",
-                                               "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding"="#ead890",
+                         "lncRNA" = "#cd4f38",
+                         "processed_pseudogene" = "#e48c2a",
+                                               "novel" = "#637c68")) +
   scale_x_continuous(trans="log10") +
   geom_vline(xintercept=100) +
   labs(fill="Biotype",
@@ -301,7 +305,7 @@ ggplot(ribORF_humanTestis_in1, aes(x=gene_type, fill=start_codon)) +
   labs(x="Biotype",
        fill="Starting codon",
        title="Starting codon of ncORFs and canonical ORFs") +
-  scale_fill_manual(values=c("#004D40","#00695C","#00897B","#4DB6AC")) +
+  scale_fill_manual(values=c("#F8806A","#EB4F48","#DC3440","#AE123A")) +
   theme_classic() +
   theme(axis.text.x = element_text(angle=45))
 ggsave(file.path(plots_wd,"PNG/startCodons.png"), height=4.69, width=4.72)
@@ -312,7 +316,7 @@ ggplot(ribORF_humanTestis_in1, aes(x=geneORFtype, fill=start_codon)) +
   labs(x="Biotype",
        fill="Starting codon",
        title="Starting codon of ncORFs and canonical ORFs") +
-  scale_fill_manual(values=c("#004D40","#00695C","#00897B","#4DB6AC")) +
+  scale_fill_manual(values=c("#F8806A","#EB4F48","#DC3440","#AE123A")) +
   theme_classic() +
   theme(axis.text.x = element_text(angle=45)) + 
   facet_grid(~ gene_type, scales="free_x", space="free")
@@ -518,11 +522,16 @@ write.csv(testis_TE, file.path(save_wd, "translationEfficiency_testis.withoutZer
 ```{r TE_plot, echo=F}
 ggplot(testis_TE, aes(x=sample, y=TE, fill=geneORFtype)) +
   geom_boxplot() +
-  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                                              "novel" = "#E69F00")) +
-  labs(x="Sample",
+  scale_fill_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +
+    scale_x_discrete(labels = function(x) sub(".*_", "", x)) +  # Extract everything after the last "_" for display
+labs(x="Sample",
   y="Translation Efficiency",
   title="Translation Efficiency") +
   scale_y_continuous(trans="log10") +
@@ -546,18 +555,27 @@ ggplot(mean_testis_TE, aes(x=geneORFtype, y=log10(mean_TE))) +
   # geom_violin(aes(fill=geneORFtype), alpha=.2) +
   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=geneORFtype)) +
   geom_boxplot(width=0.25, aes(color = "black", fill=geneORFtype), alpha=.8) +
-  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
-  # scale_color_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +
+  scale_color_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +  
   labs(x="Biotype",
   y="Translation Efficiency (log10TE)",
   title="Translation Efficiency") +
-  # scale_y_continuous(trans="log10") +
+    scale_x_discrete(labels = function(x) sub(".*_", "", x)) +  # Extract everything after the last "_" for display
+# scale_y_continuous(trans="log10") +
   theme_classic() +
   theme(legend.position="none")
 
@@ -568,14 +586,23 @@ ggplot(mean_testis_TE, aes(x=geneORFtype, y=mean_TE)) +
   # geom_violin(aes(fill=gene_type), alpha=.2) +
   geom_quasirandom(dodge.width = 0.9, size=1, alpha=.3,  varwidth = TRUE, aes(color=geneORFtype)) +
   geom_boxplot(width=0.25, aes(color = "black", fill=geneORFtype), alpha=.8) +
-  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
-  # scale_color_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
+    scale_x_discrete(labels = function(x) sub(".*_", "", x)) +  # Extract everything after the last "_" for display
+scale_fill_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +
+  scale_color_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +  
   labs(x="Biotype",
   y="Translation Efficiency",
   title="Translation Efficiency") +
@@ -589,14 +616,23 @@ ggsave(file.path(plots_wd,"PDF/translation_efficiency_meanTE.pdf"), height=4.72,
 ggplot(mean_testis_TE, aes(x=geneORFtype, y=log10(mean_TE))) +
   # geom_violin(aes(fill=geneORFtype), alpha=.2) +
   geom_boxplot(aes(fill=geneORFtype), alpha=.8, notch=T) +
-  # scale_fill_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
-  # scale_color_manual(values=c("protein_coding"="#CC79A7",
-  #                       "lncRNA" = "#009E73",
-  #                       "processed_pseudogene" = "#0090B2",
-  #                       "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +
+    scale_x_discrete(labels = function(x) sub(".*_", "", x)) +  # Extract everything after the last "_" for display
+scale_color_manual(values=c("protein_coding_canonical"="#ead890",
+                         "lncRNA_noncoding" = "#cd4f38",
+                         "processed_pseudogene_noncoding" = "#e48c2a",
+                                               "novel_noncoding" = "#637c68",
+                         "protein_coding_uORF"="#899da4",
+                         "protein_coding_ouORF"="#c5d0ca",
+                         "protein_coding_dORF"="#ba968a",
+                         "protein_coding_odORF"="#f2c695")) +  
   labs(x="Biotype",
   y="Translation Efficiency (log10TE)",
   title="Translation Efficiency") +

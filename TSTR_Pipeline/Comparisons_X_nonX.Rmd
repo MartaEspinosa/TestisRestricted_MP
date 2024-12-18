@@ -1,0 +1,150 @@
+---
+title: "Comparisons X and nonX TSTR"
+author: "Marta Espinosa"
+date: "2024-12-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+# library(ggthemr)
+library(ggbeeswarm)
+library(ggbreak)
+library(ggrepel)
+library(rcartocolor)
+library(UpSetR)
+library(karyoploteR)
+library(GenomicRanges)
+library(rtracklayer)
+library(Hmisc)
+library(corrplot)
+library(stats)
+library(car)
+library(ggpattern)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+plots_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/PreparationPlots/MultiMap_altORFs"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-LUAD","TCGA-BLCA")
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes"
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers"
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
+                                       TRUE ~ "A"))
+CTDB = separate_rows(CTDB, gene_name, sep = "/")
+CTDB = separate_rows(CTDB, gene_name, sep = ",")
+CTDB_in_annot = CTDB %>% subset(gene_name %in% annot$gene_name)
+
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+```
+
+```{r loading_data, echo=F}
+## genes
+candidates = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes.csv"))
+candidates = merge(candidates, annot %>% select(gene_id, chr), by="gene_id")
+candidates = candidates %>% mutate(coding_noncoding_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "CT-X",
+                                                           gene_type == "protein_coding" & chr != "X" ~ "CT-nonX",
+                                                           gene_type != "protein_coding" & chr == "X" ~ "Noncoding-X",
+                                                           gene_type != "protein_coding" & chr != "X" ~ "Noncoding-nonX"),
+                                   type = case_when(gene_type == "protein_coding" ~ "CT",
+                                                    TRUE ~ "Noncoding"))
+
+## ORFs
+candidatesORFs = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
+candidatesORFs = merge(candidatesORFs, annot %>% select(gene_id, chr), by="gene_id")
+candidatesORFs = candidatesORFs %>% mutate(coding_noncoding_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "CT-X",
+                                                           gene_type == "protein_coding" & chr != "X" ~ "CT-nonX",
+                                                           gene_type != "protein_coding" & chr == "X" ~ "Noncoding-X",
+                                                           gene_type != "protein_coding" & chr != "X" ~ "Noncoding-nonX"),
+                                            type = case_when(gene_type == "protein_coding" ~ "CT",
+                                                    TRUE ~ "Noncoding"))
+## TE
+TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
+candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"))
+```
+
+## COMPARISONS AT GENE LEVEL
+
+```{r length, echo=F}
+ggplot(candidates, aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","Noncoding-X")), y=Length)) +
+  geom_quasirandom() +
+  geom_violin() +
+  geom_jitter() +
+  scale_y_continuous(trans="log10") +
+  labs(y="Length (nt)",
+       x="",
+       title="Length | Gene level") +
+  theme_minimal() +
+  facet_wrap(~ type, ncol=2, scales="free_x")
+```
+
+## COMPARISONS AT ORF LEVEL
+
+```{r length_ORF, echo=F}
+ggplot(candidatesORFs, aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","Noncoding-X")), y=length_aa)) +
+  geom_boxplot() +
+  geom_jitter() +
+  labs(y="Length (aa)",
+       x="",
+       title="Length | ORF level") +
+  theme_minimal() +
+  facet_wrap(~ type, ncol=2, scales="free_x")
+```
+
+```{r TE_ORF, echo=F}
+ggplot(candidatesORFs, aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","Noncoding-X")), y=mean_TE)) +
+  geom_boxplot() +
+  labs(y="Mean Translation Efficiency in testis",
+       x="",
+       title="Translation Efficiency | ORF level") +
+  scale_y_continuous(trans="log10") +
+  theme_minimal() +
+  facet_wrap(~ type, ncol=2, scales="free_x")
+```

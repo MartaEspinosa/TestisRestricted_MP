@@ -52,15 +52,14 @@ ctypes_data = read.csv("/projects_eg/projects/marta/TestisRestricted_Microprotei
 
 # Colors
 mycolors = list(
-  "organ_system" = c("core_gastrointestinal" = "#A1A1A1", "developmental_gastrointestinal" = "#003366", "gynecologic" = "#66B2B2", "thoracic" = "#D4A5A5", "urologic" = "#228B22"),
-  "histopathology" = c("adenocarcinoma" = "#6A5ACD", "other" = "#98FF98","squamous" = "#B38B6D"),
-  "tissue" = c("bladder" = "#B0E0E6", "breast" = "#800020", "lung" = "#4682B4", "colon" = "#E6E6FA", "liver" = "#708090", "prostate" = "#F5DEB3", "kidney" = "#9E1B32"),
-  "X_nonX" = c("X" = c("red"), "nonX" = "grey"),
-  "gene_type" = c("protein_coding"="#CC79A7",
-                               "lncRNA" = "#009E73",
-                               "processed_pseudogene" = "#0090B2",
-                               "novel" = "#E69F00")
-)
+  "organ_system" = c("core_gastrointestinal" = "#2c715f", "developmental_gastrointestinal" = "#44a57c", "gynecologic" = "#60620c", "thoracic" = "#58a449", "urologic" = "#1d271c"),
+  "histopathology" = c("adenocarcinoma" = "#278b9a", "other" = "#e75b64","squamous" = "#d8af39"),
+  "tissue" = c("bladder" = "#28231d", "breast" = "#5e2d30", "lung" = "#008e90", "colon" = "#d87427", "liver" = "#c5a387", "prostate" = "#67b8d6", "kidney" = "#e9d097"),
+  "X_nonX" = c("X" = c("#833437"), "nonX" = "#646c31"),
+  "gene_type" = c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68"))
 
 CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
 
@@ -206,7 +205,7 @@ ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clust
        show_colnames = TRUE,
        # cutree_cols = 3,
        annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
        fontsize = 6,
        main=paste0("Median logTPM of Testis/Tumor Specific genes (TOv3x)"))
 save_pheatmap_pdf(ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_all_TOv3x5percentlog2ratio3x.pdf"))
@@ -227,7 +226,7 @@ cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlation",
        show_colnames = TRUE,
        # cutree_cols = 3,
        annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
        fontsize = 6,
        main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | CTA")
 save_pheatmap_pdf(cta_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_CTA_TOv3x5percentlog2ratio3x.pdf"))
@@ -250,7 +249,7 @@ lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correla
        show_colnames = TRUE,
        # cutree_cols = 3,
        annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
        fontsize = 6,
        main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | lncRNA")
 col.order = lncRNA_ph$tree_col$order
@@ -279,7 +278,7 @@ chrX_ph = pheatmap(chrX_matrix_non_zero, clustering_distance_cols = "correlation
        show_colnames = TRUE,
        # cutree_cols = 3,
        annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
        fontsize = 6,
        main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | chrX")
 save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/PDF/pheatmap_medianTPM_chrX_TOv3x5percentlog2ratio3x.pdf"))
@@ -302,7 +301,7 @@ chrA_ph = pheatmap(chrA_matrix_non_zero, clustering_distance_cols = "correlation
        show_colnames = TRUE,
        # cutree_cols = 3,
        annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "red"))(50),
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
        fontsize = 6,
        main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | autosomes")
 col.order = chrA_ph$tree_col$order
@@ -345,7 +344,7 @@ library(corrplot)
 cormat <- round(cor(transposed),2)
 
 corrplot(cormat, type = "lower", order = "hclust", method="circle",
-         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+         tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6)
 
 
 ### getting correlation values
@@ -394,7 +393,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 lncRNA_cormat <- round(cor(lncRNA_transposed),2)
 dim(lncRNA_cormat)
 corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+         tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6)
 ```
 
 ```{r correlation_CTA, echo=F}
@@ -421,7 +420,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 CTA_cormat <- round(cor(CTA_transposed),2)
 dim(CTA_cormat)
 corrplot(CTA_cormat, type = "lower", order = "hclust", method="circle",
-         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+         tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6)
 
 CTA_cormat = data.frame(CTA_cormat)
 CTA_cormat$A = rownames(CTA_cormat)
@@ -472,7 +471,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 CTAX_cormat <- round(cor(CTAX_transposed),2)
 dim(CTAX_cormat)
 corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
-         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+         tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6)
 
 ### non-X
 CTA_matrix_nonX = CTA_matrix[rownames(CTA_matrix) %in% unique(chr_nonX$gene_name),]
@@ -499,7 +498,7 @@ flattenCorrMatrix <- function(cormat, pmat) {
 CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
 dim(CTAnonX_cormat)
 corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
-         tl.col = "black", col = rev(COL2('RdBu', 10)), tl.cex=0.6)
+         tl.col = "black", col =COL2('BrBG', 10), tl.cex=0.6)
 
 ```
 
@@ -639,7 +638,7 @@ ph_patients = pheatmap(ph_lncRNA_patients_matrix,  cluster_rows = F, cluster_col
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         color = colorRampPalette(c("lightyellow", "#addd8e","#31a354"))(50),
          fontsize = 6,
          main="TOv3x lncRNA | percentage of patients (at least 5% in one cancer type)")
 save_pheatmap_pdf(ph_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_lncRNA.pdf"))
@@ -677,7 +676,7 @@ ph_CTA_patients = pheatmap(ph_CTA_patients_matrix, cluster_rows = F, cluster_col
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         color = colorRampPalette(c("lightyellow", "#addd8e","#31a354"))(50),
          fontsize = 6,
          main="TOv3x CTA | percentage of patients (at least 5% in one cancer type)")
 save_pheatmap_pdf(ph_CTA_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_CTA.pdf"))
@@ -714,7 +713,7 @@ ph_chrX_patients = pheatmap(ph_chrX_patients_matrix, cluster_rows = F, cluster_c
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         color = colorRampPalette(c("lightyellow", "#addd8e","#31a354"))(50),
          fontsize = 6,
          main="TOv3x chrX | percentage of patients (at least 5% in one cancer type)")
 save_pheatmap_pdf(ph_chrX_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_chrX.pdf"))
@@ -752,7 +751,7 @@ ph_chrA_patients = pheatmap(ph_chrA_patients_matrix, cluster_rows = F, cluster_c
          annotation_col = col_annot,  # Annotation data frame
          annotation_row = row_annotation,
          annotation_colors = mycolors,  # Custom colors
-         color = colorRampPalette(c("lightyellow", "#25803A"))(50),
+         color = colorRampPalette(c("lightyellow", "#addd8e","#31a354"))(50),
          fontsize = 6,
          main="TOv3x chrA | percentage of patients (at least 5% in one cancer type)")
 save_pheatmap_pdf(ph_chrA_patients, paste0(heatmaps_wd,"/PDF/TOv3xlog2ratio3x_pheatmap_patients_5percent_chrA.pdf"))

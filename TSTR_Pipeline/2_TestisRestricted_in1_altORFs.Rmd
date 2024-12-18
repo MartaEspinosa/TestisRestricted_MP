@@ -53,10 +53,10 @@ ggplot(toc_TPMs %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseud
     labs(x="Length (nt)",
        fill="Biotype",
        title="Gene length distribution per biotype") +
-  scale_fill_manual(values=c("protein_coding"="#CC79A7",
-                             "lncRNA" = "#009E73",
-                             "processed_pseudogene" = "#0090B2",
-                             "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding"="#ead890",
+                         "lncRNA" = "#cd4f38",
+                         "processed_pseudogene" = "#e48c2a",
+                                               "novel" = "#637c68")) +
   theme_classic() +
   theme(legend.position = "top")
 ggsave(file.path(plots_wd,"PNG/length_density.png"), height=4.45, width=5.30)
@@ -123,10 +123,10 @@ ggplot(toc_TPMs_long %>% subset(gene_type == "lncRNA" | gene_type == "processed_
   labs(x="Patient",
        fill="Biotype",
        title="Gene expression distribution per biotype") +
-  scale_fill_manual(values=c("protein_coding"="#CC79A7",
-                             "lncRNA" = "#009E73",
-                             "processed_pseudogene" = "#0090B2",
-                             "novel" = "#E69F00")) +
+  scale_fill_manual(values=c("protein_coding"="#ead890",
+                         "lncRNA" = "#cd4f38",
+                         "processed_pseudogene" = "#e48c2a",
+                                               "novel" = "#637c68")) +
   theme_classic() + 
   theme(axis.text.x = element_text(angle=90),
         legend.position = "none") +
@@ -243,10 +243,10 @@ a1 = ggpie(brain_piechart_expr_sp, x="values", fill="condition", palette=c("Expr
 
 
 brainsp_genetype_plot = as.data.frame(table(brainspecific$gene_type))
-a2 = ggpie(brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+a2 = ggpie(brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Brain Restricted") +  theme(legend.position = "none")
 
 
@@ -258,10 +258,10 @@ b1 = ggpie(liver_piechart_expr_sp, x="values", fill="condition", palette=c("Expr
   ggtitle("Liver")+  theme(legend.position = "none")
 
 liversp_genetype_plot = as.data.frame(table(liverspecific$gene_type))
-b2 =ggpie(liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+b2 =ggpie(liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Liver Restricted") +
     theme(legend.position = "none")
 
@@ -275,10 +275,10 @@ c1 = ggpie(testis_piechart_expr_sp, x="values", fill="condition", palette=c("Exp
 
 
 testissp_genetype_plot = as.data.frame(table(testisspecific$gene_type))
-c2 = ggpie(testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+c2 = ggpie(testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Testis Restricted") +
   theme(legend.position = "none")
 
@@ -566,29 +566,29 @@ ggsave(file.path(plots_wd,"PDF/condition_tissue_barplot.pdf"))
 
 ## plots
 brainspgtex_genetype_plot = as.data.frame(table(brain_sp_gtex$gene_type))
-a3 = ggpie(brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+a3 = ggpie(brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Brain Restricted with GTEx") +  theme(legend.position = "none")
 
 
 ## liver
 liverspgtex_genetype_plot = as.data.frame(table(liver_sp_gtex$gene_type))
-b3 = ggpie(liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+b3 = ggpie(liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Liver Restricted with GTEx") +
     theme(legend.position = "none")
 
 
 ## testis
 testisspgtex_genetype_plot = as.data.frame(table(testis_sp_gtex$gene_type))
-c3 = ggpie(testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+c3 = ggpie(testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Testis Restricted with GTEx") +
   theme(legend.position = "none")
 
@@ -635,10 +635,10 @@ testisExpressed_Restricted_Translated = testisExpressed_Restricted_Translated %>
 to_plot = testisExpressed_Restricted_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
 ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out", lab.font = c(3, "plain", "black"),
-      palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) +
+      palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) +
   ggtitle("ORFs from testis-Expressed genes only translated in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisExpressed_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisExpressed_translated.pdf"), height=4.69, width=5.4)
@@ -654,168 +654,6 @@ ggpie(to_plot, "n", label="n", fill="geneORFtype", lab.pos = "out", lab.font = c
   ggtitle("ORFs from testis-Expressed genes only translated in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisExpressed_translated_altORFs.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisExpressed_translated_altORFs.pdf"), height=4.69, width=5.4)
-```
-
-```{r differences_Expressed, echo=F}
-#### should I do it vs all or vs the non-testisRestricted?
-##---------- length differences ----------##
-ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=length_aa, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means() +
-  scale_y_continuous(trans="log10") +
-    scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA.png"), height=4.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA.pdf"), height=4.69, width=5.4)
-
-##---------- length differences | gene_type ----------##
-ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=length_aa, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means(label="p.signif") +
-  scale_y_continuous(trans="log10") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA_genetype.png"), height=4.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA_genetype.pdf"), height=4.69, width=5.4)
-
-##---------- length differences | geneORFtype ----------##
-ggplot(testisExpressed_Restricted_Translated, aes(x=geneORFtype, y=length_aa, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means(label="p.signif") +
-  scale_y_continuous(trans="log10") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic() +
-  theme(axis.text.x=element_text(angle=90))
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_lengthAA_geneORFtype.png"), height=6.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_lengthAA_geneORFtype.pdf"), height=6.69, width=5.4)
-
-##---------- composition differences ----------##
-## log2ratio to see if ncORFs are relatively enriched in any aminoacid
-# Function to calculate log2ratio of relative frequency
-# calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
-#   all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
-#   log2ratios <- numeric(length(all_amino_acids))
-#   
-#   for (aa in all_amino_acids) {
-#     count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
-#     count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
-#     
-#     freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
-#     freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
-#     
-#     log2ratios[aa] <- log2(freq_group1 / freq_group2)
-#   }
-#   
-#   log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
-#   return(log2ratio_df)
-# }
-# 
-# ## select ncORFs - no testisRestricted
-# ncORFs_no_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(testisRestricted == "no")
-# ncORFs_no_seqs = as.character(ncORFs_no_seqs$ORFpep)
-# ## select ncORFs - testisRestricted
-# ncORFs_yes_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "noncoding") %>% subset(testisRestricted == "yes")
-# ncORFs_yes_seqs = as.character(ncORFs_yes_seqs$ORFpep)
-# 
-# ## select ORFs - no testisRestricted
-# ORFs_no_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(testisRestricted == "no")
-# ORFs_no_seqs = as.character(ORFs_no_seqs$ORFpep)
-# ## select ORFs - testisRestricted
-# ORFs_yes_seqs = testisExpressed_Restricted_Translated %>% subset(orfType == "canonical") %>% subset(testisRestricted == "yes")
-# ORFs_yes_seqs = as.character(ORFs_yes_seqs$ORFpep)
-# 
-# ## compute log2ratio per letter - testisRestricted
-# log2ratios_yes = calculate_log2ratio_df(ncORFs_yes_seqs, ORFs_yes_seqs)
-# print(log2ratios_yes)
-# names(log2ratios_yes)[2] = "log2ratio_yes_ncORFs_vs_ORFs"
-# log2ratios_yes = log2ratios_yes %>% subset(log2ratio_yes_ncORFs_vs_ORFs != 0)
-# 
-# ## compute log2ratio per letter - no testisRestricted
-# log2ratios_no = calculate_log2ratio_df(ncORFs_no_seqs, ORFs_no_seqs)
-# names(log2ratios_no)[2] = "log2ratio_no_ncORFs_vs_ORFs"
-# log2ratios_no = log2ratios_no %>% subset(log2ratio_no_ncORFs_vs_ORFs != 0)
-# 
-# ## compute log2ratio per letter - yes vs no testisRestricted independently of genetype
-# log2ratios_yes_vs_no = calculate_log2ratio_df(paste(ncORFs_no_seqs, ORFs_no_seqs), paste(ncORFs_yes_seqs, ORFs_yes_seqs))
-# names(log2ratios_yes_vs_no)[2] = "log2ratio_yes_vs_no"
-# print(log2ratios_yes_vs_no)
-# log2ratios_yes_vs_no = log2ratios_yes_vs_no %>% subset(log2ratio_yes_vs_no != 0)
-# 
-# 
-# 
-# hph=c("A","V","L","I","M","F","Y","W")
-# polar=c("S","T","N","Q")
-# positively_charged=c("R","H","K")
-# negatively_charged=c("D","E")
-# special_cases=c("C","G","P")
-# 
-# 
-# log2ratios = list(log2ratios_yes, log2ratios_no, log2ratios_yes_vs_no) %>% reduce(full_join, by='Aminoacid')
-# log2ratios = log2ratios %>% 
-#   mutate(aa_type = case_when(Aminoacid %in% hph ~ "hidrophobic",
-#                              Aminoacid %in% polar ~ "polar",
-#                              Aminoacid %in% positively_charged ~ "positive",
-#                              Aminoacid %in% negatively_charged ~ "negative",
-#                              Aminoacid %in% special_cases ~ "special")) %>%
-#   subset(Aminoacid != "*") %>% 
-#   drop_na()
-# 
-# log2ratios = log2ratios %>% pivot_longer(cols=c("log2ratio_yes_vs_no","log2ratio_no_ncORFs_vs_ORFs","log2ratio_yes_ncORFs_vs_ORFs"), names_to = "type", values_to = "log2ratio")
-# 
-# ggplot(log2ratios, aes(x=Aminoacid, y=log2ratio, fill = aa_type)) +
-#   geom_bar(stat = "identity") +
-#   labs(y="Log2Ratio",
-#        x="Aminoacid",
-#        title="Relative enrichement of aminoacids in ncORFs",
-#        fill="Aminoacid type") +
-#   scale_fill_carto_d(palette="Burg") +
-#   theme_classic() +
-#   theme(legend.position = "top") +
-#   facet_grid(type ~ aa_type, scales="free_x", space="free_x")
-# ggsave(file.path(plots_wd,"PNG/log2ratio_severalconditions.png"), height=7.05, width=8.46)
-# ggsave(file.path(plots_wd,"PDF/log2ratio_severalconditions.pdf"), height=7.05, width=8.46)
-
-
-##---------- translation efficiency ----------##
-mean_testis_TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
-# names(mean_testis_TE)[5] = "orfType"
-testisExpressed_Restricted_Translated = merge(testisExpressed_Restricted_Translated,mean_testis_TE, by=c("orfID","gene_id", "gene_name", "geneORFtype"))
-
-ggplot(testisExpressed_Restricted_Translated, aes(x=testisRestricted, y=mean_TE, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means() +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  scale_y_continuous(trans="log10") +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_TE.png"), height=4.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE.pdf"), height=4.69, width=5.4)
-
-##---------- translation efficiency | gene_type ----------##
-ggplot(testisExpressed_Restricted_Translated, aes(x=gene_type, y=mean_TE, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means(label="p.signif") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  scale_y_continuous(trans="log10") +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic()
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_TE_genetype.png"), height=4.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_genetype.pdf"), height=4.69, width=5.4)  
-
-##---------- translation efficiency | gene_type ----------##
-ggplot(testisExpressed_Restricted_Translated, aes(x=geneORFtype, y=mean_TE, fill=testisRestricted)) +
-  geom_boxplot() +
-  stat_compare_means(label="p.signif") +
-  scale_fill_manual(values=c("yes" = "#B1283A", "no"="#A8A6A7")) +
-  scale_y_continuous(trans="log10") +
-  labs(title="Translated TestisExpressed & TestisRestricted ORFs") +
-  theme_classic() +
-  theme(axis.text.x=element_text(angle=45))
-ggsave(file.path(plots_wd,"PNG/testisExpressed_testisRestricted_TE_geneORFtype.png"), height=6.69, width=5.4)
-ggsave(file.path(plots_wd,"PDF/testisExpressed_testisRestricted_TE_geneORFtype.pdf"), height=6.69, width=5.4)  
 ```
 
 #### Testis-Specific with RiboSeq
@@ -841,10 +679,10 @@ dim(testisRestrictedGTEx_Translated)
 to_plot = testisRestrictedGTEx_Translated %>% group_by(gene_type) %>% count()
 to_plot = as.data.frame(to_plot)
 ggpie(to_plot, "n", label="n", fill="gene_type", lab.pos = "out",   lab.font = c(5, "plain", "black"),
-      palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) +
+      palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) +
   ggtitle("ORFs from testis-Restricted GTEx genes translated in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestrictedGTEx_translated.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.69, width=5.4)
@@ -852,11 +690,14 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated.pdf"), height=4.6
 to_plot = testisRestrictedGTEx_Translated %>% group_by(geneORFtype) %>% count()
 to_plot = as.data.frame(to_plot)
 ggpie(to_plot, "n", label="n", fill="geneORFtype", lab.pos = "out",   lab.font = c(5, "plain", "black"),
-      # palette=c("protein_coding"="#CC79A7",
-      #            "lncRNA" = "#009E73",
-      #            "processed_pseudogene" = "#0090B2",
-      #            "novel" = "#E69F00")
-      ) +
+      palette=c("protein_coding_canonical"="#ead890",
+                       "lncRNA_noncoding" = "#cd4f38",
+                       "processed_pseudogene_noncoding" = "#e48c2a",
+                                             "novel_noncoding" = "#637c68",
+                       "protein_coding_uORF"="#899da4",
+                       "protein_coding_ouORF"="#c5d0ca",
+                       "protein_coding_dORF"="#ba968a",
+                       "protein_coding_odORF"="#f2c695")) +
   ggtitle("ORFs from testis-Restricted GTEx genes translated in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestrictedGTEx_translated_altORFs.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated_altORFs.pdf"), height=4.69, width=5.4)
@@ -965,10 +806,10 @@ to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)
 
 ###### ggpie
 labs <- paste0(to_plot_translatedOnlyTestis$gene_type, " ( ",to_plot_translatedOnlyTestis$n, ")")
-ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "out", palette=c("protein_coding"="#CC79A7",
-                         "lncRNA" = "#009E73",
-                         "processed_pseudogene" = "#0090B2",
-                                          "novel" = "#E69F00")) +
+ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="gene_type", lab.pos = "out", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) +
   ggtitle("ORFs from testis-expressed genes translated ONLY in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_ORFs_onlyTestis.png"), height=4.69, width=5.4)
 ggsave(file.path(plots_wd,"PDF/testisREstricted_ORFs_onlyTestis.pdf"), height=4.69, width=5.4)  
@@ -976,10 +817,14 @@ ggsave(file.path(plots_wd,"PDF/testisREstricted_ORFs_onlyTestis.pdf"), height=4.
 to_plot_translatedOnlyTestis = testisRestrictedGTEx_Translated_onlyTestis %>% group_by(geneORFtype) %>% count()
 to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)
 ggpie(to_plot_translatedOnlyTestis, "n", label="n", fill="geneORFtype", lab.pos = "out", 
-      # palette=c("protein_coding"="#CC79A7",
-                         # "lncRNA" = "#009E73",
-                         # "processed_pseudogene" = "#0090B2",
-                         #                  "novel" = "#E69F00")
+      palette=c("protein_coding_canonical"="#ead890",
+                       "lncRNA_noncoding" = "#cd4f38",
+                       "processed_pseudogene_noncoding" = "#e48c2a",
+                                             "novel_noncoding" = "#637c68",
+                       "protein_coding_uORF"="#899da4",
+                       "protein_coding_ouORF"="#c5d0ca",
+                       "protein_coding_dORF"="#ba968a",
+                       "protein_coding_odORF"="#f2c695")
                          ) +
   ggtitle("ORFs from testis-expressed genes translated ONLY in testis (1 sample at least)")
 ggsave(file.path(plots_wd,"PNG/testisRestricted_altORFs_onlyTestis.png"), height=4.69, width=5.4)
@@ -1010,10 +855,10 @@ a1 = ggpie(brain_piechart_expr_sp, x="values", fill="condition", palette=c("Expr
 
 
 transl_brainsp_genetype_plot = as.data.frame(table(transl_brainspecific$gene_type))
-a2 = ggpie(transl_brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+a2 = ggpie(transl_brainsp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Brain Restricted (Translated)") +  theme(legend.position = "none")
 
 
@@ -1025,10 +870,10 @@ b1 = ggpie(transl_liver_piechart_expr_sp, x="values", fill="condition", palette=
   ggtitle("Liver (Translated)")+  theme(legend.position = "none")
 
 transl_liversp_genetype_plot = as.data.frame(table(transl_liverspecific$gene_type))
-b2 =ggpie(transl_liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+b2 =ggpie(transl_liversp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Liver Restricted (Translated)") +
     theme(legend.position = "none")
 
@@ -1042,10 +887,10 @@ c1 = ggpie(transl_testis_piechart_expr_sp, x="values", fill="condition", palette
 
 
 transl_testissp_genetype_plot = as.data.frame(table(transl_testisspecific$gene_type))
-c2 = ggpie(transl_testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+c2 = ggpie(transl_testissp_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Testis Restricted (Translated)") +
   theme(legend.position = "none")
 
@@ -1082,29 +927,29 @@ ggsave(file.path(plots_wd,"PDF/condition_tissue_barplot_translated.pdf"))
 
 ## plots
 transl_brainspgtex_genetype_plot = as.data.frame(table(transl_brain_sp_gtex$gene_type))
-a3 = ggpie(transl_brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+a3 = ggpie(transl_brainspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Translated Brain Restricted with GTEx") +  theme(legend.position = "none")
 
 
 ## liver
 transl_liverspgtex_genetype_plot = as.data.frame(table(transl_liver_sp_gtex$gene_type))
-b3 = ggpie(transl_liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+b3 = ggpie(transl_liverspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Translated Liver Restricted with GTEx") +
     theme(legend.position = "none")
 
 
 ## testis
 transl_testisspgtex_genetype_plot = as.data.frame(table(transl_testis_sp_gtex$gene_type))
-c3 = ggpie(transl_testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#CC79A7",
-                 "lncRNA" = "#009E73",
-                 "processed_pseudogene" = "#0090B2",
-                 "novel" = "#E69F00")) + 
+c3 = ggpie(transl_testisspgtex_genetype_plot, x="Freq", fill = "Var1", palette=c("protein_coding"="#ead890",
+                       "lncRNA" = "#cd4f38",
+                       "processed_pseudogene" = "#e48c2a",
+                                             "novel" = "#637c68")) + 
   ggtitle("Translated Testis Restricted with GTEx") +
   theme(legend.position = "none")
 
