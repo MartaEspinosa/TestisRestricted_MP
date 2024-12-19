@@ -1373,8 +1373,8 @@ dev.off()
 If present in thymus, not reexpressed but mutations
 
 ```{r thymus, echo=F}
-thymus_candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/quantification_thymus/table_of_counts_TPMs_thymus_TOv3xlog2ratio3xmean.csv")
-thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/quantification_thymus/thymus_summary_TOv3xlog2ratio3xmean.csv")
+thymus_candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/table_of_counts_TPMs_thymus_TOv3xlog2ratio3xmean.csv")
+thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/thymus_summary_TOv3xlog2ratio3xmean.csv")
 names(thymus_candidates_summary) = c("X","transcript_id","mean_mTEC","median_mTEC","max_mTEC","gene_id","gene_type","gene_name")
 thymus_candidates_summary = merge(thymus_candidates_summary, tumorReact_genes, by=c("gene_id","gene_name","gene_type"))
 # thymus_candidates_summary$log_mean_mTEC = log2(thymus_candidates_summary$mean_mTEC+0.00001)

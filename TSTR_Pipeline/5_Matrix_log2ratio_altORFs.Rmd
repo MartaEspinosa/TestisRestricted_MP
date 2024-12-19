@@ -1,5 +1,5 @@
 ---
-title: "TSA TestisRestrictedGTEX Translated | Matrix"
+title: "TSA TestisRestrctedGTEX Translated | Matrix"
 author: "Marta Espinosa"
 date: "2024-09-12"
 output: html_document

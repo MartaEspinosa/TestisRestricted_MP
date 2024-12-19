@@ -40,7 +40,7 @@ ctype_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC",
 
 cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers"
 
-mycolors = list("gene_typ"=c("protein_coding"="#ead890",
+mycolors = list("gene_type"=c("protein_coding"="#ead890",
                        "lncRNA" = "#cd4f38",
                        "processed_pseudogene" = "#e48c2a",
                                              "novel" = "#637c68"),
@@ -266,34 +266,69 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     
   ####### 2. non-CTA ####### 
   gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% subset(gene_name %in% rownames(nozeros_matrix_log)) %>% pull(gene_name)
-  lncRNA_matrix = nozeros_matrix_log[gene_names_ctype,]
-  
+  CTA_matrix = nozeros_matrix_log[gene_names_ctype,]
   if (length(gene_names_ctype) > 4) {
-      lncRNA_transposed = t(lncRNA_matrix)
-      res2 <- rcorr(lncRNA_transposed)
-      # A simple function to format the correlation matrix
-      # ++++++++++++++++++++++++++++
-      # flattenCorrMatrix
-      # ++++++++++++++++++++++++++++
-      # cormat : matrix of the correlation coefficients
-      # pmat : matrix of the correlation p-values
-      flattenCorrMatrix(res2$r, res2$P)
-      
-      lncRNA_cormat <- round(cor(lncRNA_transposed),2)
-      dim(lncRNA_cormat)
-      ##### ----> CORRPLOT 2 - NON-CTA <----- #####
+
+    CTA_transposed = t(CTA_matrix)
+    res2 <- rcorr(CTA_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+    
+    CTA_cormat <- round(cor(CTA_transposed),2)
+    dim(CTA_cormat)
+    
+    ##### ----> CORRPLOT 3 - CTA <----- #####
         p <- {
-      corrplot(lncRNA_cormat, type = "lower", order = "hclust", method="circle",
-               tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation non-CTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
-        recordPlot() 
-      }
-      
-      png(paste0(plots_wd,"/PNG/corrplot_nonCTA_TOv3x_",ctype_var,".png"))
-      replayPlot(p)
-      dev.off()
-      pdf(paste0(plots_wd,"/PDF/corrplot_nonCTA_TOv3x_",ctype_var,".pdf"))
-      replayPlot(p)
-      dev.off()
+    corrplot(CTA_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation nonCTA TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_nonCTA_TOv3x_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    pdf(paste0(plots_wd,"/PDF/corrplot_nonCTA_TOv3x_",ctype_var,".pdf"))
+    replayPlot(p)
+    dev.off()
+    
+    CTA_cormat = data.frame(CTA_cormat)
+    CTA_cormat$A = rownames(CTA_cormat)
+    CTA_cormat = CTA_cormat %>% pivot_longer(cols=-c(A), names_to = "B", values_to = "correlation")
+    ## which group we want to compare?
+    x_nonX_df = df_5percent %>% select(gene_name, chr) %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+                                                                TRUE ~ "nonX")) %>% select(-chr)
+    chr_X = x_nonX_df %>% subset(X_nonX == "X")
+    chr_nonX = x_nonX_df %>% subset(X_nonX == "nonX")
+    
+    
+    CTA_cormat = CTA_cormat %>% mutate(A_chr = case_when(A %in% chr_X$gene_name ~ "X", 
+                                                     TRUE ~ "non-X")) 
+    CTA_cormat = CTA_cormat %>%
+      mutate(B_chr = case_when(B %in% chr_nonX$gene_name ~ "non-X", 
+                                   TRUE ~ "X")) 
+    
+    CTA_cormat %>% head
+    CTA_cormat_nonX = CTA_cormat %>% subset(A_chr == "non-X" & B_chr == "non-X")
+    CTA_cormat_X = CTA_cormat %>% subset(A_chr == "X" & B_chr == "X")
+    print("nonX")
+    print(mean(CTA_cormat_nonX$correlation))
+    correlation_values = data.frame("type"="Noncoding-nonX",
+                          "value" = mean(CTA_cormat_nonX$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_nonX$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
+    print("X")
+    print(mean(CTA_cormat_X$correlation))
+        correlation_values = data.frame("type"="Noncoding-X",
+                          "value" = mean(CTA_cormat_X$correlation),
+                          "ctype" = ctype_var,
+                          "num_genes" = length(unique(chr_X$gene_name)))
+   correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
   }
   
   ####### 3. CTA ####### 
@@ -362,6 +397,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
                           "num_genes" = length(unique(chr_X$gene_name)))
    correlation_values_to_save =  rbind(correlation_values_to_save, correlation_values)
   }
+  
   ####### 4. CTA-Xchr ####### 
   gene_names_ctype = df_5percent %>% subset(gene_type == "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% subset(gene_name %in% rownames(nozeros_matrix_log)) %>% pull(gene_name)
   CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
@@ -430,6 +466,76 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     replayPlot(p)
     dev.off()
   }
+  
+    ####### 4. noncoding-Xchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding")  %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% subset(gene_name %in% rownames(nozeros_matrix_log)) %>% pull(gene_name)
+  CTA_matrix_X = nozeros_matrix_log[gene_names_ctype,]
+  print("Num Noncoding-X")
+  print(nrow(CTA_matrix_X))
+  
+  if (length(gene_names_ctype) > 4) {
+
+    CTAX_transposed = t(CTA_matrix_X)
+    res2 <- rcorr(CTAX_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+    
+    CTAX_cormat <- round(cor(CTAX_transposed),2)
+    dim(CTAX_cormat)
+    ##### ----> CORRPLOT 4 - CTA-X chr <----- #####
+          p <- {
+    corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation nonCTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_nonCTAX_TOv3x_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    pdf(paste0(plots_wd,"/PDF/corrplot_nonCTAX_TOv3x_",ctype_var,".pdf"))
+    replayPlot(p)
+    dev.off()
+  
+  }
+  
+  ####### 5. nonCTA-nonXchr ####### 
+  gene_names_ctype = df_5percent %>% subset(gene_type != "protein_coding")  %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% subset(gene_name %in% rownames(nozeros_matrix_log)) %>% pull(gene_name)
+  CTA_matrix_nonX = nozeros_matrix_log[gene_names_ctype,]
+  print("Num Noncoding-nonX")
+  print(nrow(CTA_matrix_nonX))
+  if (length(gene_names_ctype) > 4) {
+    CTAnonX_transposed = t(CTA_matrix_nonX)
+    res2 <- rcorr(CTAnonX_transposed)
+    # A simple function to format the correlation matrix
+    # ++++++++++++++++++++++++++++
+    # flattenCorrMatrix
+    # ++++++++++++++++++++++++++++
+    # cormat : matrix of the correlation coefficients
+    # pmat : matrix of the correlation p-values
+    flattenCorrMatrix(res2$r, res2$P)
+      
+    CTAnonX_cormat <- round(cor(CTAnonX_transposed),2)
+    dim(CTAnonX_cormat)
+    ##### ----> CORRPLOT 5 - CTA-nonX chr <----- #####
+    p <- {
+    corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation nonCTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+      recordPlot() 
+    }
+    
+    png(paste0(plots_wd,"/PNG/corrplot_nonCTAnonX_TOv3x_",ctype_var,".png"))
+    replayPlot(p)
+    dev.off()
+    pdf(paste0(plots_wd,"/PDF/corrplot_nonCTAnonX_TOv3x_",ctype_var,".pdf"))
+    replayPlot(p)
+    dev.off()
+  }
+  
   
   ####### 6. lncRNA ####### 
   gene_names_ctype = df_5percent %>% subset(gene_type == "lncRNA")%>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_5percent_expr$gene_name) %>% subset(gene_name %in% rownames(nozeros_matrix_log)) %>% pull(gene_name)
@@ -677,51 +783,53 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   ## chrX
   chrX_matrix = tumor_log2ratio3x[chrX$gene_name, ]
   chrX_matrix_non_zero <- chrX_matrix[, apply(chrX_matrix, 2, function(x) any(x != 0))]
-  
-  chrX_ph = pheatmap(chrX_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
-         # treeheight_row = 0, treeheight_col = 0,
-         # breaks = seq(0,max_value, length.out=101), 
-         annotation_row = row_annot,
-           annotation_col = col_annot,  # Annotation data frame
-         annotation_names_col = FALSE,
-         annotation_names_row = FALSE,
-         show_colnames = F,
-         # cutree_cols = 3,
-         annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
-         fontsize = 6,
-         main=paste0("Testis/Tumor Specific genes in tumor samples | chrX | TOv3x + log2ratio 3x | ",  ctype_var))
-  save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrX_",ctype_var,"_tumors.pdf"))
-  col.order = chrX_ph$tree_col$order
-  ordered_labels_col_chrX = chrX_ph$tree_col$labels[col.order]
-  
-  row.order = chrX_ph$tree_row$order
-  ordered_labels_row_chrX = chrX_ph$tree_row$labels[row.order]
-  
+    if (dim(chrX_matrix_non_zero)[1] > 0) {
+
+    chrX_ph = pheatmap(chrX_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+           # treeheight_row = 0, treeheight_col = 0,
+           # breaks = seq(0,max_value, length.out=101), 
+           annotation_row = row_annot,
+             annotation_col = col_annot,  # Annotation data frame
+           annotation_names_col = FALSE,
+           annotation_names_row = FALSE,
+           show_colnames = F,
+           # cutree_cols = 3,
+           annotation_colors = mycolors,
+         color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+           fontsize = 6,
+           main=paste0("Testis/Tumor Specific genes in tumor samples | chrX | TOv3x + log2ratio 3x | ",  ctype_var))
+    save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrX_",ctype_var,"_tumors.pdf"))
+    col.order = chrX_ph$tree_col$order
+    ordered_labels_col_chrX = chrX_ph$tree_col$labels[col.order]
+    
+    row.order = chrX_ph$tree_row$order
+    ordered_labels_row_chrX = chrX_ph$tree_row$labels[row.order]
+    }
   ## chrA
   chrA_matrix = tumor_log2ratio3x[chrA$gene_name, ]
   chrA_matrix_non_zero <- chrA_matrix[, apply(chrA_matrix, 2, function(x) any(x != 0))]
+  if (dim(chrA_matrix_non_zero)[1] > 0) {
   
-  chrA_ph = pheatmap(chrA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
-         # treeheight_row = 0, treeheight_col = 0,
-         # breaks = seq(0,max_value, length.out=101), 
-         annotation_row = row_annot,
-           annotation_col = col_annot,  # Annotation data frame
-         annotation_names_col = FALSE,
-         annotation_names_row = FALSE,
-         show_colnames = F,
-         # cutree_cols = 3,
-         annotation_colors = mycolors,
-       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
-         fontsize = 6,
-         main=paste0("Testis/Tumor Specific genes in tumor samples | chrA | TOv3x + log2ratio 3x | ",  ctype_var))
-  save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrA_",ctype_var,"_tumors.pdf"))
-  col.order = chrA_ph$tree_col$order
-  ordered_labels_col_chrA = chrA_ph$tree_col$labels[col.order]
-  
-  row.order = chrA_ph$tree_row$order
-  ordered_labels_row_chrA = chrA_ph$tree_row$labels[row.order]
-
+    chrA_ph = pheatmap(chrA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+           # treeheight_row = 0, treeheight_col = 0,
+           # breaks = seq(0,max_value, length.out=101), 
+           annotation_row = row_annot,
+             annotation_col = col_annot,  # Annotation data frame
+           annotation_names_col = FALSE,
+           annotation_names_row = FALSE,
+           show_colnames = F,
+           # cutree_cols = 3,
+           annotation_colors = mycolors,
+         color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+           fontsize = 6,
+           main=paste0("Testis/Tumor Specific genes in tumor samples | chrA | TOv3x + log2ratio 3x | ",  ctype_var))
+    save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/PDF/pheatmap_TOv3x5percent_log2ratio3x_chrA_",ctype_var,"_tumors.pdf"))
+    col.order = chrA_ph$tree_col$order
+    ordered_labels_col_chrA = chrA_ph$tree_col$labels[col.order]
+    
+    row.order = chrA_ph$tree_row$order
+    ordered_labels_row_chrA = chrA_ph$tree_row$labels[row.order]
+  }
   
   
   
