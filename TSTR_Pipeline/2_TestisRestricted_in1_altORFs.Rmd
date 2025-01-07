@@ -704,6 +704,7 @@ ggsave(file.path(plots_wd,"PDF/testisRestrictedGTEx_translated_altORFs.pdf"), he
 ```
 
 ```{r translation_testisRestricted_onlyGTEX,echo=F}
+print("ONLY GTEx")
 testisRestrictedONLYGTEx_Translated = merge(subset_testis_onlyGTEx_complete %>% select(gene_id, gene_name), ribORF_humanTestis_in1_fastas, by=c("gene_id","gene_name")) 
 write.csv(testisRestrictedONLYGTEx_Translated, file.path(save_wd, "testisRestricted_onlyGTEx_translatedINtestis.csv"), row.names = F, quote = F)
 
@@ -799,7 +800,7 @@ table(testisRestrictedGTEx_Translated_onlyTestis$gene_type)
 print("altORFs")
 table(testisRestrictedGTEx_Translated_onlyTestis$geneORFtype)
 print("genes")
-table(testisRestrictedGTEx_Translated_onlyTestis %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+table(testisRestrictedGTEx_Translated_onlyTestis %>% select(gene_id, geneORFtype) %>% unique() %>% pull(geneORFtype))
 
 to_plot_translatedOnlyTestis = testisRestrictedGTEx_Translated_onlyTestis %>% group_by(gene_type) %>% count()
 to_plot_translatedOnlyTestis = as.data.frame(to_plot_translatedOnlyTestis)

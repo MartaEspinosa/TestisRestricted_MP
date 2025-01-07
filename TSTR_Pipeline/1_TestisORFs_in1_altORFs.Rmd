@@ -151,6 +151,15 @@ translated_in_1 = ribORF_humanTestis_Annotated_biotypes %>%
 table(translated_in_1$gene_type)
 table(translated_in_1$gene_type, translated_in_1$orfType)
 
+translated_in_1_genes = ribORF_humanTestis_Annotated_biotypes %>%
+  select(gene_id,gene_type,sample, orfType) %>%
+  group_by(gene_id,gene_type,orfType) %>%
+  count() %>% 
+  subset(n>=1) %>% unique()
+
+table(translated_in_1_genes$gene_type)
+table(translated_in_1_genes$gene_type, translated_in_1_genes$orfType)
+
 ribORF_humanTestis_in1 = ribORF_humanTestis_Annotated_biotypes %>% subset(orfID %in% translated_in_1$orfID) 
 write.csv(ribORF_humanTestis_in1, file.path(save_wd,"ribORF_humanTestis_translated_in_1.fulltable.csv"), row.names = F)
 
