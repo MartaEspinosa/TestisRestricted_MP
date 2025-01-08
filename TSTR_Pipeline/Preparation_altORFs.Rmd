@@ -1375,7 +1375,7 @@ If present in thymus, not reexpressed but mutations
 ```{r thymus, echo=F}
 thymus_candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/table_of_counts_TPMs_thymus_TOv3xlog2ratio3xmean.csv")
 thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/thymus_summary_TOv3xlog2ratio3xmean.csv")
-names(thymus_candidates_summary) = c("X","transcript_id","mean_mTEC","median_mTEC","max_mTEC","chr","gene_id","gene_name","gene_type","transcript_type")
+names(thymus_candidates_summary) = c("X","transcript_id","mean_mTEC","median_mTEC","max_mTEC","gene_id","gene_type","gene_name")
 thymus_candidates_summary = merge(thymus_candidates_summary, tumorReact_genes, by=c("gene_id","gene_name","gene_type"))
 # thymus_candidates_summary$log_mean_mTEC = log2(thymus_candidates_summary$mean_mTEC+0.00001)
 # thymus_candidates_summary$log_median_mTEC = log2(thymus_candidates_summary$median_mTEC+0.00001)
@@ -1840,42 +1840,42 @@ correlation_values_to_save = read.csv("/projects_eg/projects/marta/TestisRestric
 
 ggplot(correlation_values_to_save %>% subset(type != "CT"), aes(x=type, y=value, fill=type)) +
   geom_boxplot() +
-  # scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
+  scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
   labs(title="Correlation values",
        x="",
        y="Correlation coefficient") +
   theme_minimal()
 ggsave(file.path(plots_wd,"PNG/corr_coeff_type.png"))
-# 
-# # Check normality with Shapiro-Wilk test for each group
-# shapiro_test_results <- correlation_values_to_save %>% filter(type != "CT") %>%
-#   group_by(type)  %>%
-#   dplyr::summarize(shapiro_p = shapiro.test(value)$p.value, .groups = "drop")
-# 
-# # Check homogeneity of variances with Levene’s Test
-# levene_test <- leveneTest(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
-# 
-# # If assumptions hold, perform ANOVA
-# if(all(shapiro_test_results$shapiro_p > 0.05) && levene_test[["Pr(>F)"]][1] > 0.05) {
-#   # Perform ANOVA
-#   anova_result <- aov(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
-#   summary(anova_result)
-#   
-#   # If significant, perform Tukey HSD post-hoc test
-#   tukey_result <- TukeyHSD(anova_result)
-#   print(tukey_result)
-#   
-# } else {
-#   # If assumptions do not hold, perform Kruskal-Wallis test
-#   kruskal_result <- kruskal.test(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
-#   print(kruskal_result)
-#   
-#   # If significant, perform Dunn's test for post-hoc comparisons
-#   # if(kruskal_result$p.value < 0.05) {
-#   #   dunn_result <- dunnTest(value ~ type, data = data, method="bh")
-#   #   print(dunn_result)
-#   # }
-# }
+
+# Check normality with Shapiro-Wilk test for each group
+shapiro_test_results <- correlation_values_to_save %>% filter(type != "CT") %>%
+  group_by(type)  %>%
+  dplyr::summarize(shapiro_p = shapiro.test(value)$p.value, .groups = "drop")
+
+# Check homogeneity of variances with Levene’s Test
+levene_test <- leveneTest(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+
+# If assumptions hold, perform ANOVA
+if(all(shapiro_test_results$shapiro_p > 0.05) && levene_test[["Pr(>F)"]][1] > 0.05) {
+  # Perform ANOVA
+  anova_result <- aov(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+  summary(anova_result)
+  
+  # If significant, perform Tukey HSD post-hoc test
+  tukey_result <- TukeyHSD(anova_result)
+  print(tukey_result)
+  
+} else {
+  # If assumptions do not hold, perform Kruskal-Wallis test
+  kruskal_result <- kruskal.test(value ~ type, data = correlation_values_to_save %>% filter(type != "CT"))
+  print(kruskal_result)
+  
+  # If significant, perform Dunn's test for post-hoc comparisons
+  # if(kruskal_result$p.value < 0.05) {
+  #   dunn_result <- dunnTest(value ~ type, data = data, method="bh")
+  #   print(dunn_result)
+  # }
+}
 
 ```
 
@@ -1896,7 +1896,7 @@ to_plot_barplot$ctype <- factor(
 
 ggplot(to_plot_barplot, aes(x=ctype, y=n, fill=coding_noncoding_chr)) +
     geom_bar(stat="identity", position="dodge") +
-    # scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
+    scale_fill_manual(values=c("#68855CFF","#526A83FF","#A06177FF")) +
     labs(y="Number of TS/TR",
          x="Cancer Type",
          fill="Biotype") +

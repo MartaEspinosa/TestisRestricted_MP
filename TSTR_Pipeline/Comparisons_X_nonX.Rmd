@@ -129,6 +129,54 @@ candidatesORFs = candidatesORFs %>% mutate(age_categorical = case_when(oldest_sp
                                                    TRUE ~ "mammal"))
 ```
 
+## CHROMOSOME LOCATION
+
+```{r chr, echo=F}
+gtf_file = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/gencode.v47.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.gtf"
+gtf_data = import(gtf_file, format = "gtf")
+
+GRanges_GTF = as(gtf_data, "GRanges")
+GRanges_GTF$gene_id = gsub("\\..*","",GRanges_GTF$gene_id)
+
+GRanges_GTF_tumorReact = GRanges_GTF %>% subset(gene_id %in% candidatesORFs$gene_id) %>% subset(type == "transcript") 
+GRanges_GTF_tumorReact$gene_type[is.na(GRanges_GTF_tumorReact$gene_type)] <- "novel"
+
+GRanges_GTF_tumorReact_CODING = GRanges_GTF_tumorReact %>% subset(gene_type == "protein_coding")
+length(GRanges_GTF_tumorReact_CODING$gene_id)
+
+
+GRanges_GTF_tumorReact_NONCODING = GRanges_GTF_tumorReact %>% subset(gene_type != "protein_coding")
+mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name <- ifelse(
+  is.na(mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name),
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_id,
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name
+)
+length(GRanges_GTF_tumorReact_NONCODING$gene_id)
+
+# png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr.png"), height=9.26, width=15.20, units = "in", res=400)
+kp <- plotKaryotype(genome="hg38")
+# Plot the coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_CODING,
+           y0=0, y1=0.5, col="#cd4f38") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_CODING,
+         y=0.5, fill="#cd4f38", pch=19, cex=0.8) # Add dots
+
+# Plot the non-coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_NONCODING,
+           y0=0, y1=0.5, col="#ead890") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_NONCODING,
+         y=0.5, col="#ead890", pch=19, cex=0.8) # Add dots
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("#cd4f38", "#ead890"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend title
+# dev.off()
+```
+
+
 ## COMPARISONS AT GENE LEVEL
 
 ```{r length, echo=F}
