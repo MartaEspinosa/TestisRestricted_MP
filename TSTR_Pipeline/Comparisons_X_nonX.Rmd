@@ -114,6 +114,15 @@ table(chr_summary$coding_noncoding_chr, chr_summary$ctype)
 TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
 candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"))
 
+## CanonicalRatio
+canonicalRatio = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.allSamples.tsv", sep="\t")
+canonicalRatio$tissue = gsub("_.*","",canonicalRatio$Sample)
+canonicalRatio = canonicalRatio %>% group_by(orfID, tissue) %>%
+  mutate(mean_canonicalRatio = mean(canonicalRatio))
+canonicalRatio = canonicalRatio %>% ungroup() %>% subset(tissue == "testis") %>% select(orfID, mean_canonicalRatio, tissue) %>% unique()
+
+candidatesORFs = merge(canonicalRatio, candidatesORFs, by=c("orfID"), all.y=T)
+
 ## GTEx 
 GTEx = read.csv("/data/genomics/marta/genomes/GTEx/v10/GTEx_maintissue_gene_median_tpm.csv")
 GTEx_candidates = GTEx %>% subset(Name %in% candidatesORFs$gene_id)
