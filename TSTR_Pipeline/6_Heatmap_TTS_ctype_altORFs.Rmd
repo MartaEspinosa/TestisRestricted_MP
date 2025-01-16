@@ -732,6 +732,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   chrA = df %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% rownames(tumor_log2ratio3x))
 
   ## CTA
+  if(nrow(CTA) > 1 ){
   CTA_matrix = tumor_log2ratio3x[CTA$gene_name, ]
   CTA_matrix_non_zero <- CTA_matrix[, apply(CTA_matrix, 2, function(x) any(x != 0))]
   
@@ -754,7 +755,9 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   
   row.order = cta_ph$tree_row$order
   ordered_labels_row_CTA = cta_ph$tree_row$labels[row.order]
+  }
   
+  if(nrow(lncRNA) > 1 ){
   ## lncRNA
   lncRNA_matrix = tumor_log2ratio3x[lncRNA$gene_name, ]
   lncRNA_matrix_non_zero <- lncRNA_matrix[, apply(lncRNA_matrix, 2, function(x) any(x != 0))]
@@ -778,7 +781,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
   
   row.order = lncRNA_ph$tree_row$order
   ordered_labels_row_lncRNA = lncRNA_ph$tree_row$labels[row.order]
-
+  }
   ####### X / vs nonX
   ## chrX
   chrX_matrix = tumor_log2ratio3x[chrX$gene_name, ]

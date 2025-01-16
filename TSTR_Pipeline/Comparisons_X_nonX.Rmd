@@ -122,10 +122,10 @@ candidatesORFs = merge(candidatesORFs, GTEx %>% select(Name, Testis), by.x="gene
 ## evo origin
 conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
 candidatesORFs = merge(candidatesORFs, conservation, by=c("orfID", "gene_type", "gene_name"), how="left")
-candidatesORFs = candidatesORFs %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate",
-                                                                 oldest_species == "human"  ~ "primate",
+candidatesORFs = candidatesORFs %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate-specific",
+                                                                 oldest_species == "human"  ~ "humman-specific",
                                                                  oldest_species == "chicken" ~ "conserved - outgroup",
-                                                                 oldest_species == "mouse" ~ "primate",
+                                                                 oldest_species == "mouse" ~ "mouse",
                                                    TRUE ~ "mammal"))
 ```
 

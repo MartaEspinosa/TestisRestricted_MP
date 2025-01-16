@@ -467,7 +467,7 @@ nrow(orf_TE_in1)
 ```
 
 ```{r RNA_Ribo, echo=F}
-TPMs_RNA = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv")
+TPMs_RNA = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv")
 
 testis_TPMs = TPMs_RNA %>% select(gene_id, Length, human_testis_rna_1, human_testis_rna_2, human_testis_rna_3)
 names(testis_TPMs)[1] = "transcript_id"

@@ -427,6 +427,13 @@ ctypes_tumorReact_orfs = tumorReact_full %>% mutate(coding_ncoding = case_when(g
 table(ctypes_tumorReact_orfs$coding_ncoding, ctypes_tumorReact_orfs$ctype)
 table(ctypes_tumorReact_orfs$ctype)
 ```
+
+```{r TSTR_CTDB, echo=F}
+nrow(CTDB_in_annot)
+TSTR_CTDB = CTDB_in_annot %>% subset(gene_name %in% tumorReact$gene_name)
+nrow(TSTR_CTDB)
+```
+
 ```{r tumor_counts, echo=F}
 TSTR_expr = read.csv(file.path(tumorReactDIR,"TSTR_Expression_tumor.csv"))
 TSTR_expr %>% head
