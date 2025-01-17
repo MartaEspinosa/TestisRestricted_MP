@@ -453,3 +453,47 @@ ggsave(file.path(plots_wd,"PNG/Evo_geneORFtype_noaltORFs.png"))
 #   theme_minimal() +
 #   facet_wrap(~ geneORFtype, ncol=4, scales="free_x")
 ```
+
+```{r aa, echo=F}
+# Calculate amino acid frequency normalized by sequence length
+candidatesORFs$ORFpep = gsub("\\*","",candidatesORFs$ORFpep)
+amino_acid_frequencies <- candidatesORFs %>%
+  # Group by coding_noncoding_chr
+  group_by(coding_noncoding_chr) %>%
+  # Process each group
+  summarise(
+    amino_freq = list(
+      ORFpep %>%
+        strsplit("") %>%
+        # Flatten the list of sequences into a single character vector
+        unlist() %>%
+        # Count occurrences of each amino acid
+        table() %>%
+        # Convert to a named numeric vector
+        prop.table() %>%
+        as.data.frame()
+    )
+  ) %>%
+  unnest(amino_freq)
+names(amino_acid_frequencies) = c("coding_noncoding_chr", "aminoacid","frequency")
+
+# Remove Noncoding-X
+amino_acid_frequencies = amino_acid_frequencies %>% subset(coding_noncoding_chr != "Noncoding-X")
+
+# View the resulting table
+print(amino_acid_frequencies)
+```
+
+```{r plot_aa, echo=F}
+library(fmsb)
+
+to_plot = amino_acid_frequencies %>% pivot_wider(names_from="aminoacid", values_from="frequency")
+to_plot = as.data.frame(to_plot)
+rownames(to_plot) = to_plot$coding_noncoding_chr
+to_plot$coding_noncoding_chr = NULL
+
+# to_plot <- rbind(rep(0.15,20) , rep(0,20) , to_plot) 
+
+radarchart(to_plot, maxmin=F)
+ggsave(filename="/projects_eg/projects/marta/test.png")
+```
