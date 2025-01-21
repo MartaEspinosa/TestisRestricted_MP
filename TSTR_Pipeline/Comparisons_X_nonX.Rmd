@@ -146,6 +146,8 @@ thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRa
 thymus_candidates_summary = thymus_candidates_summary %>% select(gene_id, median) %>% unique()
 names(thymus_candidates_summary)[2] = "median_mTEC"
 candidatesORFs = merge(candidatesORFs, thymus_candidates_summary, by=c("gene_id"), how="left")
+
+write.csv(candidatesORFs, file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
 ```
 
 ## CHROMOSOME LOCATION
