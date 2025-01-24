@@ -78,7 +78,7 @@ seurat.obj <- FindClusters(seurat.obj, resolution = 0.5)
 
 ## UMAP
 dir.create(file.path(wd,"plots/02_UMAPs"))
-seurat.obj <- RunUMAP(seurat.obj, dims = 1:10)
+seurat.obj <- RunUMAP(seurat.obj, dims = 1:15)
 DimPlot(seurat.obj, reduction = "umap") + ggtitle("UMAP per Identity")
 ggsave(file.path(wd,"plots/02_UMAPs/umaps_identity.png"), width=7.20, height=8.03)
 
@@ -88,31 +88,19 @@ ggsave(file.path(wd,"plots/02_UMAPs/umaps_celltypes.png"), width=7.20, height=8.
 DimPlot(seurat.obj, reduction = "umap", group.by = "CellType", split.by = "Sample") + ggtitle("UMAP per Cell Type and Patient")
 ggsave(file.path(wd,"plots/02_UMAPs/umaps_celltypes_patient.png"), width=15.15, height=8.03)
 
-##------------------4. Integration???-----------------##
-## If integration is needed, perform it. Otherwise, comment until 5. Clusters reassignment
-dir.create(file.path(wd,"plots/03_Integration"))
+FeaturePlot(seurat.obj, features = c("TNP1","PRM2"), label=T) # sperm
 
-# Run the standard workflow for visualization and clustering
-immune.combined <- ScaleData(seurat.obj, verbose = FALSE)
-immune.combined <- RunPCA(seurat.obj, npcs = 30, verbose = FALSE)
-immune.combined <- RunUMAP(seurat.obj, reduction = "pca", dims = 1:30)
-immune.combined <- FindNeighbors(seurat.obj, reduction = "pca", dims = 1:30)
-immune.combined <- FindClusters(seurat.obj, resolution = 0.5)
-
-DimPlot(immune.combined, reduction = "umap", group.by = "Sample")
-# ggsave(file.path(wd,"plots/03_Integration/IntegratedUMAPs_identity.png"), width=7.20, height=8.03)
-
-DimPlot(immune.combined, reduction = "umap", group.by = "CellType", label = TRUE,
-        repel = TRUE)
-ggsave(file.path(wd,"plots/03_Integration/IntegratedUMAPs_CellType.png"), width=7.20, height=8.03)
 
 ##-------------6. Tumor-specific genes--------------##
 seurat.obj <- subset(seurat.obj, subset = CellType != "NA")
 
 candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_candidatesORFs_fullcharacterized.csv")
+candidates$gene_name = gsub("ENSG00000287861","LOC107984132", candidates$gene_name)
 CTx = candidates %>% subset(coding_noncoding_chr == "CT-X") %>% select(gene_name) %>% unique() %>% pull(gene_name)
 CTnonx = candidates %>% subset(coding_noncoding_chr == "CT-nonX") %>% select(gene_name) %>% unique() %>% pull(gene_name)
 NCnonX = candidates %>% subset(coding_noncoding_chr == "Noncoding-nonX") %>% select(gene_name) %>% unique() %>% pull(gene_name)
+
+all_TSTR = candidates %>% subset(coding_noncoding_chr != "altORFs") %>% select(gene_name) %>% unique() %>% pull(gene_name)
 
 dir.create(file.path(wd,"plots/05_TSA"))
 
@@ -121,7 +109,8 @@ DotPlot(seurat.obj, features = CTx, group.by = "CellType") +
   RotatedAxis() + 
   labs(x="Candidate TSAntigen",
        y="Cell Type",
-       title="CT-X TSTR by testicular cell types")
+       title="CT-X TSTR by testicular cell types") +
+  scale_colour_gradient2(low = "#FDE333", mid = "#009796", high = "#4B0055")
 ggsave(file.path(wd,"plots/05_TSA/CTx.png"))
 
 ## CT-nonX
@@ -129,7 +118,9 @@ DotPlot(seurat.obj, features = CTnonx, group.by = "CellType") +
   RotatedAxis() + 
   labs(x="Candidate TSAntigen",
        y="Cell Type",
-       title="CT-nonX TSTR by testicular cell types")
+       title="CT-nonX TSTR by testicular cell types") +
+  scale_colour_gradient2(low = "#FDE333", mid = "#009796", high = "#4B0055")
+  
 ggsave(file.path(wd,"plots/05_TSA/CTnonX.png"))
 
 ## Noncoding-X
@@ -137,8 +128,45 @@ DotPlot(seurat.obj, features = NCnonX, group.by = "CellType") +
   RotatedAxis() + 
   labs(x="Candidate TSAntigen",
        y="Cell Type",
-       title="Noncoding-nonX TSTR by testicular cell types")
+       title="Noncoding-nonX TSTR by testicular cell types") +
+  scale_colour_gradient2(low = "#FDE333", mid = "#009796", high = "#4B0055")
 ggsave(file.path(wd,"plots/05_TSA/Noncoding.png"))
 
-FeaturePlot(seurat.obj, reduction = "umap", features = NCnonX) 
+
+## markers
+markers = read.csv("/datasets/marta/scMultiomicsTestis_GSE235324/celltype_markers.csv")
+DotPlot(seurat.obj, features = markers$gene_name, group.by = "CellType") + 
+  RotatedAxis() + 
+  labs(x="Marker",
+       y="Cell Type",
+       title="Stage Markers") +
+  scale_colour_gradient2(low = "#FDE333", mid = "#009796", high = "#4B0055")
+ggsave(file.path(wd,"plots/05_TSA/markers.png"))
+
+DotPlot(seurat.obj, features =  c("TNP1","PRM2","SHBG", "SRD5A2"), group.by = "CellType") + 
+  RotatedAxis() + 
+  labs(x="Marker",
+       y="Cell Type",
+       title="Stage Markers") +
+  scale_colour_gradient2(low = "#FDE333", mid = "#009796", high = "#4B0055")
+
+# FeaturePlot(seurat.obj, reduction = "umap", features = NCnonX) 
+
+### 
+markers = read.csv("/datasets/marta/scMultiomicsTestis_GSE235324/celltype_markers.csv")
+DoHeatmap(
+  seurat.obj,
+  features = markers$gene_name,
+  group.by = "CellType"
+) +
+  scale_fill_gradientn(colors = c("#4682B4", "#FFFFE0", "#CA3433")) +
+  NoLegend()
+
+DoHeatmap(
+  seurat.obj,
+  features = all_TSTR,
+  group.by = "CellType"
+) +
+  scale_fill_gradientn(colors = c("#4682B4", "#FFFFE0", "#CA3433")) +
+  NoLegend()
 
