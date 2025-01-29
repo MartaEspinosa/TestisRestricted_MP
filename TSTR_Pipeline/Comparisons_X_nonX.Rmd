@@ -114,10 +114,12 @@ candidatesORFs = candidatesORFs %>% mutate(coding_noncoding_chr = case_when(grep
                                                                    grepl("ORF", geneORFtype) & chr != "X" ~ "altORFs-nonX"))
 chr_summary = candidatesORFs %>% select(coding_noncoding_chr, ctype, orfID) %>% unique()
 table(chr_summary$coding_noncoding_chr, chr_summary$ctype)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## TE
 TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
-candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"))
+candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"), all.y = T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## CanonicalRatio
 canonicalRatio = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.allSamples.tsv", sep="\t")
@@ -127,40 +129,44 @@ canonicalRatio = canonicalRatio %>% group_by(orfID, tissue) %>%
 canonicalRatio = canonicalRatio %>% ungroup() %>% subset(tissue == "testis") %>% select(orfID, mean_canonicalRatio, tissue) %>% unique()
 
 candidatesORFs = merge(canonicalRatio, candidatesORFs, by=c("orfID"), all.y=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## GTEx 
 GTEx = read.csv("/data/genomics/marta/genomes/GTEx/v10/GTEx_maintissue_gene_median_tpm.csv")
 GTEx_candidates = GTEx %>% subset(Name %in% candidatesORFs$gene_id)
-candidatesORFs = merge(candidatesORFs, GTEx %>% select(Name, Testis), by.x="gene_id", by.y="Name", how="left")
+candidatesORFs = merge(candidatesORFs, GTEx %>% select(Name, Testis), by.x="gene_id", by.y="Name", all.x=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## evo origin
 conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
-candidatesORFs = merge(candidatesORFs, conservation, by=c("orfID", "gene_type", "gene_name"), how="left")
+candidatesORFs = merge(candidatesORFs, conservation, by=c("orfID", "gene_type", "gene_name"), all.x=T)
 candidatesORFs = candidatesORFs %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate-specific",
                                                                  oldest_species == "human"  ~ "humman-specific",
                                                                  oldest_species == "chicken" ~ "conserved - outgroup",
                                                                  oldest_species == "mouse" ~ "mouse",
                                                    TRUE ~ "mammal"))
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## thymus expr
 thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/thymus_summary_TOv3xlog2ratio3xmean.csv")
 thymus_candidates_summary = thymus_candidates_summary %>% select(gene_id, median) %>% unique()
 names(thymus_candidates_summary)[2] = "median_mTEC"
-candidatesORFs = merge(candidatesORFs, thymus_candidates_summary, by=c("gene_id"), how="left")
+candidatesORFs = merge(candidatesORFs, thymus_candidates_summary, by=c("gene_id"), all.x=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
 ## MHCquant
-MHCquant = read.csv("/users/genomics/marta/241205_Immunopeptidomics_HCC/results/hits_combined.csv")
-MHCquant$sequence = gsub("(Oxidation)","",MHCquant$sequence)
-MHCquant = MHCquant %>% select(-gene_id.1)
-MHCquant_TSTR = MHCquant %>% subset(ctype != "")
-names(MHCquant_TSTR)[6] = "gene_type"
-names(MHCquant_TSTR)[15] = "orfID_ImmunoPep"
-names(MHCquant_TSTR)[16] = "ORFpep_ImmunoPep"
-MHCquant_TSTR = MHCquant_TSTR %>% select(sequence, accessions, gene_name_x, gene_name_y, gene_type, gene_id, source, sample, Peptide, orfID_ImmunoPep, ORFpep_ImmunoPep, source_literature) %>% unique()
-MHCquant_TSTR$orfType = sapply(strsplit(MHCquant_TSTR$orfID, "\\|"), function(x) x[4])
-MHCquant_TSTR = MHCquant_TSTR %>% mutate(geneORFtype_ImmunoPep = paste0(gene_type,"_",orfType))
-
-candidatesORFs = merge(candidatesORFs, MHCquant_TSTR, by=c("gene_id","gene_type"), how="left")
+# MHCquant = read.csv("/users/genomics/marta/241205_Immunopeptidomics_HCC/results/hits_combined.csv")
+# MHCquant$sequence = gsub("(Oxidation)","",MHCquant$sequence)
+# MHCquant = MHCquant %>% select(-gene_id.1)
+# MHCquant_TSTR = MHCquant %>% subset(ctype != "")
+# names(MHCquant_TSTR)[6] = "gene_type"
+# names(MHCquant_TSTR)[15] = "orfID_ImmunoPep"
+# names(MHCquant_TSTR)[16] = "ORFpep_ImmunoPep"
+# MHCquant_TSTR = MHCquant_TSTR %>% select(sequence, accessions, gene_name_x, gene_name_y, gene_type, gene_id, source, sample, Peptide, orfID_ImmunoPep, ORFpep_ImmunoPep, source_literature) %>% unique()
+# MHCquant_TSTR$orfType = sapply(strsplit(MHCquant_TSTR$orfID, "\\|"), function(x) x[4])
+# MHCquant_TSTR = MHCquant_TSTR %>% mutate(geneORFtype_ImmunoPep = paste0(gene_type,"_",orfType))
+# 
+# candidatesORFs = merge(candidatesORFs, MHCquant_TSTR, by=c("gene_id","gene_type"), how="left")
 
 write.csv(candidatesORFs, file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
 

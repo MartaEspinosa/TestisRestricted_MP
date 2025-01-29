@@ -1,0 +1,217 @@
+---
+title: "Q9_CNV"
+author: "Marta Espinosa"
+date: "2025-01-28"
+output: html_document
+---
+
+https://waldronlab.io/CNVWorkshop/articles/Geistlinger_CNVWorkshop.html
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# install.packages('TCGAgistic', repos = c('https://ccicb.r-universe.dev', 'https://cloud.r-project.org'))
+library(tidyr)
+library(TCGAgistic)
+library(maftools)
+library(rtracklayer)
+library(dplyr)
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+save_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q9_CNV/human"
+setwd(save_wd)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes"
+```
+
+```{r candidates, echo=F}
+candidates = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEAN.csv"))
+candidates = merge(candidates, annot, by=c("gene_id","gene_name","gene_type","transcript_id"))
+candidates = candidates %>% mutate(coding_noncoding_chr = case_when(grepl("ORF", geneORFtype) ~ "altORFs",
+                                                                            gene_type == "protein_coding" & chr == "X" & geneORFtype == "protein_coding_canonical" ~ "CT-X",
+                                                           gene_type == "protein_coding" & chr != "X" & geneORFtype == "protein_coding_canonical" ~ "CT-nonX",
+                                                           gene_type != "protein_coding" & chr == "X" ~ "Noncoding-X",
+                                                           gene_type != "protein_coding" & chr != "X" ~ "Noncoding-nonX"),
+                                            type = case_when(gene_type == "protein_coding" ~ "CT",
+                                                    TRUE ~ "Noncoding"),
+                                           altORFs_chr = case_when(grepl("ORF", geneORFtype) & chr == "X" ~ "altORFs-X",
+                                                                   grepl("ORF", geneORFtype) & chr != "X" ~ "altORFs-nonX"))
+print(length(unique(candidates$gene_name)))
+
+gtf = as.data.frame(rtracklayer::import("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/gencode.v47.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.NOchr.fixed.gtf"))
+gtf$position = paste0(gtf$seqnames,":",gtf$start,"-",gtf$end)
+gtf$GeneID = gsub("\\..*","",gtf$gene_id)
+gtf$TranscriptID = gsub("\\..*","",gtf$transcript_id)
+
+gtf_subset = gtf %>% subset(type == "transcript") %>% select(position, GeneID, TranscriptID)
+names(gtf_subset) = c("position","gene_id","transcript_id")
+gtf_subset_annot = merge(gtf_subset, annot, by=c("gene_id","transcript_id"))
+gtf_candidates = gtf_subset_annot %>% subset(gene_id %in% candidates$gene_id) %>% unique()
+print(nrow(gtf_candidates))
+candidates_complete = merge(gtf_candidates, candidates %>% select(-transcript_type), by=c("gene_name","gene_id","gene_type","chr","transcript_id"))
+
+TSTR = candidates %>% select(gene_name, gene_id, geneORFtype, coding_noncoding_chr, ctype)
+TSTR = TSTR %>% subset(coding_noncoding_chr != "altORFs")
+```
+
+## Copy Number Variants
+
+
+```{r gistic, echo=F}
+for(ctype_var in cancers) {
+  print(ctype_var)
+  gistic_obj <- tcga_gistic_load(ctype_var, source = "Firehose", cnLevel = "all")
+  # tcga_gistic_available()
+
+  png(paste0(save_wd,"/ChromPlotGistic_",ctype_var,".png"), width=7, height=6, res=400, units = "in")
+  gisticChromPlot(gistic_obj) 
+  dev.off()
+  # gistic_obj
+  write.GisticSummary(gistic_obj, basename=paste0(save_wd,"/gistic_",ctype_var))
+}
+```
+
+```{r samples, echo=F}
+results = data.frame("gene_name" = character(),
+                     "gene_id" = character())
+
+TOv3x_per_patient = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
+# patients_TPMs = read.csv(file.path(tumorReactDIR,"TSTR_Expression.csv"))
+
+for(ctype_var in cancers) {
+
+  print(ctype_var)
+  # ## patients
+  # patients = read.csv(paste0("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/cancers/merged_patients_",ctype_var,".csv"))
+  # print(nrow(patients))
+                      
+  data_from_patients = TOv3x_per_patient %>% subset(ctype == ctype_var)                        
+  
+  ## read data
+  gData = read.csv(paste0(save_wd,"/gistic_",ctype_var,"_gisticData.txt"), sep="\t")
+  gData = gData %>% subset(Tumor_Sample_Barcode %in% data_from_patients$patient)
+  print(nrow(gData))
+  write.table(gData, paste0(save_wd,"/matchedSamples/gistic_",ctype_var,"_gisticData.txt"), sep="\t", row.names =F, quote = F)
+# 
+  ## read CNVSummary
+  gCNVSummary = read.csv(paste0(save_wd,"/gistic_",ctype_var,"_gisticCNVSummary.txt"), sep="\t")
+  gCNVSummary = gCNVSummary %>% subset(Tumor_Sample_Barcode %in% data_from_patients$patient)
+  print(nrow(gCNVSummary))
+  write.table(gCNVSummary, paste0(save_wd,"/matchedSamples/gistic_",ctype_var,"_gisticCNVSummary.txt"), sep="\t", row.names =F, quote = F)
+  
+  ## generate GeneSummary.txt
+  gGeneSummary = gData %>% group_by(Hugo_Symbol, Variant_Classification) %>% count() %>% pivot_wider(names_from = "Variant_Classification", values_from = "n")
+  gGeneSummary[is.na(gGeneSummary)] <- 0
+  gGeneSummary$total = gGeneSummary$Del + gGeneSummary$Amp
+  
+  alteredSamples = gData %>% group_by(Hugo_Symbol, Tumor_Sample_Barcode) %>% count() %>% group_by(Hugo_Symbol) %>% count()
+  names(alteredSamples)[2] = "AlteredSamples"
+  gGeneSummary_merged = merge(gGeneSummary, alteredSamples, by="Hugo_Symbol")
+  write.table(gGeneSummary_merged, paste0(save_wd,"/matchedSamples/gistic_",ctype_var,"_gisticGeneSummary.txt"), sep="\t", row.names =F, quote = F)
+  
+  
+  ## generate CytobandSummary.txt
+  nGenes = gData %>% select(Cytoband, Hugo_Symbol) %>% unique() %>%
+    group_by(Cytoband) %>% 
+    count() 
+  names(nGenes) = c("Unique_Name","nGenes")
+  
+  nSamples = gData %>% select(Cytoband, Hugo_Symbol, Tumor_Sample_Barcode) %>% 
+    group_by(Cytoband) %>% 
+    count() 
+  names(nSamples) = c("Unique_Name","nSamples")
+
+  nGenes_Samples = merge(nGenes, nSamples, by="Unique_Name")
+  VariantClassif = gData %>% select(Variant_Classification, Cytoband) %>% 
+    unique() 
+  names(VariantClassif)[2] = "Unique_Name"
+  VariantClassif = VariantClassif %>% mutate(Cytoband = gsub(".*:","",Unique_Name))
+  nGenes_Samples_VariantClassif = merge(nGenes_Samples, VariantClassif, by="Unique_Name")
+
+  gCytobandSummary = read.csv(paste0(save_wd,"/gistic_",ctype_var,"_gisticCytobandSummary.txt"), sep="\t")
+  gCytobandSummary = gCytobandSummary %>% select(Unique_Name, Wide_Peak_Limits, qvalues)
+  
+  gCytobandSummary = merge(gCytobandSummary, nGenes_Samples_VariantClassif, by="Unique_Name")
+  gCytobandSummary_ordered = gCytobandSummary %>% select(Unique_Name, nGenes, nSamples, Variant_Classification, Cytoband, Wide_Peak_Limits, qvalues)
+  write.table(gCytobandSummary_ordered, paste0(save_wd,"/matchedSamples/gistic_",ctype_var,"_gisticCytobandSummary.txt"), sep="\t", row.names =F, quote = F)
+  
+  gData %>% head
+  gCNVSummary %>% head
+  gCytobandSummary_ordered %>% head
+  gGeneSummary_merged %>% head
+  
+  ### analysis by hugo symbol
+  ctype_candidates = candidates_complete %>% subset(ctype == ctype_var)
+  # ctype_candidates$chr = gsub(":.*","", ctype_candidates$position)
+  ctype_candidates$start = gsub(".*:","",ctype_candidates$position)
+  ctype_candidates$start = gsub("-.*","",ctype_candidates$start)
+  ctype_candidates$end = gsub(".*-","",ctype_candidates$position)
+  
+  ctype_candidates_gGeneSummary = merge(ctype_candidates, gGeneSummary %>% subset(Hugo_Symbol %in% ctype_candidates$gene_name), by.x = "gene_name", by.y="Hugo_Symbol")
+  ctype_candidates_gGeneSummary = ctype_candidates_gGeneSummary %>% unique()
+  print(length(ctype_candidates_gGeneSummary$gene_name))
+
+  ### analysis by position
+  gCytobandSummary_ordered$chr =  gsub(":.*","", gCytobandSummary_ordered$Wide_Peak_Limits)
+  gCytobandSummary_ordered$chr =  gsub("chr","", gCytobandSummary_ordered$chr)
+  gCytobandSummary_ordered$start_cyto = gsub(".*:","",gCytobandSummary_ordered$Wide_Peak_Limits)
+  gCytobandSummary_ordered$start_cyto = gsub("-.*","",gCytobandSummary_ordered$start_cyto)
+  gCytobandSummary_ordered$end_cyto = gsub(".*-","",gCytobandSummary_ordered$Wide_Peak_Limits)
+
+  ## first match the chr
+  ctype_candidates_gCytobandSummary = merge(gCytobandSummary_ordered, ctype_candidates, by="chr")
+  ctype_candidates_gCytobandSummary$start = as.numeric(ctype_candidates_gCytobandSummary$start)
+  ctype_candidates_gCytobandSummary$end = as.numeric(ctype_candidates_gCytobandSummary$end)
+  ctype_candidates_gCytobandSummary$start_cyto = as.numeric(ctype_candidates_gCytobandSummary$start_cyto)
+  ctype_candidates_gCytobandSummary$end_cyto = as.numeric(ctype_candidates_gCytobandSummary$end_cyto)
+
+  ## start gene <= start cytoband
+  inside_start = ctype_candidates_gCytobandSummary %>%
+  subset(start >= start_cyto) ## some start inside but finish outside
+  inside_start_end = inside_start %>% subset(end_cyto >= end)
+
+  cnv_TSTR_ctype = merge(TSTR %>% subset(ctype == ctype_var), inside_start_end %>% select(gene_name, Unique_Name, Cytoband, Variant_Classification, Wide_Peak_Limits, position), by="gene_name")
+  cnv_TSTR_ctype = merge(cnv_TSTR_ctype, gData %>% select(-Hugo_Symbol), by.x=c("Variant_Classification","Unique_Name"), by.y=c("Variant_Classification","Cytoband"))
+  to_print = cnv_TSTR_ctype %>% select(Variant_Classification, gene_name, coding_noncoding_chr) %>% unique()
+  table(to_print$coding_noncoding_chr, to_print$Variant_Classification)
+  print(to_print)
+  results = rbind(results, cnv_TSTR_ctype)
+}
+results = results %>% unique()
+```
+
+```{r results, echo=F}
+noncoding_results = results %>% subset(coding_noncoding_chr == "Noncoding-nonX") %>% unique()
+# print(unique(noncoding_results$gene_name))
+to_table = noncoding_results %>% select(gene_name, Variant_Classification, ctype) %>% unique() #%>% group_by(Variant_Classification, ctype) %>% count()
+print(table(to_table$Variant_Classification, to_table$ctype))
+
+noncoding_genes = noncoding_results %>% select(gene_name, Variant_Classification, ctype, Tumor_Sample_Barcode) %>% unique() %>% group_by(gene_name, Variant_Classification, ctype) %>% count()
+# noncoding_genes = merge(noncoding_genes, noncoding_results %>% select(gene_name, ctype, num_patients_overexpr, percentage_num_patients_overexpr) %>% unique(), by=c("gene_name","ctype"))
+```
+
+```{r results, echo=F}
+ctnonx_results = results %>% subset(coding_noncoding_chr == "CT-nonX") %>% unique()
+# print(unique(noncoding_results$gene_name))
+to_table = ctnonx_results %>% select(gene_name, Variant_Classification, ctype) %>% unique() #%>% group_by(Variant_Classification, ctype) %>% count()
+print(table(to_table$Variant_Classification, to_table$ctype))
+
+# coding_genes = ctnonx_results %>% select(gene_name, Variant_Classification, ctype, num_patients_overexpr, percentage_num_patients_overexpr, Tumor_Sample_Barcode) %>% unique() %>% group_by(gene_name, Variant_Classification, ctype) %>% count()
+# coding_genes = merge(coding_genes, coding_results %>% select(gene_name, ctype, num_patients_overexpr, percentage_num_patients_overexpr) %>% unique(), by=c("gene_name","ctype"))
+```
+
+```{r same_patients, echo=F}
+byPatient = results %>% group_by(gene_name, coding_noncoding_chr, ctype, Variant_Classification) %>% count()
+names(byPatient)[5] = "n_Gistic"
+
+results_same_patients = merge(TOv3x_per_patient %>% select(patient_overexpr, ctype, gene_id), results, by.x = c("patient_overexpr","ctype","gene_id"), by.y = c("Tumor_Sample_Barcode","ctype","gene_id"))
+results_same_patients = results_same_patients %>% unique()
+
+temp = merge(patients_TPMs %>% select(patient, normal_tumor, TPM, ctype, gene_id), results, by.x = c("patient","ctype","gene_id"), by.y = c("Tumor_Sample_Barcode","ctype","gene_id"))
+
+byMatchedPatient = results_same_patients %>% group_by(gene_name, coding_noncoding_chr, ctype, Variant_Classification) %>% count()
+names(byMatchedPatient)[5] = "n_Matched"
+
+summary_results = merge(byMatchedPatient, byPatient, by=c("gene_name", "coding_noncoding_chr", "ctype", "Variant_Classification"), all.y=T)
+summary_results$n_Matched = summary_results$n_Matched %>% replace_na(0)
+```
