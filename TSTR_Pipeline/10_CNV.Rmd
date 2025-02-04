@@ -76,7 +76,7 @@ results = data.frame("gene_name" = character(),
                      "gene_id" = character())
 
 TOv3x_per_patient = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
-# patients_TPMs = read.csv(file.path(tumorReactDIR,"TSTR_Expression.csv"))
+patients_TPMs = read.csv(file.path(tumorReactDIR,"TSTR_Expression.csv"))
 
 for(ctype_var in cancers) {
 
