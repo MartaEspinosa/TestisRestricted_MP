@@ -121,6 +121,16 @@ TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/wi
 candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"), all.y = T)
 candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
 
+## Translation Level
+orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_1.tsv", sep="\t")
+orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_2.tsv", sep="\t")
+orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_3.tsv", sep="\t")
+
+orf_TE = rbind(orf_TE_1, orf_TE_2, orf_TE_3)
+orf_TE_mean = orf_TE %>% group_by(orfID) %>%
+  summarise(mean_RiboSeq_TPM = mean(f1Tpm))
+candidatesORFs = merge(candidatesORFs, orf_TE_mean, by=c("orfID"), all.x = T)
+
 ## CanonicalRatio
 canonicalRatio = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.allSamples.tsv", sep="\t")
 canonicalRatio$tissue = gsub("_.*","",canonicalRatio$Sample)
@@ -315,18 +325,18 @@ ggplot(candidatesORFs %>%
 ggsave(file.path(plots_wd,"PNG/logTPMTestis.png"))
 
 ## other ncORFs
-ggplot(candidatesORFs %>% subset(grepl("ORF", geneORFtype)) %>% select(gene_id, gene_name, geneORFtype, logTPM_Testis, altORFs_chr, type) %>% unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=logTPM_Testis, fill=altORFs_chr)) +
-  geom_boxplot() +
-  geom_jitter() +
-      scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
-  labs(y="log(Median TPM)",
-       x="",
-       title="Expression in testis (GTEx)") +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle=45)) +
-  facet_wrap(~ geneORFtype, ncol=4, scales="free_x") +
-  stat_compare_means(label="p.format")
-ggsave(file.path(plots_wd,"PNG/logTPMTestis_altORFs.png"))
+# ggplot(candidatesORFs %>% subset(grepl("ORF", geneORFtype)) %>% select(gene_id, gene_name, geneORFtype, logTPM_Testis, altORFs_chr, type) %>% unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=logTPM_Testis, fill=altORFs_chr)) +
+#   geom_boxplot() +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   labs(y="log(Median TPM)",
+#        x="",
+#        title="Expression in testis (GTEx)") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle=45)) +
+#   facet_wrap(~ geneORFtype, ncol=4, scales="free_x") +
+#   stat_compare_means(label="p.format")
+# ggsave(file.path(plots_wd,"PNG/logTPMTestis_altORFs.png"))
 
 ```
 
@@ -564,7 +574,9 @@ ggplot(candidatesORFs %>% select(-c(percentage_num_patients_overexpr, num_patien
        x="",
        title="Length | ORF level") +
   scale_y_continuous(trans="log10") +
-  theme_minimal() 
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none") 
 ggsave(file.path(plots_wd,"PNG/lengthORF_geneORFtype.png"))
 
 ## only other ncORFs
@@ -572,18 +584,16 @@ ggplot(candidatesORFs %>%
          select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
          subset(grepl("ORF", geneORFtype)) %>% 
          unique(), 
-       aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=length_aa, fill=altORFs_chr)) +
-  geom_boxplot() +
-  geom_jitter() +
-      scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+       aes(x=geneORFtype, y=length_aa, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
   labs(y="Length (aa)",
        x="",
        title="Length | ORF level | alternative ORFs") +
   scale_y_continuous(trans="log10") +
   theme_minimal() +
-  theme(axis.text.x=element_text(angle=45)) +
-  facet_wrap(~ geneORFtype, ncol=4, scales="free_x") +
-    stat_compare_means(label="p.format")
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) 
 ggsave(file.path(plots_wd,"PNG/lengthORF_altORFs.png"))
 ```
 
@@ -605,24 +615,68 @@ ggplot(candidatesORFs %>%
        x="",
        title="Translation Efficiency | ORF level") +
   scale_y_continuous(trans="log10") +
-  theme_minimal() 
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none")
 ggsave(file.path(plots_wd,"PNG/TE_geneORFtype.png"))
 
 ## other ncORFs
-ggplot(candidatesORFs %>% 
-         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
-         subset(grepl("ORF", geneORFtype)) %>% 
-         unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=mean_TE, fill=altORFs_chr)) +
-  geom_boxplot() +
-      scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+ggplot(candidatesORFs %>%
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>%
+         subset(grepl("ORF", geneORFtype)) %>%
+         unique(), aes(x=geneORFtype, y=mean_TE, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
   labs(y="Mean Translation Efficiency in testis",
        x="",
        title="Translation Efficiency | ORF level | alternative ORFs") +
   scale_y_continuous(trans="log10") +
   theme_minimal() +
-  theme(axis.text.x=element_text(angle=45)) +
-  facet_wrap(~ geneORFtype, ncol=4, scales="free_x")
+    scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) 
 ggsave(file.path(plots_wd,"PNG/TE_altORFs.png"))
+
+```
+
+```{r TranslationLevel_ORF, echo=F}
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         # subset(!grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=mean_RiboSeq_TPM, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  geom_jitter() +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  labs(y="Translation Level in testis",
+       x="",
+       title="Translation Level | ORF level") +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"PNG/TranslationLevel_geneORFtype.png"))
+
+## other ncORFs
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         subset(grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=geneORFtype, y=mean_RiboSeq_TPM, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+  labs(y="Mean Translation Level in testis",
+       x="",
+       title="Translation Level | ORF level | other ncORFs") +
+  scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/TranslationLevel_altORFs.png"))
 
 ```
 
@@ -643,17 +697,31 @@ ggsave(file.path(plots_wd,"PNG/TE_altORFs.png"))
 #   facet_wrap(~ geneORFtype, scales="free_x")
 # ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs.png"))
 
+# ggplot(candidatesORFs %>% 
+#          select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+#          subset(grepl("ORF", geneORFtype)) %>% 
+#          unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=mean_canonicalRatio, fill=altORFs_chr)) +
+#   geom_violin() +
+#   geom_boxplot(fill=NA, width=.2) +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   labs(y="Mean Translation Efficiency with respect to the CDS",
+#        x="",
+#        title="Translation Efficiency with respect to the CDS | ORF level | other ncORFs") +
+#   theme_minimal() 
+# ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs_chr.png"))
+
 ggplot(candidatesORFs %>% 
          select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
          subset(grepl("ORF", geneORFtype)) %>% 
-         unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=mean_canonicalRatio, fill=altORFs_chr)) +
-  geom_violin() +
-  geom_boxplot(fill=NA, width=.2) +
-  geom_jitter() +
-      scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+         unique(), aes(x=geneORFtype, y=mean_canonicalRatio, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
   labs(y="Mean Translation Efficiency with respect to the CDS",
        x="",
-       title="Translation Efficiency with respect to the CDS | ORF level | alternative ORFs") +
+       title="Translation Efficiency with respect to the CDS | ORF level | other ncORFs") +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
   theme_minimal() 
 ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs.png"))
 ```
