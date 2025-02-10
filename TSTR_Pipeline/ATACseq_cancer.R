@@ -38,13 +38,14 @@ for (peak_file in atac.peak.files){
 
   peaksXchr$peakDensity <- peaksXchr$num_peaks / peaksXchr$length
   
-  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream&inside",multiple = T)
+  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "nearestBiDirectionalPromoters",multiple = T)
   peaks_annotation  <- c(peaks_annotation , ann.tmp)
 }
 
 peaks_annotation <- do.call(c, peaks_annotation)
 peaks_annotation_df <- as.data.frame(peaks_annotation)
 peaks_annotation_df$feature <- gsub("\\..","",peaks_annotation_df$feature)
+write.csv(peaks_annotation_df, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/AnnotatedPeaks_nearestBiDirectionalPromoters.csv")
 
 
 ### Candidates 
@@ -65,14 +66,32 @@ peaks_annotation_df_candidates <- peaks_annotation_df_candidates %>% unique()
 ## only peaks associated to candidates
 peaks_annotation_df_candidates <- merge(peaks_annotation_df, genes_candidatesORFs, by.x="feature", by.y="transcript_id")
 peaks_annotation_df_candidates <- peaks_annotation_df_candidates %>% unique()     
-peaks_annotation_df_candidates$ctype <- gsub("_.*","",peaks_annotation_df_candidates$V4)     
+peaks_annotation_df_candidates$ctype_ATAC <- gsub("_.*","",peaks_annotation_df_candidates$V4)     
 table(peaks_annotation_df_candidates$coding_noncoding_chr)
+write.csv(peaks_annotation_df_candidates, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/CandidatesORFs_AnnotatedPeaks_Upstream.csv")
 
 table(peaks_annotation_df_candidates[,c("gene_name", "coding_noncoding_chr")] %>%  unique() %>% pull("coding_noncoding_chr"))
 
-tp_ctypes <- peaks_annotation_df_candidates[,c("gene_name", "coding_noncoding_chr","ctype")] %>%  unique()
-table(tp_ctypes$coding_noncoding_chr,  tp_ctypes$ctype)
+tp_ctypes <- peaks_annotation_df_candidates[,c("gene_name", "coding_noncoding_chr","ctype_ATAC")] %>%  unique()
+table(tp_ctypes$coding_noncoding_chr,  tp_ctypes$ctype_ATAC)
 
-## selected cancertypes
-selected_tp_ctypes = tp_ctypes %>% subset(ctype %in% c("BRCA","BLCA","LIHC","COAD","KIRC","LUAD","LUSC","PRAD"))
-table(selected_tp_ctypes$coding_noncoding_chr,  selected_tp_ctypes$ctype)
+## same ATAC and expression ctype
+selected_tp_ctypes = tp_ctypes %>% subset(ctype_ATAC %in% c("BRCA","BLCA","LIHC","COAD","KIRC","LUAD","LUSC","PRAD"))
+table(selected_tp_ctypes$coding_noncoding_chr,  selected_tp_ctypes$ctype_ATAC)
+
+selected_tp_ctypes_same = merge(selected_tp_ctypes, candidatesORFs[,c("gene_name", "ctype")], by.x=c("gene_name","ctype_ATAC"), by.y=c("gene_name","ctype"))
+selected_tp_ctypes_same = selected_tp_ctypes_same %>% unique()
+table(selected_tp_ctypes_same$coding_noncoding_chr,  selected_tp_ctypes_same$ctype_ATAC)
+
+
+peaks_annotation_df_candidates_cancertypes_matched = merge(peaks_annotation_df_candidates, selected_tp_ctypes_same, by=c("ctype_ATAC","gene_name", "coding_noncoding_chr"))
+write.csv(peaks_annotation_df_candidates_cancertypes_matched, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/CandidatesORFsSameCancerType_AnnotatedPeaks_Upstream.csv")
+
+### GWAS HCC data
+gwas_hcc = read.csv("/datasets/marta/GWAS/j_liver_xintra_cancer.tsv", sep="\t")
+hcc_candidates = candidatesORFs %>% subset(ctype == "LIHC")
+peaks_candidates_hcc = peaks_annotation_df_candidates %>% subset(gene_name %in% hcc_candidates$gene_name) %>% subset(ctype_ATAC == "LIHC")
+
+snps_in_peaks <- gwas_hcc[,c("chrCHR","POS","SNP","FREQ_European")] %>%
+  inner_join(peaks_candidates_hcc, by = c("chrCHR" = "seqnames")) %>%
+  filter(POS >= start & POS <= end)

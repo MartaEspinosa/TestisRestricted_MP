@@ -38,14 +38,14 @@ for (peak_file in atac.peak.files){
 
   peaksXchr$peakDensity <- peaksXchr$num_peaks / peaksXchr$length
   
-  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream&inside",multiple = T)
+  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream",multiple = T)
   peaks_annotation  <- c(peaks_annotation , ann.tmp)
 }
 
 peaks_annotation <- do.call(c, peaks_annotation)
 peaks_annotation_df <- as.data.frame(peaks_annotation)
 peaks_annotation_df$feature <- gsub("\\..","",peaks_annotation_df$feature)
-
+write.csv(peaks_annotation_df, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_Spermatogonia/AnnotatedPeaks_Upstream.csv")
 
 ### Candidates 
 tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes"
@@ -66,3 +66,5 @@ peaks_annotation_df_candidates <- peaks_annotation_df_candidates %>% unique()
 peaks_annotation_df_candidates <- merge(peaks_annotation_df, genes_candidatesORFs, by.x="feature", by.y="transcript_id")
 peaks_annotation_df_candidates <- peaks_annotation_df_candidates %>% unique()          
 table(peaks_annotation_df_candidates$coding_noncoding_chr)
+write.csv(peaks_annotation_df_candidates, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_Spermatogonia/CandidatesORFs_AnnotatedPeaks_Upstream.csv")
+
