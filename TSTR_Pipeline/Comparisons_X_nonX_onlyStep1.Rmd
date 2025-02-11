@@ -1,0 +1,989 @@
+---
+title: "Comparisons X and nonX TSTR"
+author: "Marta Espinosa"
+date: "2024-12-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+# library(ggthemr)
+library(ggbeeswarm)
+library(ggbreak)
+library(ggrepel)
+library(rcartocolor)
+library(UpSetR)
+library(karyoploteR)
+library(GenomicRanges)
+library(rtracklayer)
+library(Hmisc)
+library(corrplot)
+library(stats)
+library(car)
+library(ggpattern)
+library(ComplexUpset)
+library(fmsb)
+library(gridExtra)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+plots_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/PreparationPlots/MultiMap_altORFs/X_nonX"
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+tcga_projects=c("TCGA-BRCA","TCGA-LUSC","TCGA-PRAD","TCGA-KIRC","TCGA-LUAD","TCGA-BLCA")
+other_projects=c("GSE102101_KIRC","GSE133624_BLCA","GSE22260_PRAD","PRJEB2449_PRAD","SRP238334_KIRC","GSE214846_LIHC","GSE229705_LUAD","TCGA_COAD","SRP107326_COAD")
+manuscript_projects = c("liver_adjacent_totalRNA_LIHC","hcc_normal_totalRNA_LIHC","GSE193567_LIHC","LIHC_TCGA_LIHC")
+# deleted_projects=c("GSE103001_BRCA"GSE89223_PRAD")
+all_projects = c(tcga_projects,other_projects,manuscript_projects)
+
+tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1"
+cancers_dir = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers"
+
+CTDB = read.csv("/projects_eg/projects/marta/CTdatabase_list.csv", sep="\t")
+CTDB = CTDB %>% mutate(X_A = case_when(grepl("^X", chr) ~ "X",
+                                       TRUE ~ "A"))
+CTDB = separate_rows(CTDB, gene_name, sep = "/")
+CTDB = separate_rows(CTDB, gene_name, sep = ",")
+CTDB_in_annot = CTDB %>% subset(gene_name %in% annot$gene_name)
+
+total_num_patients = data.frame(ctype = c("BRCA","BLCA","LUAD","KIRC","LUSC","PRAD","LIHC","COAD"),
+                                total_n = c(109,38,179,142,49,75,182,144))
+
+# Function to compute the required statistics
+compute_stats <- function(row) {
+  mean_value <- mean(row)
+  median_value <- median(row)
+  sd_value <- sd(row)
+  q1_value <- quantile(row, 0.25)
+  q3_value <- quantile(row, 0.75)
+  
+  return(c(mean = mean_value, median = median_value, sd = sd_value, Q1 = q1_value, Q3 = q3_value))
+}
+
+# Function to calculate log2ratio of relative frequency
+calculate_log2ratio_df <- function(group1_seqs, group2_seqs) {
+  all_amino_acids <- c("A","R","N","D","C","Q","E","G","H","U","L","K","M","F","P","S","T","W","Y","V", "*")
+  log2ratios <- numeric(length(all_amino_acids))
+  
+  for (aa in all_amino_acids) {
+    count_group1 <- sum(sapply(group1_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    count_group2 <- sum(sapply(group2_seqs, function(seq) sum(unlist(strsplit(as.character(seq), "")) == aa)))
+    
+    freq_group1 <- count_group1 / sum(sapply(group1_seqs, nchar))
+    freq_group2 <- count_group2 / sum(sapply(group2_seqs, nchar))
+    
+    log2ratios[aa] <- log2(freq_group1 / freq_group2)
+  }
+  
+  log2ratio_df <- data.frame(Aminoacid = all_amino_acids, log2ratio = log2ratios)
+  return(log2ratio_df)
+}
+```
+
+```{r loading_data, echo=F}
+## genes
+# candidates = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes.csv"))
+# candidates = merge(candidates, annot %>% select(gene_id, chr), by="gene_id")
+# candidates = candidates %>% mutate(coding_noncoding_chr = case_when(gene_type == "protein_coding" & chr == "X" ~ "CT-X",
+#                                                            gene_type == "protein_coding" & chr != "X" ~ "CT-nonX",
+#                                                            gene_type != "protein_coding" & chr == "X" ~ "Noncoding-X",
+#                                                            gene_type != "protein_coding" & chr != "X" ~ "Noncoding-nonX"),
+#                                    type = case_when(gene_type == "protein_coding" ~ "CT",
+#                                                     TRUE ~ "Noncoding"))
+# 
+# print(candidates %>% subset(coding_noncoding_chr == "Noncoding-X"))
+## ORFs
+candidatesORFs = read.csv(file.path(tumorReactDIR,"log2ratio3x_1TPM_ORFs.csv"))
+candidatesORFs = merge(candidatesORFs, annot %>% select(gene_id, chr), by="gene_id")
+candidatesORFs = candidatesORFs %>% mutate(coding_noncoding_chr = case_when(grepl("ORF", geneORFtype) ~ "other ncORFs",
+                                                                            gene_type == "protein_coding" & chr == "X" & geneORFtype == "protein_coding_canonical" ~ "CT-X",
+                                                           gene_type == "protein_coding" & chr != "X" & geneORFtype == "protein_coding_canonical" ~ "CT-nonX",
+                                                           gene_type != "protein_coding" & chr == "X" ~ "Noncoding-X",
+                                                           gene_type != "protein_coding" & chr != "X" ~ "Noncoding-nonX"),
+                                            type = case_when(gene_type == "protein_coding" ~ "CT",
+                                                    TRUE ~ "Noncoding"),
+                                           altORFs_chr = case_when(grepl("ORF", geneORFtype) & chr == "X" ~ "other ncORFs-X",
+                                                                   grepl("ORF", geneORFtype) & chr != "X" ~ "other ncORFs-nonX"))
+chr_summary = candidatesORFs %>% select(coding_noncoding_chr, ctype, orfID) %>% unique()
+table(chr_summary$coding_noncoding_chr, chr_summary$ctype)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## TE
+TE = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/mean_translationEfficiency_testis.csv")
+candidatesORFs = merge(TE %>% select(orfID, mean_TE), candidatesORFs, by=c("orfID"), all.y = T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## Translation Level
+orf_TE_1 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_1.tsv", sep="\t")
+orf_TE_2 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_2.tsv", sep="\t")
+orf_TE_3 = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.testis_3.tsv", sep="\t")
+
+orf_TE = rbind(orf_TE_1, orf_TE_2, orf_TE_3)
+orf_TE_mean = orf_TE %>% group_by(orfID) %>%
+  summarise(mean_RiboSeq_TPM = mean(f1Tpm))
+candidatesORFs = merge(candidatesORFs, orf_TE_mean, by=c("orfID"), all.x = T)
+
+## CanonicalRatio
+canonicalRatio = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.allSamples.tsv", sep="\t")
+canonicalRatio$tissue = gsub("_.*","",canonicalRatio$Sample)
+canonicalRatio = canonicalRatio %>% group_by(orfID, tissue) %>%
+  mutate(mean_canonicalRatio = mean(canonicalRatio))
+canonicalRatio = canonicalRatio %>% ungroup() %>% subset(tissue == "testis") %>% select(orfID, mean_canonicalRatio, tissue) %>% unique()
+
+candidatesORFs = merge(canonicalRatio, candidatesORFs, by=c("orfID"), all.y=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## GTEx 
+GTEx = read.csv("/data/genomics/marta/genomes/GTEx/v10/GTEx_maintissue_gene_median_tpm.csv")
+GTEx_candidates = GTEx %>% subset(Name %in% candidatesORFs$gene_id)
+candidatesORFs = merge(candidatesORFs, GTEx %>% select(Name, Testis), by.x="gene_id", by.y="Name", all.x=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## evo origin
+conservation = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/EvolutionaryOrigin_MMseqs/Clustering/allHuman_matrix_oldestAge.tsv", sep="\t")
+candidatesORFs = merge(candidatesORFs, conservation, by=c("orfID", "gene_type", "gene_name"), all.x=T)
+candidatesORFs = candidatesORFs %>% mutate(age_categorical = case_when(oldest_species == "macaca"  ~ "primate-specific",
+                                                                 oldest_species == "human"  ~ "humman-specific",
+                                                                 oldest_species == "chicken" ~ "conserved - outgroup",
+                                                                 oldest_species == "mouse" ~ "mouse",
+                                                   TRUE ~ "mammal"))
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## thymus expr
+thymus_candidates_summary = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/quantification_thymus/thymus_summary_TOv3xlog2ratioSTEP1.csv")
+thymus_candidates_summary = thymus_candidates_summary %>% select(gene_id, median) %>% unique()
+names(thymus_candidates_summary)[2] = "median_mTEC"
+candidatesORFs = merge(candidatesORFs, thymus_candidates_summary, by=c("gene_id"), all.x=T)
+candidatesORFs %>% select(gene_name, coding_noncoding_chr) %>% unique() %>% group_by(coding_noncoding_chr) %>% count()
+
+## MHCquant
+# MHCquant = read.csv("/users/genomics/marta/241205_Immunopeptidomics_HCC/results/hits_combined.csv")
+# MHCquant$sequence = gsub("(Oxidation)","",MHCquant$sequence)
+# MHCquant = MHCquant %>% select(-gene_id.1)
+# MHCquant_TSTR = MHCquant %>% subset(ctype != "")
+# names(MHCquant_TSTR)[6] = "gene_type"
+# names(MHCquant_TSTR)[15] = "orfID_ImmunoPep"
+# names(MHCquant_TSTR)[16] = "ORFpep_ImmunoPep"
+# MHCquant_TSTR = MHCquant_TSTR %>% select(sequence, accessions, gene_name_x, gene_name_y, gene_type, gene_id, source, sample, Peptide, orfID_ImmunoPep, ORFpep_ImmunoPep, source_literature) %>% unique()
+# MHCquant_TSTR$orfType = sapply(strsplit(MHCquant_TSTR$orfID, "\\|"), function(x) x[4])
+# MHCquant_TSTR = MHCquant_TSTR %>% mutate(geneORFtype_ImmunoPep = paste0(gene_type,"_",orfType))
+# 
+# candidatesORFs = merge(candidatesORFs, MHCquant_TSTR, by=c("gene_id","gene_type"), how="left")
+table(candidatesORFs %>% select(gene_name, geneORFtype) %>% unique() %>% pull(geneORFtype))
+write.csv(candidatesORFs, file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
+
+# tmp = candidatesORFs %>% select(gene_id, gene_name, orfID, orfID_ImmunoPep, ORFpep, ORFpep_ImmunoPep, Peptide, sequence, source, source_literature, geneORFtype_ImmunoPep, geneORFtype)
+# write.csv(tmp, "/home/marta/Documents/temp_orfpep_immuno.csv", row.names = F)
+
+### tables
+## ORFs per chr
+table(candidatesORFs$coding_noncoding_chr, candidatesORFs$ctype)
+
+## genes
+temp = candidatesORFs %>% select(coding_noncoding_chr, ctype, gene_id) %>% unique()
+table(temp$coding_noncoding_chr, temp$ctype)
+```
+
+## CHROMOSOME LOCATION
+
+```{r chr, echo=F}
+gtf_file = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/gencode.v47.gffcompare.TestisLiverBrain.annotation.sorted.1transcript.sorted.gtf"
+gtf_data = import(gtf_file, format = "gtf")
+
+GRanges_GTF = as(gtf_data, "GRanges")
+GRanges_GTF$gene_id = gsub("\\..*","",GRanges_GTF$gene_id)
+
+GRanges_GTF_tumorReact = GRanges_GTF %>% subset(gene_id %in% candidatesORFs$gene_id) %>% subset(type == "transcript") 
+GRanges_GTF_tumorReact$gene_type[is.na(GRanges_GTF_tumorReact$gene_type)] <- "novel"
+
+GRanges_GTF_tumorReact_CODING = GRanges_GTF_tumorReact %>% subset(gene_type == "protein_coding")
+length(GRanges_GTF_tumorReact_CODING$gene_id)
+
+
+GRanges_GTF_tumorReact_NONCODING = GRanges_GTF_tumorReact %>% subset(gene_type != "protein_coding")
+mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name <- ifelse(
+  is.na(mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name),
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_id,
+  mcols(GRanges_GTF_tumorReact_NONCODING)$gene_name
+)
+length(GRanges_GTF_tumorReact_NONCODING$gene_id)
+
+png(file.path(plots_wd,"/PNG/TOv3xlog2ratio3xMEAN_location_chr.png"), height=9.26, width=15.20, units = "in", res=400)
+kp <- plotKaryotype(genome="hg38")
+# Plot the coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_CODING,
+           y0=0, y1=0.5, col="#cd4f38") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_CODING,
+         y=0.5, col="#cd4f38", pch=19, cex=0.8) # Add dots
+
+# Plot the non-coding genes with lollipop markers
+kpSegments(kp, data=GRanges_GTF_tumorReact_NONCODING,
+           y0=0, y1=0.5, col="#ead890") # Add stems
+kpPoints(kp, data=GRanges_GTF_tumorReact_NONCODING,
+         y=0.5, col="#ead890", pch=19, cex=0.8) # Add dots
+# Add legend
+legend("bottomright",                    # Position
+       legend=c("Coding Genes", "Non-coding Genes"),  # Labels
+       col=c("#cd4f38", "#ead890"),           # Colors matching the plot
+       pch=19,                         # Point style
+       pt.cex=0.6,                     # Point size to match the plot
+       title="Gene Type")              # Legend title
+dev.off()
+
+## which are those noncoding-X?
+candidatesORFs %>% subset(coding_noncoding_chr == "Noncoding-X") %>% select(gene_name, coding_noncoding_chr) %>% unique()
+
+## removed from candidates
+candidatesORFs = candidatesORFs %>% subset(coding_noncoding_chr != "Noncoding-X")
+```
+
+```{r howmany_per_ctype, echo=F}
+candidatesORFs %>% select(gene_name, ctype, coding_noncoding_chr) %>% 
+  subset(coding_noncoding_chr != "other ncORFs") %>% unique() %>%
+  mutate(ctype_CTcontent = case_when(ctype %in% c("BLCA","LUSC","LIHC","LUAD") ~ "CT rich",
+                                     ctype %in% c("BRCA","PRAD") ~ "CT medium",
+                                     ctype %in% c("COAD", "KIRC") ~ "CT poor")) %>%
+  ggplot(aes(x=ctype, y=..count.., fill=coding_noncoding_chr)) +
+  geom_bar(position = position_dodge(preserve = "single")) +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  labs(x="Cancer type",
+       y="Number of TSTR",
+       title="TSTR per cancer type",
+       fill="") +
+  theme_minimal() +
+  facet_grid(~ ctype_CTcontent, scales="free_x", space="free")
+ggsave(file.path(plots_wd,"PNG/TSTR_per_ctype.png"), height=4.94, width=6.85)
+```
+
+## COMPARISONS AT GENE LEVEL
+
+```{r length, echo=F}
+################ -- NO SENSE, IT WAS NOT GENE LENGTH -- ##################
+# ggplot(candidatesORFs %>% 
+#          # subset(!grepl("ORF", geneORFtype)) %>% 
+#          select(gene_id, gene_name, geneORFtype, length, coding_noncoding_chr, type) %>% unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=length, fill=coding_noncoding_chr)) +
+#   geom_boxplot() +
+#   geom_jitter() +
+#   stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+#                                                           c("CT-X","Noncoding-nonX"), 
+#                                                           c("CT-nonX","Noncoding-nonX"), 
+#                                                           c("CT-nonX","other ncORFs"),
+#                                                           c("CT-X","other ncORFs"),
+#                                                           c("Noncoding-nonX","other ncORFs"))) +
+#   scale_y_continuous(trans="log10") +
+#   scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+#   labs(y="Length (nt)",
+#        x="",
+#        title="Length | Gene level") +
+#   theme_minimal() 
+# ggsave(file.path(plots_wd,"PNG/length_geneORFtype.png"))
+# 
+# ## other ncORFs
+# ggplot(candidatesORFs %>% 
+#          subset(grepl("ORF", geneORFtype)) %>% select(gene_id, gene_name, geneORFtype, length, altORFs_chr, type) %>% unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=length, fill=altORFs_chr)) +
+#   geom_boxplot() +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   scale_y_continuous(trans="log10") +
+#   labs(y="Length (nt)",
+#        x="",
+#        title="Length | Gene level | Alternative ORFs") +
+#   theme_minimal() +
+#   theme(axis.text.x=element_text(angle=45)) +
+#   facet_wrap(~ geneORFtype, ncol=4, scales="free_x") +
+#    stat_compare_means(label="p.format")
+# ggsave(file.path(plots_wd,"PNG/length_altORFs.png"))
+```
+
+```{r GTEx_expression, echo=F}
+candidatesORFs$logTPM_Testis = log(candidatesORFs$Testis)
+
+ggplot(candidatesORFs %>% 
+         # subset(!grepl("ORF", geneORFtype)) %>% 
+         select(gene_id, gene_name, geneORFtype, logTPM_Testis, coding_noncoding_chr, type) %>% unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=logTPM_Testis, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  labs(y="log(Median TPM)",
+       x="",
+       title="Expression in testis (GTEx)") +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/logTPMTestis.png"))
+
+## other ncORFs
+# ggplot(candidatesORFs %>% subset(grepl("ORF", geneORFtype)) %>% select(gene_id, gene_name, geneORFtype, logTPM_Testis, altORFs_chr, type) %>% unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=logTPM_Testis, fill=altORFs_chr)) +
+#   geom_boxplot() +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   labs(y="log(Median TPM)",
+#        x="",
+#        title="Expression in testis (GTEx)") +
+#   theme_minimal() +
+#   theme(axis.text.x = element_text(angle=45)) +
+#   facet_wrap(~ geneORFtype, ncol=4, scales="free_x") +
+#   stat_compare_means(label="p.format")
+# ggsave(file.path(plots_wd,"PNG/logTPMTestis_altORFs.png"))
+
+```
+
+```{r cancertypes_shared, echo=F}
+# View(candidatesORFs %>% select(gene_name, ctype, coding_noncoding_chr, type, percentage_num_patients_overexpr))
+# 
+# View(candidatesORFs %>% select(gene_name, ctype, coding_noncoding_chr, type) %>% unique() %>%
+#   group_by(gene_name, coding_noncoding_chr, type) %>% count())
+
+## to upsets, one for X (colored by coding noncoding) & another one for nonX (colored by coding noncoding)
+data_to_upset = candidatesORFs %>% subset(coding_noncoding_chr != "other ncORFs") %>% select(gene_name, ctype, coding_noncoding_chr, type) %>% unique()
+data_to_upset$presence = 1
+########
+# to_upset = data_to_upset %>% pivot_wider(names_from = "ctype", values_from = "presence")
+# to_upset[is.na(to_upset)] <- 0
+# to_upset = to_upset %>% select(-c(coding_noncoding_chr, type))
+# 
+# ## convert to matrix
+# matrix_to_upset = as.matrix(to_upset)
+# rownames(matrix_to_upset) = matrix_to_upset[,1]
+# matrix_to_upset = matrix_to_upset[,-1]
+# matrix_to_upset <- as.data.frame(matrix_to_upset)
+# # Convert the matrix into a format that UpSetR can process
+# upset_data_num <- as.data.frame(lapply(matrix_to_upset, as.numeric))
+# library(UpSetR)
+# 
+# UpSetR::upset(upset_data_num, sets=colnames(upset_data_num), order.by = "freq")
+##########
+
+# Prepare the data for ComplexUpset
+upset_data <- data_to_upset %>%
+  pivot_wider(names_from = ctype, values_from = presence, values_fill = 0) %>%
+  mutate(coding_noncoding_chr = data_to_upset$coding_noncoding_chr[match(gene_name, data_to_upset$gene_name)])
+
+upset_data_toplot = upset_data %>% select(-gene_name, coding_noncoding_chr, type)
+
+# Generate the upset plot with annotations
+png(filename = file.path(plots_wd,"PNG/upset_TSTR_chr.png"), width=11.53, height=7.45, res=400, units="in")
+ComplexUpset::upset(
+  upset_data, sort_intersections_by = "degree",
+  intersect = colnames(upset_data)[4:ncol(upset_data)], # Use all ctype columns as sets
+  annotations = list("Coding Type" = (
+    ggplot(mapping = aes(fill=coding_noncoding_chr)) +
+      geom_bar(stat="count", position="fill") +
+      scale_y_continuous(labels=scales::percent_format()) +
+      scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) +
+        ylab("Coding Type")
+)),     width_ratio=0.1
+)
+dev.off()
+```
+
+
+```{r upset_with_extra, echo=F}
+complete_data_to_upset = candidatesORFs %>% subset(coding_noncoding_chr != "other ncORFs") %>% select(gene_name, ctype, coding_noncoding_chr, type, logTPM_Testis, median_mTEC, age_categorical) %>% unique()
+complete_data_to_upset$presence = 1
+complete_upset_data <- complete_data_to_upset %>%
+  pivot_wider(names_from = ctype, values_from = presence, values_fill = 0) %>%
+  mutate(coding_noncoding_chr = complete_data_to_upset$coding_noncoding_chr[match(gene_name, complete_data_to_upset$gene_name)])
+  
+ComplexUpset::upset(
+  complete_upset_data, 
+  intersect = c("BLCA","LIHC","LUSC","COAD","BRCA","KIRC","PRAD","LUAD"),
+  sort_intersections_by = "degree",
+  annotations = list(
+    "Coding Type" = 
+    (ggplot(mapping = aes(fill=coding_noncoding_chr)) +  geom_bar(stat="count", position="fill") + scale_y_continuous(labels=scales::percent_format()) +  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + ylab("Coding Type") + theme(legend.position = "none")),
+    "logTPM Testis" = (ggplot(mapping = aes(x = intersection, y = logTPM_Testis)) +  geom_quasirandom(aes(color = coding_noncoding_chr)) +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent") + scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31"))  + ylab("logTPM Testis") + theme(legend.position = "none")) ,
+    # "logTPM Thymus" = ggplot(mapping = aes(x = intersection, y = median_mTEC)) +  geom_quasirandom(color = "lightblue") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent"),
+    "Conservation" =( ggplot(mapping = aes(x = intersection, color = coding_noncoding_chr, y = factor(age_categorical, levels=c("humman-specific","primate-specific","mouse","mammal","conserved - outgroup")))) +  geom_point(size=3)  + ylab("Conservation") + scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + theme(legend.position = "none") )
+
+  ),
+)
+
+##### grouped
+complete_upset_data$sum = rowSums(complete_upset_data[,7:14])
+complete_upset_data = complete_upset_data %>% mutate(grouped_sum = case_when(sum == 1 ~ "1",
+                                                                             sum == 2 ~ "2",
+                                                                             sum > 2 ~ "3 or more"))
+
+
+a = ggplot(complete_upset_data, aes(x=grouped_sum, fill=coding_noncoding_chr)) +
+  geom_bar(position="dodge", color="black") +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) +
+  labs(x="Number of cancer types",
+       y="Number of TSTR Candidates") +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+b = ggplot(complete_upset_data, aes(x=grouped_sum, y=logTPM_Testis, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) +
+  labs(x="",
+       y="logTPM Testis (GTEx)",
+       title="") +
+  theme_minimal() +
+  theme(legend.position = "none",
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+# ggplot(complete_upset_data, aes(x=grouped_sum, y=median_mTEC, fill=coding_noncoding_chr)) +
+#   geom_boxplot() +
+#   scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) +
+#   labs(x="Number of cancer types",
+#        y="Number of TSTR Candidates",
+#        title="Thymus expression") +
+#   theme_minimal() +
+#   theme(legend.position = "none")
+
+grid.arrange(b,a)
+```
+
+
+```{r upset_CTx, echo=F}
+upset_data_CTX <- complete_upset_data %>%
+  subset(coding_noncoding_chr == "CT-X")
+
+# png(filename = file.path(plots_wd,"PNG/upset_TSTR_CTX.png"), width=11.53, height=7.45, res=400, units="in")
+ComplexUpset::upset(
+  upset_data_CTX, sort_intersections_by = "degree",
+  intersect = c("BLCA","LIHC","LUSC","COAD","BRCA","KIRC","PRAD","LUAD"),
+  base_annotations=list(
+          'Intersection size'=intersection_size(
+              counts=T,
+              fill="#833437"
+          )
+      ),
+    annotations = list(
+    "logTPM Testis" = (ggplot(mapping = aes(x = intersection, y = logTPM_Testis)) +  geom_quasirandom(color="black") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent") + ylab("logTPM Testis") + theme(legend.position = "none")) ,
+    # "logTPM Thymus" = ggplot(mapping = aes(x = intersection, y = median_mTEC)) +  geom_quasirandom(color = "lightblue") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent"),
+    "Conservation" =( ggplot(mapping = aes(x = intersection, color = coding_noncoding_chr, y = factor(age_categorical, levels=c("humman-specific","primate-specific","mouse","mammal","conserved - outgroup")))) +  geom_point(size=3, color="black")  + ylab("Conservation") + theme(legend.position = "none") )
+
+  ),
+    width_ratio=0.1) +
+  ggtitle("CT-X")
+# dev.off()
+```
+
+```{r upset_CTnonx, echo=F}
+upset_data_CTnonX <- complete_upset_data %>%
+  subset(coding_noncoding_chr == "CT-nonX")
+
+# png(filename = file.path(plots_wd,"PNG/upset_TSTR_CTnonX.png"), width=11.53, height=7.45, res=400, units="in")
+ComplexUpset::upset(
+  upset_data_CTnonX, sort_intersections_by = "degree",
+  intersect = c("BLCA","LIHC","LUSC","COAD","BRCA","KIRC","PRAD","LUAD"),
+  base_annotations=list(
+          'Intersection size'=intersection_size(
+              counts=T,
+              fill="#ead890"
+          )
+      ),
+    annotations = list(
+    "logTPM Testis" = (ggplot(mapping = aes(x = intersection, y = logTPM_Testis)) +  geom_quasirandom(color="black") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent") + ylab("logTPM Testis") + theme(legend.position = "none")) ,
+    # "logTPM Thymus" = ggplot(mapping = aes(x = intersection, y = median_mTEC)) +  geom_quasirandom(color = "lightblue") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent"),
+    "Conservation" =( ggplot(mapping = aes(x = intersection, color = coding_noncoding_chr, y = factor(age_categorical, levels=c("humman-specific","primate-specific","mouse","mammal","conserved - outgroup")))) +  geom_point(size=3, color="black")  + ylab("Conservation") + theme(legend.position = "none") )
+
+  ),
+    width_ratio=0.1) +
+  ggtitle("CT-nonX")
+# dev.off()
+```
+
+```{r upset_NoncodingNonX, echo=F}
+upset_data_NoncodingnonX <- complete_upset_data %>%
+  subset(coding_noncoding_chr == "Noncoding-nonX")
+
+# png(filename = file.path(plots_wd,"PNG/upset_TSTR_NoncodingNonX.png"), width=11.53, height=7.45, res=400, units="in")
+ComplexUpset::upset(
+  upset_data_NoncodingnonX, sort_intersections_by = "degree",
+  intersect = c("BLCA","LIHC","LUSC","COAD","BRCA","KIRC","PRAD","LUAD"),
+  base_annotations=list(
+          'Intersection size'=intersection_size(
+              counts=T,
+              fill="#646c31"
+          )
+      ),
+  annotations = list(
+    "logTPM Testis" = (ggplot(mapping = aes(x = intersection, y = logTPM_Testis)) +  geom_quasirandom(color="black") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent") + ylab("logTPM Testis") + theme(legend.position = "none")) ,
+    # "logTPM Thymus" = ggplot(mapping = aes(x = intersection, y = median_mTEC)) +  geom_quasirandom(color = "lightblue") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent"),
+    "Conservation" =( ggplot(mapping = aes(x = intersection, color = coding_noncoding_chr, y = factor(age_categorical, levels=c("humman-specific","primate-specific","mouse","mammal","conserved - outgroup")))) +  geom_point(size=3, color="black")  + ylab("Conservation") + theme(legend.position = "none") )
+
+  ),
+    width_ratio=0.1) +
+  ggtitle("Noncoding-nonX")
+# dev.off()
+```
+
+## Thymus expression
+
+```{r thymus, echo=F}
+ggplot(candidatesORFs %>% 
+                subset(!grepl("ORF", geneORFtype)) %>%
+         select(gene_id, gene_name, geneORFtype, median_mTEC, coding_noncoding_chr, type) %>% unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")),  y=median_mTEC, color=coding_noncoding_chr)) +
+  geom_violin() +
+  geom_quasirandom(width=0.1) +
+  # scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  labs(y="Median TPM",
+       x="",
+       title="Median expression in thymus") +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/TPM_thymus.png"))
+
+## how many yes how many no
+candidatesORFs %>% 
+                subset(!grepl("ORF", geneORFtype)) %>%
+         select(gene_id, gene_name, geneORFtype, median_mTEC, coding_noncoding_chr, type) %>% unique() %>%
+  mutate("yes_no" = case_when(median_mTEC < 0.5 ~ "no",
+         TRUE ~ "yes")) %>% select(gene_name, coding_noncoding_chr, yes_no) %>% group_by(coding_noncoding_chr, yes_no) %>% count()
+```
+
+## COMPARISONS AT ORF LEVEL
+
+```{r length_ORF, echo=F}
+ggplot(candidatesORFs %>% select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         # subset(!grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=length_aa, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  geom_jitter() +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  labs(y="Length (aa)",
+       x="",
+       title="Length | ORF level") +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none") 
+ggsave(file.path(plots_wd,"PNG/lengthORF_geneORFtype.png"))
+
+## only other ncORFs
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         subset(grepl("ORF", geneORFtype)) %>% 
+         unique(), 
+       aes(x=geneORFtype, y=length_aa, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+  labs(y="Length (aa)",
+       x="",
+       title="Length | ORF level | alternative ORFs") +
+  scale_y_continuous(trans="log10") +
+  theme_minimal() +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) 
+ggsave(file.path(plots_wd,"PNG/lengthORF_altORFs.png"))
+```
+
+```{r TE_ORF, echo=F}
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         # subset(!grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=mean_TE, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  geom_jitter() +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  labs(y="Mean Translation Efficiency in testis",
+       x="",
+       title="Translation Efficiency | ORF level") +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"PNG/TE_geneORFtype.png"))
+
+## other ncORFs
+ggplot(candidatesORFs %>%
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>%
+         subset(grepl("ORF", geneORFtype)) %>%
+         unique(), aes(x=geneORFtype, y=mean_TE, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+  labs(y="Mean Translation Efficiency in testis",
+       x="",
+       title="Translation Efficiency | ORF level | alternative ORFs") +
+  scale_y_continuous(trans="log10") +
+  theme_minimal() +
+    scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) 
+ggsave(file.path(plots_wd,"PNG/TE_altORFs.png"))
+
+```
+
+```{r TranslationLevel_ORF, echo=F}
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         # subset(!grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=mean_RiboSeq_TPM, fill=coding_noncoding_chr)) +
+  geom_boxplot() +
+  geom_jitter() +
+  stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 
+                                                          c("CT-X","Noncoding-nonX"), 
+                                                          c("CT-nonX","Noncoding-nonX"), 
+                                                          c("CT-nonX","other ncORFs"),
+                                                          c("CT-X","other ncORFs"),
+                                                          c("Noncoding-nonX","other ncORFs"))) +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
+  labs(y="Translation Level in testis",
+       x="",
+       title="Translation Level | ORF level") +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('canonical-Xchr', 'canonical-nonXchr', 'lncORFs-nonX', 'other ncORFs')) +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"PNG/TranslationLevel_geneORFtype.png"))
+
+## other ncORFs
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         subset(grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=geneORFtype, y=mean_RiboSeq_TPM, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+  labs(y="Mean Translation Level in testis",
+       x="",
+       title="Translation Level | ORF level | other ncORFs") +
+  scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+  scale_y_continuous(trans="log10") +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/TranslationLevel_altORFs.png"))
+
+```
+
+```{r canonicalRatio, echo=F}
+## other ncORFs
+# ggplot(candidatesORFs %>% 
+#          select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+#          subset(grepl("ORF", geneORFtype)) %>% 
+#          unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=mean_canonicalRatio, fill=altORFs_chr)) +
+#   geom_violin() +
+#   geom_boxplot(fill=NA, width=.2) +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   labs(y="Mean Translation Efficiency with respect to the CDS",
+#        x="",
+#        title="Translation Efficiency with respect to the CDS | ORF level | alternative ORFs") +
+#   theme_minimal() +
+#   facet_wrap(~ geneORFtype, scales="free_x")
+# ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs.png"))
+
+# ggplot(candidatesORFs %>% 
+#          select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+#          subset(grepl("ORF", geneORFtype)) %>% 
+#          unique(), aes(x=factor(altORFs_chr, levels=c("other ncORFs-X","other ncORFs-nonX")), y=mean_canonicalRatio, fill=altORFs_chr)) +
+#   geom_violin() +
+#   geom_boxplot(fill=NA, width=.2) +
+#   geom_jitter() +
+#       scale_fill_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+#   labs(y="Mean Translation Efficiency with respect to the CDS",
+#        x="",
+#        title="Translation Efficiency with respect to the CDS | ORF level | other ncORFs") +
+#   theme_minimal() 
+# ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs_chr.png"))
+
+ggplot(candidatesORFs %>% 
+         select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+         subset(grepl("ORF", geneORFtype)) %>% 
+         unique(), aes(x=geneORFtype, y=mean_canonicalRatio, color=altORFs_chr)) +
+  geom_boxplot(color="black") +
+  geom_jitter(size=3, width=.2) +
+      scale_color_manual(values=c("other ncORFs-X" = "#833437", "other ncORFs-nonX" = "#ead890")) +
+  labs(y="Mean Translation Efficiency with respect to the CDS",
+       x="",
+       title="Translation Efficiency with respect to the CDS | ORF level | other ncORFs") +
+  scale_x_discrete(labels=c('dORFs', 'odORFs', 'ouORFs', 'uORFs')) +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/canonicalRatio_altORFs.png"))
+```
+
+```{r evo_ORF, echo=F}
+counts_evo = candidatesORFs %>% 
+  select(-c(percentage_num_patients_overexpr, num_patients_overexpr, ctype)) %>% 
+  # subset(!grepl("ORF", geneORFtype)) %>% 
+  unique() %>% 
+  group_by(coding_noncoding_chr, age_categorical) %>% count() 
+
+ggplot(counts_evo, aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")), y=n, fill=age_categorical)) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Number of ORFs",
+       x="",
+       title="ORF conservation") +
+  theme_minimal() 
+ggsave(file.path(plots_wd,"PNG/Evo_geneORFtype.png"))
+
+candidatesORFs %>% 
+  select(gene_name, coding_noncoding_chr, geneORFtype, age_categorical) %>% unique() 
+```
+
+```{r aa_noaltrORFs, echo=F}
+# Calculate amino acid frequency normalized by sequence length
+candidatesORFs$ORFpep = gsub("\\*","",candidatesORFs$ORFpep)
+
+########### no alt ORFs - CT-X, CT-nonX, Noncoding-nonX
+amino_acid_frequencies <- candidatesORFs %>%
+  subset(!grepl("ORF", geneORFtype)) %>%
+  # Group by coding_noncoding_chr
+  group_by(coding_noncoding_chr) %>%
+  # Process each group
+  summarise(
+    amino_freq = list(
+      ORFpep %>%
+        strsplit("") %>%
+        # Flatten the list of sequences into a single character vector
+        unlist() %>%
+        # Count occurrences of each amino acid
+        table() %>%
+        # Convert to a named numeric vector
+        prop.table() %>%
+        as.data.frame()
+    )
+  ) %>%
+  unnest(amino_freq)
+names(amino_acid_frequencies) = c("coding_noncoding_chr", "aminoacid","frequency")
+
+# Remove Noncoding-X
+amino_acid_frequencies = amino_acid_frequencies %>% subset(coding_noncoding_chr != "Noncoding-X")
+
+to_plot = amino_acid_frequencies %>% pivot_wider(names_from="aminoacid", values_from="frequency")
+to_plot = as.data.frame(to_plot)
+rownames(to_plot) = to_plot$coding_noncoding_chr
+to_plot$coding_noncoding_chr = NULL
+
+to_plot <- rbind(rep(0.12,20) , rep(0,20) , to_plot)
+colors_border=c("#833437", "#ead890" ,"#646c31" )
+
+png(file.path(plots_wd,"PNG/AA_radarchart_geneORFtype_noaltORFs.png"))
+radarchart(to_plot, maxmin = T,
+           axistype = 0, plwd=2 , plty=1,
+           pcol=colors_border, title="Aminoacids enrichment in ORFs")
+legend(x=-1.5, y=-0.8, legend = rownames(to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1, pt.cex=1.5)
+dev.off()
+# 
+# 
+# hph=c("A","V","L","I","M","F","Y","W")
+# polar=c("S","T","N","Q")
+# positively_charged=c("R","H","K")
+# # negatively_charged=c("D","E")
+# # special_cases=c("C","G","P")
+# 
+# ### hidrophobic
+# hph_to_plot = to_plot %>% select(hph)
+# radarchart(hph_to_plot, maxmin = T,
+#            axistype = 0, plwd=2 , plty=1,
+#            pcol=colors_border, title="Hidrophobic aminoacids enrichment in ORFs")
+# legend(x=1.7, y=1, legend = rownames(hph_to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1.2, pt.cex=3)
+# 
+# ### polar
+# polar_to_plot = to_plot %>% select(polar)
+# radarchart(polar_to_plot, maxmin = T,
+#            axistype = 0, plwd=2 , plty=1,
+#            pcol=colors_border, title="Polar aminoacids enrichment in ORFs")
+# legend(x=1.7, y=1, legend = rownames(polar_to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1.2, pt.cex=3)
+# 
+# ### positive
+# pos_to_plot = to_plot %>% select(positively_charged)
+# radarchart(pos_to_plot, maxmin = T,
+#            axistype = 0, plwd=2 , plty=1,
+#            pcol=colors_border, title="Positively charged aminoacids enrichment in ORFs")
+# legend(x=1.7, y=1, legend = rownames(pos_to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1.2, pt.cex=3)
+# 
+### negative
+# neg_to_plot = to_plot %>% select(negatively_charged)
+# radarchart(neg_to_plot, maxmin = T,
+#            axistype = 0, plwd=2 , plty=1,
+#            pcol=colors_border, title="Negatively charged aminoacids enrichment in ORFs")
+# legend(x=1.7, y=1, legend = rownames(neg_to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1.2, pt.cex=3)
+
+```
+
+```{r aa_altrORFs, echo=F}
+########### alt ORFs, CT-X, CT-nonX, Noncoding-nonX
+amino_acid_frequencies_ORFchr <- candidatesORFs %>%
+  mutate(ORFtype_chr = case_when(grepl("ORF",geneORFtype) ~ "altORF",
+                                 TRUE ~ coding_noncoding_chr)) %>% 
+  # Group by coding_noncoding_chr
+  group_by(ORFtype_chr) %>%
+  # Process each group
+  summarise(
+    amino_freq = list(
+      ORFpep %>%
+        strsplit("") %>%
+        # Flatten the list of sequences into a single character vector
+        unlist() %>%
+        # Count occurrences of each amino acid
+        table() %>%
+        # Convert to a named numeric vector
+        prop.table() %>%
+        as.data.frame()
+    )
+  ) %>%
+  unnest(amino_freq)
+names(amino_acid_frequencies_ORFchr) = c("ORFtype_chr", "aminoacid","frequency")
+
+# Remove Noncoding-X
+amino_acid_frequencies_ORFchr = amino_acid_frequencies_ORFchr %>% subset(ORFtype_chr != "Noncoding-X")
+
+to_plot = amino_acid_frequencies_ORFchr %>% pivot_wider(names_from="aminoacid", values_from="frequency")
+to_plot = as.data.frame(to_plot)
+rownames(to_plot) = to_plot$ORFtype_chr
+to_plot$ORFtype_chr = NULL
+
+to_plot <- rbind(rep(0.12,20) , rep(0,20) , to_plot)
+colors_border=c("#833437", "#ead890" ,"#646c31","#728FCE")
+
+png(file.path(plots_wd,"PNG/AA_radarchart_ORFtype_withaltORFs.png"))
+radarchart(to_plot, maxmin = T,
+           axistype = 0, plwd=2 , plty=1,
+           pcol=colors_border, title="Aminoacids enrichment in ORFs")
+legend(x=-1.5, y=-0.8, legend = rownames(to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1, pt.cex=1.5)
+dev.off()
+```
+
+```{r aa_3, echo=F}
+########### alt ORFs, CT-X, CT-nonX, Noncoding-nonX
+amino_acid_frequencies_ORFs <- candidatesORFs %>%
+  mutate("ORFNature" = case_when(grepl("ORF",geneORFtype) ~ "altORF",
+                                 grepl("Noncoding", coding_noncoding_chr) ~ "Noncoding",
+                                 TRUE ~ "Protein-Coding")) %>% 
+  # Group by coding_noncoding_chr
+  group_by(ORFNature) %>%
+  # Process each group
+  summarise(
+    amino_freq = list(
+      ORFpep %>%
+        strsplit("") %>%
+        # Flatten the list of sequences into a single character vector
+        unlist() %>%
+        # Count occurrences of each amino acid
+        table() %>%
+        # Convert to a named numeric vector
+        prop.table() %>%
+        as.data.frame()
+    )
+  ) %>%
+  unnest(amino_freq)
+names(amino_acid_frequencies_ORFs) = c("ORFNature", "aminoacid","frequency")
+
+to_plot = amino_acid_frequencies_ORFs %>% pivot_wider(names_from="aminoacid", values_from="frequency")
+to_plot = as.data.frame(to_plot)
+rownames(to_plot) = to_plot$ORFNature
+to_plot$ORFNature = NULL
+
+to_plot <- rbind(rep(0.12,20) , rep(0,20) , to_plot)
+colors_border=c("#ead890", "#cd4f38" ,"#728FCE")
+
+png(file.path(plots_wd,"PNG/AA_radarchart_ORFNature.png"))
+radarchart(to_plot, maxmin = T,
+           axistype = 0, plwd=2 , plty=1,
+           pcol=colors_border, title="Aminoacids enrichment in ORFs")
+legend(x=-1.5, y=-0.8, legend = rownames(to_plot[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1, pt.cex=1.5)
+dev.off()
+
+## ONLY NONCODING, are they similar?
+to_plot_ncORFs = to_plot[-4,]
+colors_border=c("#ead890","#728FCE")
+
+png(file.path(plots_wd,"PNG/AA_radarchart_ncORFs.png"))
+radarchart(to_plot_ncORFs, maxmin = T,
+           axistype = 0, plwd=2 , plty=1,
+           pcol=colors_border, title="Aminoacids enrichment in ncORFs")
+legend(x=-1.5, y=-0.8, legend = rownames(to_plot_ncORFs[-c(1,2),]), bty = "n", pch=20 , col=colors_border , text.col = "grey", cex=1, pt.cex=1.5)
+dev.off()
+```
+
+Burden linked to stage?
+
+```{r stage, echo=F}
+candidatesORFs_patients = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
+metadata = read.csv("/datasets/marta/TCGA/RNA_matched_cancers_biospecimen/clinical_merged_modified_ALLpaired.tsv", sep="\t")
+stage = metadata %>% select(case_submitter_id, age_at_index, ajcc_pathologic_stage) %>% unique()
+stage = stage %>% 
+  mutate("stage" = case_when(ajcc_pathologic_stage %in% c("Stage I","Stage IA","Stage IB") ~ "I",
+                             ajcc_pathologic_stage %in% c("Stage II","Stage IIA","Stage IIB") ~ "II",
+                             ajcc_pathologic_stage %in% c("Stage III","Stage IIIA","Stage IIIB", "Stage IIIC") ~ "III",
+                             ajcc_pathologic_stage %in% c("Stage IV","Stage IVA") ~ "IV")) %>% subset(ajcc_pathologic_stage != "'--")
+
+candidatesORFs_patients = merge(candidatesORFs_patients, stage, by.x="patient_overexpr", by.y="case_submitter_id")
+candidatesORFs_patients = merge(candidatesORFs_patients, candidatesORFs %>% select(gene_name, coding_noncoding_chr), by="gene_name")
+candidatesORFs_patients = candidatesORFs_patients %>% subset(coding_noncoding_chr != "other ncORFs")
+
+## count burden of CT of each class
+CTburden = candidatesORFs_patients %>% group_by(patient_overexpr, ctype, coding_noncoding_chr, stage) %>% count()
+table(CTburden$stage, CTburden$ctype)
+
+ggplot(CTburden, aes(x=coding_noncoding_chr, y=n, fill=stage)) +
+  geom_boxplot() +
+  scale_fill_manual(values=c("#B4CBAA","#78AE6D","#2D8B3F","#09622A"))
+
+## per ctype
+ggplot(CTburden, aes(x=stage, y=n, fill=stage)) +
+  geom_boxplot() +
+  geom_jitter(size=1, alpha=.5) + 
+  scale_fill_manual(values=c("#B4CBAA","#78AE6D","#2D8B3F","#09622A")) +
+  # theme_minimal() +
+  labs(title="CTburden vs. Stage",
+       y="Number of CT genes",
+       x="Stage") +
+    theme(legend.position = "top") +
+  facet_grid(coding_noncoding_chr ~ ctype, scales="free_y", space="free")
+ggsave(file.path(plots_wd,"PNG/CTburden_Stage.png"))
+
+### testing
+CTburden = CTburden %>%
+  mutate(stage_numeric = as.numeric(factor(stage, levels = c("I", "II", "III", "IV"), ordered = TRUE)))
+
+# Group by ctype and coding_noncoding_chr
+# Perform a Spearman correlation test between stage_numeric and n within each group
+# correlation_results <- CTburden %>%
+#   mutate(stage_numeric = as.numeric(factor(stage, levels = c("I", "II", "III", "IV"), ordered = TRUE))) %>%
+#   group_by(ctype, coding_noncoding_chr) %>%
+#   filter(n() > 1) %>% # Only keep groups with more than one row to calculate correlations
+#   summarise(
+#     correlation = if (n() > 1) cor(stage_numeric, n, method = "spearman", use = "complete.obs") else NA,
+#     p_value = if (n() > 1) cor.test(stage_numeric, n, method = "spearman", exact = FALSE)$p.value else NA
+#   )
+```
+
+```{r age, echo=F}
+# age = merge(candidatesORFs_patients, CTburden %>% select(n, patient_overexpr), by="patient_overexpr")
+# 
+# ggplot(age, aes(x=age_at_index, y=n)) +
+#   geom_point(size=1) +
+#   facet_grid(coding_noncoding_chr.x ~ ctype.x, scales="free", space="free") +
+#     geom_smooth(method=lm , color="red", se=FALSE) +
+#  stat_cor(
+#    aes(label = paste(..rr.label..,"\n", ..p.label.., sep = "~`,`~")),
+#   label.x = 3
+# )
+```
+
