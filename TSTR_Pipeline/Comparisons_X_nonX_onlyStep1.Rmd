@@ -925,54 +925,88 @@ dev.off()
 Burden linked to stage?
 
 ```{r stage, echo=F}
-# candidatesORFs_patients = read.csv(file.path(tumorReactDIR,"TOv3x_5percent_TestisRestrictedGTEx_Translated_Ctypes_log2ratio3xMEANgenes_patients.csv"))
-# metadata = read.csv("/datasets/marta/TCGA/RNA_matched_cancers_biospecimen/clinical_merged_modified_ALLpaired.tsv", sep="\t")
-# stage = metadata %>% select(case_submitter_id, age_at_index, ajcc_pathologic_stage) %>% unique()
-# stage = stage %>% 
-#   mutate("stage" = case_when(ajcc_pathologic_stage %in% c("Stage I","Stage IA","Stage IB") ~ "I",
-#                              ajcc_pathologic_stage %in% c("Stage II","Stage IIA","Stage IIB") ~ "II",
-#                              ajcc_pathologic_stage %in% c("Stage III","Stage IIIA","Stage IIIB", "Stage IIIC") ~ "III",
-#                              ajcc_pathologic_stage %in% c("Stage IV","Stage IVA") ~ "IV")) %>% subset(ajcc_pathologic_stage != "'--")
-# 
-# candidatesORFs_patients = merge(candidatesORFs_patients, stage, by.x="patient_overexpr", by.y="case_submitter_id")
-# candidatesORFs_patients = merge(candidatesORFs_patients, candidatesORFs %>% select(gene_name, coding_noncoding_chr), by="gene_name")
-# candidatesORFs_patients = candidatesORFs_patients %>% subset(coding_noncoding_chr != "other ncORFs")
-# 
-# ## count burden of CT of each class
-# CTburden = candidatesORFs_patients %>% group_by(patient_overexpr, ctype, coding_noncoding_chr, stage) %>% count()
-# table(CTburden$stage, CTburden$ctype)
-# 
-# ggplot(CTburden, aes(x=coding_noncoding_chr, y=n, fill=stage)) +
-#   geom_boxplot() +
-#   scale_fill_manual(values=c("#B4CBAA","#78AE6D","#2D8B3F","#09622A"))
-# 
-# ## per ctype
-# ggplot(CTburden, aes(x=stage, y=n, fill=stage)) +
-#   geom_boxplot() +
-#   geom_jitter(size=1, alpha=.5) + 
-#   scale_fill_manual(values=c("#B4CBAA","#78AE6D","#2D8B3F","#09622A")) +
-#   # theme_minimal() +
-#   labs(title="CTburden vs. Stage",
-#        y="Number of CT genes",
-#        x="Stage") +
-#     theme(legend.position = "top") +
-#   facet_grid(coding_noncoding_chr ~ ctype, scales="free_y", space="free")
-# ggsave(file.path(plots_wd,"PNG/CTburden_Stage.png"))
-# 
-# ### testing
-# CTburden = CTburden %>%
-#   mutate(stage_numeric = as.numeric(factor(stage, levels = c("I", "II", "III", "IV"), ordered = TRUE)))
+tumorexpression = read.csv(file.path(tumorReactDIR,"TSTR_Expression_tumor.csv"))
 
-# Group by ctype and coding_noncoding_chr
-# Perform a Spearman correlation test between stage_numeric and n within each group
-# correlation_results <- CTburden %>%
-#   mutate(stage_numeric = as.numeric(factor(stage, levels = c("I", "II", "III", "IV"), ordered = TRUE))) %>%
-#   group_by(ctype, coding_noncoding_chr) %>%
-#   filter(n() > 1) %>% # Only keep groups with more than one row to calculate correlations
-#   summarise(
-#     correlation = if (n() > 1) cor(stage_numeric, n, method = "spearman", use = "complete.obs") else NA,
-#     p_value = if (n() > 1) cor.test(stage_numeric, n, method = "spearman", exact = FALSE)$p.value else NA
-#   )
+metadata = read.csv("/datasets/marta/TCGA/RNA_matched_cancers_biospecimen/clinical_merged_modified_ALLpaired.tsv", sep="\t")
+stage = metadata %>% select(case_submitter_id, age_at_index, ajcc_pathologic_stage) %>% unique()
+stage = stage %>%
+  mutate("stage" = case_when(ajcc_pathologic_stage %in% c("Stage I","Stage IA","Stage IB") ~ "I",
+                             ajcc_pathologic_stage %in% c("Stage II","Stage IIA","Stage IIB") ~ "II",
+                             ajcc_pathologic_stage %in% c("Stage III","Stage IIIA","Stage IIIB", "Stage IIIC") ~ "III",
+                             ajcc_pathologic_stage %in% c("Stage IV","Stage IVA") ~ "IV")) %>% subset(ajcc_pathologic_stage != "'--")
+
+tumorexpression_candidates = tumorexpression %>% subset(patient %in% stage$case_submitter_id)
+candidates_expression_pancancer = merge(tumorexpression_candidates, candidatesORFs %>% select(gene_id, gene_name, coding_noncoding_chr) %>% unique(), by=c("gene_name","gene_id"))
+tumorexpression_candidates_1TPM = candidates_expression_pancancer %>% subset(TPM > 1)
+tumorexpression_candidates_1TPM_stage = merge(tumorexpression_candidates_1TPM, stage, by.x="patient", by.y="case_submitter_id")
+
+### CT in general
+# Step 1: Count unique genes per patient
+gene_count_per_patient <- tumorexpression_candidates_1TPM_stage %>%
+  group_by(patient) %>%
+  summarise(
+    gene_count = n_distinct(gene_name),
+    age_at_index = as.numeric(dplyr::first(as.vector(age_at_index))),
+    ctype = dplyr::first(as.character(ctype)),
+    stage = dplyr::first(as.character(stage))
+  )
+# Step 2: Summarize by stage
+gene_count_by_stage <- gene_count_per_patient %>%
+  group_by(stage) %>%
+  summarise(
+    avg_gene_count = mean(gene_count),
+    age_adjusted = mean(age_at_index) # Optional if you want a quick view of age effect
+  )
+# Step 3: Adjust for age and cancer type using a GLM
+# Fit a model to adjust gene counts
+glm_model <- glm(
+  gene_count ~ stage + age_at_index + ctype,
+  data = gene_count_per_patient,
+  family = poisson()  # Poisson is appropriate for count data
+)
+summary(glm_model)
+
+
+gene_count_per_patient %>% 
+  ggplot(., aes(x=stage, y=gene_count, fill=stage)) +
+  geom_boxplot() +
+  geom_jitter()
+
+
+
+### CT per group
+# Step 1: Count unique genes per patient
+gene_count_per_patient <- tumorexpression_candidates_1TPM_stage %>%
+  group_by(patient, coding_noncoding_chr) %>%
+  summarise(
+    gene_count = n_distinct(gene_name),
+    age_at_index = as.numeric(dplyr::first(as.vector(age_at_index))),
+    ctype = dplyr::first(as.character(ctype)),
+    stage = dplyr::first(as.character(stage))
+  )
+# Step 2: Summarize by stage
+gene_count_by_stage <- gene_count_per_patient %>%
+  group_by(stage, coding_noncoding_chr) %>%
+  summarise(
+    avg_gene_count = mean(gene_count),
+    age_adjusted = mean(age_at_index) # Optional if you want a quick view of age effect
+  )
+# Step 3: Adjust for age and cancer type using a GLM
+# Fit a model to adjust gene counts
+glm_model <- glm(
+  gene_count ~ stage + age_at_index + ctype,
+  data = gene_count_per_patient,
+  family = poisson()  # Poisson is appropriate for count data
+)
+summary(glm_model)
+
+
+gene_count_per_patient %>% 
+  ggplot(., aes(x=stage, y=gene_count, fill=stage)) +
+  geom_boxplot() +
+  # geom_jitter() +
+  facet_grid(ctype ~ coding_noncoding_chr)
+
 ```
 
 ```{r age, echo=F}

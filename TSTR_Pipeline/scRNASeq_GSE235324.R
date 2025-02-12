@@ -94,7 +94,7 @@ FeaturePlot(seurat.obj, features = c("TNP1","PRM2"), label=T) # sperm
 ##-------------6. Tumor-specific genes--------------##
 seurat.obj <- subset(seurat.obj, subset = CellType != "NA")
 
-candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_candidatesORFs_fullcharacterized.csv")
+candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1/TSTR_candidatesORFs_fullcharacterized.csv")
 candidates$gene_name = gsub("ENSG00000287861","LOC107984132", candidates$gene_name)
 CTx = candidates %>% subset(coding_noncoding_chr == "CT-X") %>% select(gene_name) %>% unique() %>% pull(gene_name)
 CTnonx = candidates %>% subset(coding_noncoding_chr == "CT-nonX") %>% select(gene_name) %>% unique() %>% pull(gene_name)

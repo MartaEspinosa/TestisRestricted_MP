@@ -38,18 +38,20 @@ for (peak_file in atac.peak.files){
 
   peaksXchr$peakDensity <- peaksXchr$num_peaks / peaksXchr$length
   
-  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "nearestBiDirectionalPromoters",multiple = T)
+  # ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "nearestBiDirectionalPromoters",multiple = T, bindingRegion = c(-1000, 100))
+  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream&inside",multiple = T)
+  
   peaks_annotation  <- c(peaks_annotation , ann.tmp)
 }
 
 peaks_annotation <- do.call(c, peaks_annotation)
-peaks_annotation_df <- as.data.frame(peaks_annotation)
+peaks_annotation_df <- as.data.frame(peaks_annotation, row.names = NULL)
 peaks_annotation_df$feature <- gsub("\\..","",peaks_annotation_df$feature)
-write.csv(peaks_annotation_df, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/AnnotatedPeaks_nearestBiDirectionalPromoters.csv")
+write.csv(peaks_annotation_df, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/AnnotatedPeaks_Upstream.csv")
 
 
 ### Candidates 
-tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes"
+tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1"
 candidatesORFs = read.csv(file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
 genes_candidatesORFs = candidatesORFs[,c("transcript_id", "gene_name","coding_noncoding_chr")]
 genes_candidatesORFs = genes_candidatesORFs %>% subset(coding_noncoding_chr != "other ncORFs") %>% unique()
@@ -88,10 +90,10 @@ peaks_annotation_df_candidates_cancertypes_matched = merge(peaks_annotation_df_c
 write.csv(peaks_annotation_df_candidates_cancertypes_matched, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/CandidatesORFsSameCancerType_AnnotatedPeaks_Upstream.csv")
 
 ### GWAS HCC data
-gwas_hcc = read.csv("/datasets/marta/GWAS/j_liver_xintra_cancer.tsv", sep="\t")
-hcc_candidates = candidatesORFs %>% subset(ctype == "LIHC")
-peaks_candidates_hcc = peaks_annotation_df_candidates %>% subset(gene_name %in% hcc_candidates$gene_name) %>% subset(ctype_ATAC == "LIHC")
-
-snps_in_peaks <- gwas_hcc[,c("chrCHR","POS","SNP","FREQ_European")] %>%
-  inner_join(peaks_candidates_hcc, by = c("chrCHR" = "seqnames")) %>%
-  filter(POS >= start & POS <= end)
+# gwas_hcc = read.csv("/datasets/marta/GWAS/j_liver_xintra_cancer.tsv", sep="\t")
+# hcc_candidates = candidatesORFs %>% subset(ctype == "LIHC")
+# peaks_candidates_hcc = peaks_annotation_df_candidates %>% subset(gene_name %in% hcc_candidates$gene_name) %>% subset(ctype_ATAC == "LIHC")
+# 
+# snps_in_peaks <- gwas_hcc[,c("chrCHR","POS","SNP","FREQ_European")] %>%
+#   inner_join(peaks_candidates_hcc, by = c("chrCHR" = "seqnames")) %>%
+#   filter(POS >= start & POS <= end)

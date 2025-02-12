@@ -114,7 +114,7 @@ DimPlot(seurat.obj.renamed, reduction = "umap", label = TRUE, pt.size = 0.5) + N
 # DoHeatmap(seurat.obj.renamed, features = c("DAZL","MAGEA4","UTF1","ID4","FGFR3","KIT","DMRT1","DMRTB1","STRA8","SYCP3","SPO11","MLH3","ZPBP","TNP1","PRM2")) + NoLegend()
 
 ##-------------6. Tumor-specific genes--------------##
-candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/TSTR_candidatesORFs_fullcharacterized.csv")
+candidates = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1/TSTR_candidatesORFs_fullcharacterized.csv")
 candidates$gene_name = gsub("ENSG00000287861","LOC107984132", candidates$gene_name)
 CTx = candidates %>% subset(coding_noncoding_chr == "CT-X") %>% select(gene_name) %>% unique() %>% pull(gene_name)
 CTnonx = candidates %>% subset(coding_noncoding_chr == "CT-nonX") %>% select(gene_name) %>% unique() %>% pull(gene_name)
