@@ -1,0 +1,150 @@
+---
+title: "raw CNV"
+author: "Marta E. Camarena"
+date: "2025-02-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyr)
+library(TCGAgistic)
+library(maftools)
+library(rtracklayer)
+library(GenomicRanges)
+library(dplyr)
+library(TCGAbiolinks)
+
+cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
+TCGAcancers = c("TCGA-BRCA","TCGA-BLCA","TCGA-LUAD","TCGA-KIRC","TCGA-PRAD","TCGA-LUSC","TCGA-COAD","TCGA-LIHC")
+
+save_wd="/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/rawCNV/human"
+setwd(save_wd)
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1"
+bed = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1/annotations_coding_noncoding/TSTR_ORFs.chr.bed"
+```
+
+## Import candidates
+
+```{r candidates, echo=F}
+candidates = read.csv(file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
+genes = candidates %>% dplyr::select(gene_name, transcript_id, gene_id, chr, gene_type, coding_noncoding_chr) %>% subset(coding_noncoding_chr != "other ncORFs") %>% unique()
+
+coordinates = read.csv(bed, sep="\t", header=F)
+coordinates = coordinates %>% dplyr::select(V1,V2,V3,V4)
+coordinates$transcript_id = gsub(":.*","", coordinates$V4)
+coordinates$transcript_id = gsub("\\..*","", coordinates$transcript_id)
+coordinates = coordinates %>% dplyr::select(-V4)
+names(coordinates) = c("chr","start","end","transcript_id")
+
+genes = merge(genes, coordinates, by="transcript_id", all.x=T)
+genes$chr = gsub("chr","",genes$chr)
+table(genes$coding_noncoding_chr)
+```
+
+## Download raw CNV
+
+Segment_Mean is the log2 ratio of copy number for a particular genomic segment.
+
+Log2 Ratio Interpretation:
+
+- 0: Diploid (normal two copies).
+
+- Positive values: Amplifications (e.g., +1 ~ 4 copies, +2 ~ 8 copies).
+
+- Negative values: Deletions (e.g., -1 ~ 1 copy, -2 ~ 0 copies or complete loss).
+
+
+```{r downloading, echo=F}
+cnvdata_complete = data.frame()
+for(proj in TCGAcancers) {
+  # Query for CNV segment data (raw copy number data)
+  query <- GDCquery(
+    project = proj,  # Change to your cancer type
+    # project = TCGAcancers,  # Change to your cancer type
+    data.category = "Copy Number Variation",
+    data.type = "Copy Number Segment",
+    workflow.type = "DNAcopy",
+    access = "open",
+    sample.type = "Primary Tumor"
+  )
+  # getResults(query)
+  
+  # Download the data
+  GDCdownload(query,
+              directory = file.path(tumorReactDIR,"rawCNV/data"))
+  # Prepare the data
+  cnv_data <- GDCprepare(query,
+                         directory = file.path(tumorReactDIR,"rawCNV/data"))
+  
+  cnv_data$ctype = proj
+  cnvdata_complete = rbind(cnvdata_complete, cnv_data)
+}
+```
+
+```{r mapGenes, echo=F}
+# Convert CNV data into a GRanges object
+cnv_gr <- GRanges(
+  seqnames = cnv_data$Chromosome,  
+  ranges = IRanges(
+    start = cnv_data$Start,  
+    end = cnv_data$End       
+  ),
+  segment_mean = cnv_data$Segment_Mean  
+)
+
+# Convert gene data into a GRanges object
+genes_gr <- GRanges(
+  seqnames = genes$chr, 
+  ranges = IRanges(
+    start = genes$start,       
+    end = genes$end            
+  ),
+  gene = genes$gene_name     
+)
+
+# Find overlaps
+overlaps <- findOverlaps(genes_gr, cnv_gr)
+# Extract overlapping segments and genes
+gene_cnv_data <- data.frame(
+  gene_name = genes_gr$gene[queryHits(overlaps)],              # Gene name
+  Chromosome = seqnames(genes_gr)[queryHits(overlaps)],   # Gene chromosome
+  Gene_Start = start(genes_gr)[queryHits(overlaps)],      # Gene start
+  Gene_End = end(genes_gr)[queryHits(overlaps)],          # Gene end
+  Segment_Start = start(cnv_gr)[subjectHits(overlaps)],   # CNV segment start
+  Segment_End = end(cnv_gr)[subjectHits(overlaps)],       # CNV segment end
+  Segment_Mean = cnv_gr$segment_mean[subjectHits(overlaps)] # Segment mean
+)
+gene_cnv_data = merge(gene_cnv_data, genes %>% dplyr::select(gene_name, coding_noncoding_chr), by="gene_name")
+
+## by category
+gene_cnv_data <- gene_cnv_data %>%
+  mutate(
+    Category = case_when(
+      Segment_Mean < -2 ~ "Extreme Deletion",
+      Segment_Mean >= -2 & Segment_Mean < -1 ~ "Deleted",
+      Segment_Mean >= -1 & Segment_Mean < 1 ~ "Slight Change",
+      Segment_Mean >= 1 & Segment_Mean < 2 ~ "Amplification",
+      Segment_Mean >= 2 ~ "Extreme Amplification",
+      TRUE ~ "Other"
+    )
+  )
+
+# Summarize 
+gene_summary <- gene_cnv_data %>%
+  group_by(gene_name, coding_noncoding_chr) %>%  # Add Sample_ID if applicable
+  summarize(
+    # Count how many times each category appears for this gene
+    Extreme_Deletion = sum(Category == "Extreme Deletion"),
+    Deleted = sum(Category == "Deleted"),
+    Slight_Change = sum(Category == "Slight Change"),
+    Amplification = sum(Category == "Amplification"),
+    Extreme_Amplification = sum(Category == "Extreme Amplification"),
+    
+    Avg_Segment_Mean = mean(Segment_Mean),
+    Min_Segment_Mean = min(Segment_Mean),  # Smallest value (deepest deletion)
+    Max_Segment_Mean = max(Segment_Mean)  # Largest value (highest amplification)
+  )
+```
