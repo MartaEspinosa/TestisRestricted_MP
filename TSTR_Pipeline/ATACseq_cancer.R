@@ -70,7 +70,7 @@ peaks_annotation_df_candidates <- merge(peaks_annotation_df, genes_candidatesORF
 peaks_annotation_df_candidates <- peaks_annotation_df_candidates %>% unique()     
 peaks_annotation_df_candidates$ctype_ATAC <- gsub("_.*","",peaks_annotation_df_candidates$V4)     
 table(peaks_annotation_df_candidates$coding_noncoding_chr)
-write.csv(peaks_annotation_df_candidates, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/CandidatesORFs_AnnotatedPeaks_Upstream.csv")
+write.csv(peaks_annotation_df_candidates, "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/ATACseq_cancer/CandidatesORFs_AnnotatedPeaks_Upstream.csv", row.names=F)
 
 table(peaks_annotation_df_candidates[,c("gene_name", "coding_noncoding_chr")] %>%  unique() %>% pull("coding_noncoding_chr"))
 
