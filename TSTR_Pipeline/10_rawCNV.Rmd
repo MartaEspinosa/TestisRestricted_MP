@@ -14,6 +14,7 @@ library(rtracklayer)
 library(GenomicRanges)
 library(dplyr)
 library(TCGAbiolinks)
+library(ggplot2)
 
 cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
 TCGAcancers = c("TCGA-BRCA","TCGA-BLCA","TCGA-LUAD","TCGA-KIRC","TCGA-PRAD","TCGA-LUSC","TCGA-COAD","TCGA-LIHC")
@@ -30,7 +31,7 @@ bed = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconst
 
 ```{r candidates, echo=F}
 candidates = read.csv(file.path(tumorReactDIR,"TSTR_candidatesORFs_fullcharacterized.csv"))
-genes = candidates %>% dplyr::select(gene_name, transcript_id, gene_id, chr, gene_type, coding_noncoding_chr) %>% subset(coding_noncoding_chr != "other ncORFs") %>% unique()
+genes = candidates %>% dplyr::select(gene_name, transcript_id, gene_id, gene_type, coding_noncoding_chr) %>% subset(coding_noncoding_chr != "other ncORFs") %>% unique()
 
 coordinates = read.csv(bed, sep="\t", header=F)
 coordinates = coordinates %>% dplyr::select(V1,V2,V3,V4)
@@ -41,6 +42,7 @@ names(coordinates) = c("chr","start","end","transcript_id")
 
 genes = merge(genes, coordinates, by="transcript_id", all.x=T)
 genes$chr = gsub("chr","",genes$chr)
+genes = unique(genes)
 table(genes$coding_noncoding_chr)
 ```
 
@@ -58,41 +60,46 @@ Log2 Ratio Interpretation:
 
 
 ```{r downloading, echo=F}
-cnvdata_complete = data.frame()
-for(proj in TCGAcancers) {
-  # Query for CNV segment data (raw copy number data)
-  query <- GDCquery(
-    project = proj,  # Change to your cancer type
-    # project = TCGAcancers,  # Change to your cancer type
-    data.category = "Copy Number Variation",
-    data.type = "Copy Number Segment",
-    workflow.type = "DNAcopy",
-    access = "open",
-    sample.type = "Primary Tumor"
-  )
-  # getResults(query)
-  
-  # Download the data
-  GDCdownload(query,
-              directory = file.path(tumorReactDIR,"rawCNV/data"))
-  # Prepare the data
-  cnv_data <- GDCprepare(query,
-                         directory = file.path(tumorReactDIR,"rawCNV/data"))
-  
-  cnv_data$ctype = proj
-  cnvdata_complete = rbind(cnvdata_complete, cnv_data)
-}
+# cnvdata_complete = data.frame()
+# # for(proj in TCGAcancers) {
+# for(proj in c("TCGA-KIRC","TCGA-PRAD","TCGA-LUSC","TCGA-COAD","TCGA-LIHC")) {
+# 
+#   # Query for CNV segment data (raw copy number data)
+#   query <- GDCquery(
+#     project = proj,  # Change to your cancer type
+#     # project = TCGAcancers,  # Change to your cancer type
+#     data.category = "Copy Number Variation",
+#     data.type = "Copy Number Segment",
+#     workflow.type = "DNAcopy",
+#     access = "open",
+#     sample.type = "Primary Tumor"
+#   )
+#   # getResults(query)
+#   
+#   # Download the data
+#   GDCdownload(query,
+#               directory = file.path(tumorReactDIR,"rawCNV/data"))
+#   # Prepare the data
+#   cnv_data <- GDCprepare(query,
+#                          directory = file.path(tumorReactDIR,"rawCNV/data"))
+#   
+#   cnv_data$ctype = proj
+#   cnvdata_complete = rbind(cnvdata_complete, cnv_data)
+# }
+# saveRDS(cnvdata_complete, file.path(tumorReactDIR,"rawCNV/data/cnvdata_8cancertypes.rds"))
+cnvdata_complete = readRDS(file.path(tumorReactDIR,"rawCNV/data/cnvdata_8cancertypes.rds"))
 ```
 
 ```{r mapGenes, echo=F}
 # Convert CNV data into a GRanges object
 cnv_gr <- GRanges(
-  seqnames = cnv_data$Chromosome,  
+  seqnames = cnvdata_complete$Chromosome,  
   ranges = IRanges(
-    start = cnv_data$Start,  
-    end = cnv_data$End       
+    start = cnvdata_complete$Start,  
+    end = cnvdata_complete$End       
   ),
-  segment_mean = cnv_data$Segment_Mean  
+  segment_mean = cnvdata_complete$Segment_Mean,
+  ctype = cnvdata_complete$ctype
 )
 
 # Convert gene data into a GRanges object
@@ -115,7 +122,8 @@ gene_cnv_data <- data.frame(
   Gene_End = end(genes_gr)[queryHits(overlaps)],          # Gene end
   Segment_Start = start(cnv_gr)[subjectHits(overlaps)],   # CNV segment start
   Segment_End = end(cnv_gr)[subjectHits(overlaps)],       # CNV segment end
-  Segment_Mean = cnv_gr$segment_mean[subjectHits(overlaps)] # Segment mean
+  Segment_Mean = cnv_gr$segment_mean[subjectHits(overlaps)], # Segment mean
+  ctype = cnv_gr$ctype[subjectHits(overlaps)]
 )
 gene_cnv_data = merge(gene_cnv_data, genes %>% dplyr::select(gene_name, coding_noncoding_chr), by="gene_name")
 
@@ -134,7 +142,7 @@ gene_cnv_data <- gene_cnv_data %>%
 
 # Summarize 
 gene_summary <- gene_cnv_data %>%
-  group_by(gene_name, coding_noncoding_chr) %>%  # Add Sample_ID if applicable
+  group_by(gene_name, coding_noncoding_chr, ctype) %>%  # Add Sample_ID if applicable
   summarize(
     # Count how many times each category appears for this gene
     Extreme_Deletion = sum(Category == "Extreme Deletion"),
@@ -147,4 +155,28 @@ gene_summary <- gene_cnv_data %>%
     Min_Segment_Mean = min(Segment_Mean),  # Smallest value (deepest deletion)
     Max_Segment_Mean = max(Segment_Mean)  # Largest value (highest amplification)
   )
+write.csv(gene_summary, file.path(tumorReactDIR,"rawCNV/results_ctypes.csv"), row.names = F)
+```
+
+```{r plots, echo=F}
+for(proj in TCGAcancers) {
+  data_to_plot = gene_summary %>%
+    dplyr::select(-c(Avg_Segment_Mean, Min_Segment_Mean, Max_Segment_Mean)) %>%
+    pivot_longer(cols=-c(gene_name, coding_noncoding_chr, ctype), values_to = "nums", names_to = "Category") %>% subset(Category != "Slight_Change") %>% 
+    subset(ctype == proj) %>% 
+    subset(coding_noncoding_chr != "Noncoding-X") %>%
+    subset(nums > 0)
+    
+  print(ggplot(data_to_plot, aes(x=gene_name, y=nums, fill=coding_noncoding_chr)) +
+    geom_bar(stat="identity", position="dodge") +
+    scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+    labs(x="Genes",
+         y="Number of ocurrences",
+         title=paste0("CNV in ",proj)) +
+    theme_minimal() +
+    theme(legend.position = "top",
+          # axis.text.x = element_text(angle=90)) +
+          axis.text.x = element_blank()) +
+    facet_wrap(~ Category, scales="free"))
+}
 ```
