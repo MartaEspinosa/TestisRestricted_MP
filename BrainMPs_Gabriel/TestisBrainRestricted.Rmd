@@ -1,0 +1,217 @@
+---
+title: "Brain&Testis-restricted microproteins | RNASeq"
+author: "Marta Espinosa"
+date: "2024-05-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(stringr)
+library(purrr)
+library(ggvenn)
+library(ggpubr)
+library(ggside)
+library(bioseq)
+library(rcartocolor)
+library(ggbeeswarm)
+library(ggrepel)
+
+plots_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/plots/brain"
+save_wd = "/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q2_TestisRestricted/human/brain"
+
+annot = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/newReference_Resconstructed/transID_geneID_isoforms_selected.1to1.csv")
+```
+
+
+## Human Data | RNASeq
+
+```{r length, echo=FALSE}
+## Load counts data
+# raw_counts = read.table("/users/genomics/saraa/projectTestis/featureCounts/results_geneID/featureCounts_geneID.txt header=TRUE)
+toc_TPMs = read.csv("/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/featureCounts_gffcompare/table_of_counts_TPMs_withLength.csv", header=TRUE)
+
+## For novels, remove those shorter than 300 pb
+toc_TPMs = toc_TPMs %>%
+  filter(!(startsWith(gene_id, "TCONS") & Length < 300))
+names(toc_TPMs)[1] = "transcript_id"
+
+toc_TPMs = merge(toc_TPMs, annot, by="transcript_id", all.x=T)
+toc_TPMs = toc_TPMs %>% unique()
+
+toc_TPMs = toc_TPMs %>% select(-c(Length,transcript_type))
+toc_TPMs_long = toc_TPMs %>% pivot_longer(cols=-c(gene_id, gene_name, transcript_id, gene_type, chr, gene_type), names_to = "sample", values_to = "TPM")
+
+toc_TPMs_long$patient = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[length(x)])
+toc_TPMs_long$patient = paste0("Patient",toc_TPMs_long$patient)
+## get tissue data
+toc_TPMs_long$tissue = sapply(strsplit(toc_TPMs_long$sample, "_"), function(x) x[2])
+## log2TPM
+toc_TPMs_long$log2TPM = log2(toc_TPMs_long$TPM)
+
+toc_TPMs_subset = toc_TPMs %>% select(-c(chr)) %>% subset(gene_type == "lncRNA" | gene_type == "processed_pseudogene" | gene_type == "protein_coding" | gene_type == "novel") %>% unique()
+
+```
+
+### Brain/Testis-Restricted | RNASeq
+
+
+```{r expressed, echo=F}
+brainExpressed = read.csv(file.path(save_wd,"brainExpressed.csv"))
+testisExpressed = read.csv(file.path(save_wd,"testisExpressed.csv"))
+liverExpressed = read.csv(file.path(save_wd,"liverExpressed.csv"))
+
+#------------------ BRAIN ------------------#
+## they should be brain-restricted in at least 2 patients
+brain_testis_specific = toc_TPMs_subset[rowSums(toc_TPMs_subset[, c(2:4)] > 1) >= 1 & rowSums(toc_TPMs_subset[, c(8:10)] > 1) >= 1 & rowSums(toc_TPMs_subset[, c(5:7)] < 0.5) == 3, ]
+## merge with all info
+brain_testis_specific_full = merge(brain_testis_specific, toc_TPMs_long %>% select(gene_id, gene_name, gene_type), by=c("gene_id","gene_type","gene_name")) 
+brain_testis_specific_full = brain_testis_specific_full %>% unique()
+
+# brainspecific_full_in1 = brainspecific_full[rowSums(brainspecific_full[, c(5:7)] > 1) > 1,]
+write.csv(brain_testis_specific_full, file.path(save_wd,"brainTestis_Restricted.csv"), row.names = F)
+
+print("Brain & Testis")
+print(table(brain_testis_specific_full %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type)))
+```
+
+
+### Brain-Restricted | RNASeq & GTEx filter
+
+We will use GTEx to filter those genes whose expression in other tissues is higher than 0.5.
+
+In cases where several "sub-tissues" are available, we kept the highest value.
+
+```{r, reading_GTEx, echo=F}
+gtex = read.table("/data/genomics/marta/genomes/GTEx/v10/GTEx_maintissue_gene_median_tpm.csv", sep=",", header=T)
+names(gtex)[1] = "gene_id"
+nrow(gtex)
+gtex$gene_id = gsub("\\..*","",gtex$gene_id)
+```
+
+```{r brain_GTEx, echo=F}
+nrow(brain_testis_specific_full)
+BT_gtex = gtex %>% subset(gene_id %in% brain_testis_specific_full$gene_id)
+dim(BT_gtex)
+
+## germline 
+germline = BT_gtex %>% select(gene_id, Brain, Testis) 
+germline_05 = germline %>% mutate(GTEx_brain = case_when(Brain > 0.5~ "> 0.5", Brain < 0.5 ~ "< 0.5"),
+                                  GTEx_testis = case_when(Testis > 0.5~ "> 0.5", Testis < 0.5 ~ "< 0.5"))
+# dim(germline_05)
+## non-reproductive tissues
+NOgermline = BT_gtex %>% select(-c(Brain, Testis))
+rownames(NOgermline) = NOgermline$gene_id
+NOgermline$gene_id = NULL
+dim(NOgermline)
+
+## get maximum value
+NOgermline$max <- apply(NOgermline, 1, max, na.rm=TRUE)
+NOgermline_05 = NOgermline %>% mutate("GTEx_healthy" = case_when(max > 0.5~ "> 0.5", max < 0.5 ~ "< 0.5"))
+NOgermline_05$gene_id = rownames(NOgermline_05)
+dim(NOgermline_05)
+
+## join both criteria
+GTEX_criteria = merge(NOgermline_05 %>% select(gene_id, GTEx_healthy), germline_05 %>% select(gene_id, GTEx_brain, GTEx_testis), by="gene_id")
+dim(GTEX_criteria)
+# length(unique(brainspecific_full$gene_id))
+# nrow(GTEX_criteria)
+subset_full_GTEx = merge(brain_testis_specific_full, GTEX_criteria, by="gene_id")
+dim(subset_full_GTEx)
+# length(unique(subset_brain_full_GTEx$gene_id))
+
+subset_GTEx = subset_full_GTEx %>% subset(GTEx_healthy == "< 0.5" & GTEx_brain == "> 0.5" & GTEx_testis == "> 0.5")
+dim(subset_GTEx)
+
+
+subset_GTEx_w_novels = brain_testis_specific_full %>% subset(gene_type == "novel")
+subset_GTEx_w_novels$GTEx_healthy = NA
+subset_GTEx_w_novels$GTEx_brain = NA
+subset_GTEx_w_novels$GTEx_testis = NA
+
+subset_GTEx_w_novels = rbind(subset_GTEx_w_novels, subset_GTEx)
+
+write.csv(subset_GTEx_w_novels, file.path(save_wd,"BrainTestis_Restricted_GTEx.csv"), row.names = F)
+nrow(subset_GTEx_w_novels)
+tmp = subset_GTEx_w_novels %>% select(gene_id, gene_type) %>% unique()
+table(tmp$gene_type)
+```
+
+**Of the expressed, how many are restricted based on Wang and based on GTEx?**
+
+```{r expr_restr, echo=F}
+bt_expr_full = rbind(testisExpressed, brainExpressed)
+bt_expr_full = unique(bt_expr_full)
+
+BT_Expressed = bt_expr_full %>% mutate("BT_Restricted" = case_when(gene_id %in% brain_testis_specific_full$gene_id ~ "yes", TRUE ~ "no")) %>%
+  mutate("BT_Restricted_GTEx" = case_when(gene_id %in% subset_GTEx$gene_id ~ "yes", TRUE ~ "no"))
+table(BT_Expressed$gene_type)
+```
+
+
+
+## Human Data | RiboSeq
+
+#### Brain-Expressed with RiboSeq
+
+```{r translation_Expressed,echo=F}
+## translation
+ribORF_humanbrain_in1_fastas = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/brain/ribORF_humanbrain_in1.csv")
+table(ribORF_humanbrain_in1_fastas$gene_type)
+table(ribORF_humanbrain_in1_fastas$geneORFtype)
+
+## translation
+ribORF_humantestis_in1_fastas = read.csv("/projects_eg/projects/marta/TestisRestricted_Microproteins_TSA/with_TranscriptomeReconstruction/Multimap_altORFs/Q1_TestisORFs/human/ribORF_humanTestis_in1.csv")
+table(ribORF_humantestis_in1_fastas$gene_type)
+table(ribORF_humantestis_in1_fastas$geneORFtype)
+
+ribORF_human_in_1_fastas = rbind(ribORF_humantestis_in1_fastas, ribORF_humanbrain_in1_fastas)
+nrow(BT_Expressed)
+table(BT_Expressed$gene_type)
+## how many of the brain expressed are translated?
+BT_Expressed_Restricted_Translated = merge(BT_Expressed %>% select(gene_id, gene_name, BT_Restricted), ribORF_human_in_1_fastas, by=c("gene_id","gene_name"))
+
+
+nrow(BT_Expressed_Restricted_Translated)
+print("orfs")
+table(BT_Expressed_Restricted_Translated$gene_type)
+print("altORFs")
+table(BT_Expressed_Restricted_Translated$geneORFtype)
+print("genes")
+table(BT_Expressed_Restricted_Translated %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+print("orfs brainTestis-restricted")
+table(BT_Expressed_Restricted_Translated$BT_Restricted, BT_Expressed_Restricted_Translated$gene_type)
+print("altORFs brainTestis-restricted")
+table(BT_Expressed_Restricted_Translated$BT_Restricted, BT_Expressed_Restricted_Translated$geneORFtype)
+print("genes brainTestis-restricted")
+table(BT_Expressed_Restricted_Translated %>% subset(BT_Restricted == "yes")%>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+tp=BT_Expressed_Restricted_Translated %>% subset(BT_Restricted == "yes")%>% select(gene_id, gene_type, geneORFtype) %>% unique()
+table(tp$gene_type, tp$geneORFtype)
+
+BT_Expressed_Restricted_Translated = BT_Expressed_Restricted_Translated %>% select(-ORFseq)
+```
+
+#### brain-Specific with RiboSeq
+
+```{r translation_brainRestricted,echo=F}
+BT_RestrictedGTEx_Translated = merge(subset_GTEx_w_novels %>% select(gene_id, gene_name), ribORF_human_in_1_fastas, by=c("gene_id","gene_name")) 
+write.csv(BT_RestrictedGTEx_Translated, file.path(save_wd, "brainTestis_Restricted_GTEx_translated.csv"), row.names = F, quote = F)
+
+## how many brain REstricted GTEx are translated?
+nrow(BT_RestrictedGTEx_Translated)
+print("orfs")
+table(BT_RestrictedGTEx_Translated$gene_type)
+print("altORFs")
+table(BT_RestrictedGTEx_Translated$geneORFtype)
+print("genes")
+table(BT_RestrictedGTEx_Translated %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
+BT_RestrictedGTEx_Translated = BT_RestrictedGTEx_Translated %>% select(-ORFseq)
+tp=BT_RestrictedGTEx_Translated %>% select(gene_id, gene_type, geneORFtype) %>% unique()
+table(tp$gene_type, tp$geneORFtype)
+
+dim(BT_RestrictedGTEx_Translated)
+```
+

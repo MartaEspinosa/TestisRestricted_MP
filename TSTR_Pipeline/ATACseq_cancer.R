@@ -22,7 +22,7 @@ names(annotatio_granges) <- mcols(annotatio_granges)$tx_name
 
 # Read ATAC files
 atac.peak.files <- c(
-  list.files(path="/datasets/marta/ATACseq/Corces2018", all.files=T, full.names = T,pattern = "bed") ## PANCANCER PEAKS 
+  list.files(path="/datasets/marta/ATACseq/Corces2018", all.files=T, full.names = T,pattern = "8cancertypes.bed") ## PANCANCER PEAKS 
 )
 
 peaks_annotation <- NULL
@@ -39,7 +39,7 @@ for (peak_file in atac.peak.files){
   peaksXchr$peakDensity <- peaksXchr$num_peaks / peaksXchr$length
   
   # ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "nearestBiDirectionalPromoters",multiple = T, bindingRegion = c(-1000, 100))
-  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream&inside",multiple = T)
+  ann.tmp <- annotatePeakInBatch(myPeakList = peaks,AnnotationData = annotatio_granges ,output = "upstream&inside",multiple = T, ignore.strand = F)
   
   peaks_annotation  <- c(peaks_annotation , ann.tmp)
 }

@@ -15,6 +15,7 @@ library(GenomicRanges)
 library(dplyr)
 library(TCGAbiolinks)
 library(ggplot2)
+library(ggbeeswarm)
 
 cancers = c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")
 TCGAcancers = c("TCGA-BRCA","TCGA-BLCA","TCGA-LUAD","TCGA-KIRC","TCGA-PRAD","TCGA-LUSC","TCGA-COAD","TCGA-LIHC")
@@ -178,5 +179,97 @@ for(proj in TCGAcancers) {
           # axis.text.x = element_text(angle=90)) +
           axis.text.x = element_blank()) +
     facet_wrap(~ Category, scales="free"))
+  ggsave(paste0(save_wd,"/CNV_",proj,".jpeg"))
+  
+  segmentMean_to_plot = gene_cnv_data %>%
+    subset(ctype == proj) %>% 
+    subset(coding_noncoding_chr != "Noncoding-X")
+  
+  ggplot(segmentMean_to_plot, aes(x=gene_name, y=Segment_Mean, color=coding_noncoding_chr)) +
+    geom_quasirandom() +
+    geom_hline(yintercept = 1) +
+    geom_hline(yintercept = -1) +
+    scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+    theme_minimal() +
+    theme(axis.text.x=element_blank(),
+          legend.position = "none") +
+    facet_wrap(~ coding_noncoding_chr, nrow=3, scales="free_x")
+    ggsave(paste0(save_wd,"/segmentMean_CNV_",proj,".jpeg"))
+
+  extrems = segmentMean_to_plot %>% subset(Segment_Mean > 1 | Segment_Mean < -1)
+  ggplot(extrems, aes(x=gene_name, y=Segment_Mean, color=coding_noncoding_chr)) +
+    geom_quasirandom() +
+    geom_hline(yintercept = 1) +
+    geom_hline(yintercept = -1) +
+    scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+    theme_minimal() +
+    theme(axis.text.x=element_text(angle=90),
+          legend.position = "none") +
+    facet_wrap(~ coding_noncoding_chr, nrow=3, scales="free_x")
+    ggsave(paste0(save_wd,"/segmentMeanExtrems_CNV_",proj,".jpeg"))
+
+  ### amplifications only
+  amplifications = segmentMean_to_plot %>% subset(Segment_Mean > 1)
+  ggplot(amplifications, aes(x=gene_name, y=Segment_Mean, color=coding_noncoding_chr)) +
+    geom_quasirandom(size=.5) +
+    scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+    labs(title=paste0("Amplifications in TSTR | ", proj)) +
+    theme_minimal() +
+    theme(axis.text.x=element_text(angle=90),
+          legend.position = "none") +
+    facet_wrap(~ coding_noncoding_chr, nrow=3, scales="free_x")
+    ggsave(paste0(save_wd,"/amplifications_CNV_",proj,".jpeg"))
+
+  ## amplified in more than 5 observations
+  amplifications_5_counts = segmentMean_to_plot %>% subset(Segment_Mean > 1) %>% dplyr::group_by(coding_noncoding_chr, gene_name, Category) %>% dplyr::count() %>% subset(n>5)
+  amplifications_5 = segmentMean_to_plot %>% subset(Segment_Mean > 1) %>% subset(gene_name %in% amplifications_5_counts$gene_name)
+  
+  if(nrow(amplifications_5) > 0) {
+    print(ggplot(amplifications_5, aes(x=gene_name, y=Segment_Mean, color=coding_noncoding_chr, fill=coding_noncoding_chr)) +
+      geom_quasirandom() +
+      geom_boxplot(color="black", alpha=.3, width=.2) +
+      scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+      scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + 
+      labs(title=paste0("Amplifications in TSTR >5 times | ",proj)) +
+      theme_minimal() +
+      theme(axis.text.x=element_text(angle=90),
+            legend.position = "none") +
+      facet_wrap(~ coding_noncoding_chr, nrow=3, scales="free_x"))
+      ggsave(paste0(save_wd,"/amplifications5_CNV_",proj,".jpeg"))
+  }
 }
+```
+
+```{r amplifications, echo=F}
+segmentMean_to_plot = gene_cnv_data %>%
+    subset(coding_noncoding_chr != "Noncoding-X")
+
+amplifications_5_counts = segmentMean_to_plot %>% 
+  subset(Segment_Mean > 1) %>% 
+  dplyr::group_by(coding_noncoding_chr, gene_name, Category) %>% 
+  dplyr::count() %>% 
+  subset(n>5)
+amplifications_5 = segmentMean_to_plot %>% 
+  subset(Segment_Mean > 1) %>% 
+  subset(gene_name %in% amplifications_5_counts$gene_name)
+
+## Noncoding-nonX
+ggplot(amplifications_5 %>% subset(coding_noncoding_chr == "Noncoding-nonX"), aes(x=gene_name, y=Segment_Mean, color=ctype)) +
+  geom_jitter(size=1) +
+  geom_boxplot(color="black", alpha=.3, width=.5, fill=NA) +
+  labs(title="Amplifications in TSTR >5 times | Noncoding-nonX") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(angle=90),
+        legend.position = "none") 
+ggsave(file.path(save_wd,"amplifications5_CNV_allctypes_noncodingnonX.jpeg"), width=15.8, height=8.47)
+
+## CT-nonX
+ggplot(amplifications_5 %>% subset(coding_noncoding_chr == "CT-nonX"), aes(x=gene_name, y=Segment_Mean, color=ctype)) +
+  geom_jitter(size=1) +
+  geom_boxplot(color="black", alpha=.3, width=.5, fill=NA) +
+  labs(title="Amplifications in TSTR >5 times | CT-nonX") +
+  theme_minimal() +
+  theme(axis.text.x=element_text(angle=90),
+        legend.position = "none") 
+ggsave(file.path(save_wd,"amplifications5_CNV_allctypes_CTnonX.jpeg"), width=15.8, height=8.47)
 ```
