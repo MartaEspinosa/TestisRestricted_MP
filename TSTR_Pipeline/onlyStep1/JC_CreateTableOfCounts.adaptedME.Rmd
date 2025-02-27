@@ -1,0 +1,147 @@
+---
+title: "Quantification RiboSeq ORFs"
+author: "JoseCarlosMontanesDominguez adapted by Marta E. Camarena"
+date: "April 19, 2024"
+output: html_document
+---
+
+```{r}
+#Libraries
+
+library(reshape2)
+library(ggplot2)
+library(knitr)
+library(stringr) # For str_count
+library(Biostrings)
+library(GenomicRanges)
+#library(data.table)
+library(gtable)
+library(gridExtra)
+library(grid)
+library(lattice)
+library(ggpubr)
+library(ggrepel)
+library(readxl)
+library(plyr)
+library(dplyr)
+library(UpSetR)
+library(GGally)
+
+create_list_from_2_lists <- function(values, IDs){
+  names(values) <- IDs
+  return(values)
+}
+
+FC_2_TPMs <- function(counts, lengths, exon_counts){
+  rpk <- counts/(lengths/1000)
+  totalC <- sum(exon_counts)
+  scaling_factor <-totalC/10^6
+  tpm <- rpk/scaling_factor
+  return(tpm)
+}
+
+```
+
+# Create Riboseq tables by features
+
+```{r}
+clusterPath = "/users/genomics/marta/TestisProject_SaraRazquin/JC_RiboSeq_TPMs"
+inputPath <- "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/human/RiboNovel_MultMap_1to1/RibORF"
+
+TPMs <- data.frame()
+ribORF <- data.frame()
+CDS_vs_alt <- data.frame()
+
+tissues_to_check = c("testis","brain","liver")
+
+for (t in 1:length(tissues_to_check)) {
+  ## read pred values
+  tissue = tissues_to_check[t]
+  for(i in 1:3) {
+    num_sample = i
+    
+    ribORF_tmp <- read.delim(paste0(inputPath, "/human_",tissue,"_ribo_",num_sample,"_r1/pred.pvalue.parameters.txt"))
+    ribORF_tmp$Sample <- paste0(tissue,"_",num_sample)
+    ribORF_tmp$ORF_type <- gsub(pattern = "\\|.*",replacement = "",x = gsub(pattern = ".*:.*:.*:[0-9]{0,5}\\|", replacement = "", x = ribORF_tmp$orfID))
+    ribORF_tmp$transcriptInit <- sub(pattern = ".*?\\|", replacement = "", ribORF_tmp$orfID) %>% 
+      sub(pattern = ".*?\\|", replacement = "") %>% 
+      sub(pattern = ".*?:", replacement = "") %>% 
+      gsub(pattern = ":.*", replacement = "")
+    ribORF_tmp$transcriptEnd <- sub(pattern = ".*?\\|", replacement = "", ribORF_tmp$orfID) %>% 
+      sub(pattern = ".*?\\|", replacement = "") %>% 
+      gsub(pattern = ".*?:", replacement = "") %>% 
+      gsub(pattern = "\\|.*", replacement = "")
+    ribORF_tmp$transcript <- gsub(pattern = ":.*",replacement = "",x = ribORF_tmp$orfID)
+    ribORF_tmp$Starting_codon <- gsub(pattern = ".*\\|",replacement = "",x = ribORF_tmp$orfID)
+    ribORF_tmp$Species <- "Human"
+    ribORF_tmp$gene <- gsub(pattern = "-T[1-9]", replacement = "", x = ribORF_tmp$transcript)
+    
+    ribORF <- rbind(ribORF, ribORF_tmp)
+    
+    # ORF quantification
+    
+    ribORF_cov1 <- data.frame()
+    
+    ribORF_mod <- ribORF[,c("orfID", "Sample", "pred.pvalue")]
+    colnames(ribORF_mod)[ncol(ribORF_mod)] <- "pred.pvalue.10"
+    
+    
+    ribORF_tmp <- read.delim(paste0(inputPath, "/human_",tissue,"_ribo_",num_sample,"_r1/cov_1/pred.pvalue.parameters.txt"))
+    ribORF_tmp$ORF_type <- gsub(pattern = "\\|.*",replacement = "",x = gsub(pattern = ".*:.*:.*:[0-9]{0,5}\\|", replacement = "", x = ribORF_tmp$orfID))
+    ribORF_tmp$transcriptInit <- sub(pattern = ".*?\\|", replacement = "", ribORF_tmp$orfID) %>% 
+      sub(pattern = ".*?\\|", replacement = "") %>% 
+      sub(pattern = ".*?:", replacement = "") %>% 
+      gsub(pattern = ":.*", replacement = "")
+    ribORF_tmp$transcriptEnd <- sub(pattern = ".*?\\|", replacement = "", ribORF_tmp$orfID) %>% 
+      sub(pattern = ".*?\\|", replacement = "") %>% 
+      gsub(pattern = ".*?:", replacement = "") %>% 
+      gsub(pattern = "\\|.*", replacement = "")
+    ribORF_tmp$transcript <- gsub(pattern = ":.*",replacement = "",x = ribORF_tmp$orfID)
+    ribORF_tmp$Starting_codon <- gsub(pattern = ".*\\|",replacement = "",x = ribORF_tmp$orfID)
+    ribORF_tmp$Species <- "Human"
+    ribORF_tmp$Sample <- paste0(tissue,"_",num_sample)
+    ribORF_tmp$gene <- gsub(pattern = "-T[1-9]", replacement = "", x = ribORF_tmp$transcript)
+    ribORF_cov1 <- rbind(ribORF_cov1,ribORF_tmp)
+    
+    
+    fullRibORF <- merge(x = ribORF_cov1, y = ribORF_mod, all.x = TRUE)
+    
+    # Estimate f1 TPMs
+    
+    tpmDf <- fullRibORF %>%
+      filter(ORF_type %in% c("dORF", "uORF", "ouORF", "odORF", "canonical","noncoding")) 
+    
+    ### conversion ###
+    f1Tpm <- FC_2_TPMs(counts = tpmDf$readNum * tpmDf$f1, lengths = tpmDf$length, exon_counts = tpmDf$readNum * tpmDf$f1)
+    names(f1Tpm) <- tpmDf$orfID
+    
+    fullRibORF$f1Tpm <- f1Tpm[fullRibORF$orfID]
+    fullRibORFSimp = fullRibORF %>% select(orfID, ORF_type, Sample, length, readNum, f1Tpm)
+    write.table(x = fullRibORFSimp, file = paste0(clusterPath, "/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORFsimp.",unique(fullRibORFSimp$Sample),".tsv"), sep = "\t", row.names = F)
+    
+    ## WRT canonical
+    riborf <- fullRibORF %>%
+      filter(ORF_type %in% c("dORF", "uORF", "ouORF", "odORF", "canonical")) 
+    
+    riborf$tpm <- FC_2_TPMs(counts = riborf$readNum, lengths = riborf$length, exon_counts = riborf$readNum)
+    riborf$f0tpm <- FC_2_TPMs(counts = riborf$readNum * riborf$f1, lengths = riborf$length, exon_counts = riborf$readNum * riborf$f1)
+    
+    canonical <- riborf %>% filter(ORF_type == "canonical") %>% select(transcript, tpm, f0tpm) %>% dplyr::rename("tpmCanonical" = "tpm", "f0tpmCanonical" = "f0tpm") 
+    
+    riborf <- merge(x = riborf, y = canonical, all.x = TRUE)
+    
+    riborf$canonicalRatio <- riborf$f0tpm / riborf$f0tpmCanonical
+    riborf = riborf %>% select(transcript, orfID, f0tpmCanonical, Sample, ORF_type, f0tpm, canonicalRatio)
+    write.table(x = riborf, file = paste0(clusterPath, "/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.",unique(fullRibORFSimp$Sample),".tsv"), sep = "\t", row.names = F)
+    
+    CDS_vs_alt <- rbind(CDS_vs_alt, riborf)
+
+  }
+}
+write.table(x = CDS_vs_alt, file = paste0(clusterPath, "/Outputs/with_TranscriptomeReconstruction/Expression/v47_altORFs_MultMap/ribORF.CDS_altORFs.allSamples.tsv"), sep = "\t", row.names = F)
+
+
+```
+
+
+
