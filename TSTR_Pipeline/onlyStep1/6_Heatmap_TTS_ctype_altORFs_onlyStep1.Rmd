@@ -25,6 +25,7 @@ plots_wd = "/home/marta/projects/TSTR/onlyStep1/plots"
 save_wd = "/home/marta/projects/TSTR/onlyStep1/data"
 
 heatmaps_wd = file.path(plots_wd,"heatmaps")
+corr_wd = file.path(plots_wd,"correlations")
 
 tumorReactDIR = "/users/genomics/marta/TestisProject_SaraRazquin/with_TranscriptomeReconstruction/v47/cancers/log2ratio3x/cancertypes/onlyStep1"
 
@@ -219,7 +220,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
         recordPlot() 
       }
       
-      pdf(paste0(plots_wd,"/corrplot_allgenes_TOv3x_",ctype_var,".pdf"))
+      pdf(paste0(corr_wd,"/corrplot_allgenes_TOv3x_",ctype_var,".pdf"))
       replayPlot(p)
       dev.off()
     
@@ -283,7 +284,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       recordPlot() 
     }
     
-    pdf(paste0(plots_wd,"/corrplot_nonCTA_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_nonCTA_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
     
@@ -347,7 +348,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       recordPlot() 
     }
 
-    pdf(paste0(plots_wd,"/corrplot_CTA_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_CTA_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
     
@@ -413,7 +414,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       recordPlot() 
     }
 
-    pdf(paste0(plots_wd,"/corrplot_CTAX_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_CTAX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   
@@ -444,7 +445,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       recordPlot() 
     }
     
-    pdf(paste0(plots_wd,"/corrplot_CTAnonX_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_CTAnonX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   }
@@ -472,11 +473,11 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 4 - CTA-X chr <----- #####
           p <- {
     corrplot(CTAX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation nonCTA-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation Noncoding-X chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
-    pdf(paste0(plots_wd,"/corrplot_nonCTAX_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_nonCTAX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   
@@ -503,11 +504,11 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
     ##### ----> CORRPLOT 5 - CTA-nonX chr <----- #####
     p <- {
     corrplot(CTAnonX_cormat, type = "lower", order = "hclust", method="circle",
-             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation nonCTA-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
+             tl.col = "black", col = COL2('BrBG', 10), tl.cex=0.6, title=paste0("Correlation Noncoding-nonX chr TTS genes",  ctype_var),  mar=c(0,0,1,0));
       recordPlot() 
     }
     
-    pdf(paste0(plots_wd,"/corrplot_nonCTAnonX_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_nonCTAnonX_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   }
@@ -537,7 +538,7 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
       recordPlot() 
     }
     
-    pdf(paste0(plots_wd,"/corrplot_lncRNA_TOv3x_",ctype_var,".pdf"))
+    pdf(paste0(corr_wd,"/corrplot_lncRNA_TOv3x_",ctype_var,".pdf"))
     replayPlot(p)
     dev.off()
   }
@@ -547,13 +548,25 @@ for (ctype_var in c("BRCA","BLCA","LUAD","KIRC","PRAD","LUSC","COAD","LIHC")) {
 
 write.csv(correlation_values_to_save, file.path(save_wd,"corrplot_info_TOv3x5percent.csv"), row.names = F)
 write.csv(correlation_values_to_save %>% select(-num_genes) %>% pivot_wider(names_from = ctype, values_from = value), file.path(save_wd,"corrplot_values_TOv3x5percent.csv"), row.names = F)
-
+correlation_values_to_save %>% subset(type %in% c("CT-X","CT-nonX","Noncoding-X","Noncoding-nonX")) %>% select(-num_genes) %>% pivot_wider(names_from = ctype, values_from = value)
 ```
 
 ```{r plot_corr_all, echo=F}
 corrplot_values_all = read.csv(file.path(save_wd,"corrplot_values_TOv3x5percent.csv"))
 corrplot_values_all = corrplot_values_all %>% pivot_longer(cols=-c("type"), names_to = "ctype", values_to = "coexpression_corr")
 corrplot_values_all$coexpression_corr = as.numeric(corrplot_values_all$coexpression_corr)
+
+ggplot(corrplot_values_all %>% subset(type %in% c("CT-X","CT-nonX","Noncoding-nonX")), aes(x=type, y=coexpression_corr, fill=type)) +
+  geom_boxplot() +
+  geom_jitter() +
+  scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) +
+  labs(y="Coexpression values",
+       title="Coexpression values",
+       x="") +
+  theme_minimal() +
+  theme(legend.position = "none")
+ggsave(file.path(plots_wd,"coexpressionvalues.jpeg"), height=3.66, width = 4.89)
+
 ######### plot
 # ggplot(corrplot_values_all %>% subset(type != "CT"), aes(x=ctype, y=coexpression_corr, color=type)) +
 #   geom_point(size=5) +

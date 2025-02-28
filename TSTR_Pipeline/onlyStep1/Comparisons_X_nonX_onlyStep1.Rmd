@@ -408,6 +408,7 @@ ComplexUpset::upset(
     # "logTPM Thymus" = ggplot(mapping = aes(x = intersection, y = median_mTEC)) +  geom_quasirandom(color = "lightblue") +   geom_boxplot(outliers = FALSE, width = 0.3, fill = "transparent"),
     "Conservation" =( ggplot(mapping = aes(x = intersection, color = coding_noncoding_chr, y = factor(age_categorical, levels=c("humman-specific","primate-specific","mouse","mammal","conserved - outgroup")))) +  geom_point(size=3)  + ylab("Conservation") + scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31")) + theme(legend.position = "none") )
 
+    
   ),
 )
 
@@ -530,10 +531,11 @@ ComplexUpset::upset(
 ```{r thymus, echo=F}
 ggplot(candidatesORFs %>% 
                 subset(!grepl("ORF", geneORFtype)) %>%
-         select(gene_id, gene_name, geneORFtype, median_mTEC, coding_noncoding_chr, type) %>% unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")),  y=median_mTEC, color=coding_noncoding_chr)) +
+         select(gene_id, gene_name, geneORFtype, median_mTEC, coding_noncoding_chr, type) %>% unique(), aes(x=factor(coding_noncoding_chr, levels=c("CT-X","CT-nonX","Noncoding-nonX","other ncORFs")),  y=(median_mTEC+0.001), color=coding_noncoding_chr)) +
   geom_violin() +
   geom_quasirandom(width=0.1) +
   scale_y_continuous(trans="log10") +
+  geom_hline(yintercept=1) +
   # scale_fill_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
   scale_color_manual(values=c("CT-X" = "#833437", "CT-nonX" = "#ead890", "Noncoding-nonX" = "#646c31", "other ncORFs" = "#728FCE")) +
   stat_compare_means(label="p.format", comparisons = list(c("CT-X","CT-nonX"), 

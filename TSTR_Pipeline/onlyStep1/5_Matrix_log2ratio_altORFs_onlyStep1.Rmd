@@ -106,7 +106,6 @@ table(TSTR_expr %>% select(gene_id, gene_type) %>% unique() %>% pull(gene_type))
 
 ## Matrix for expression
 
-
 ```{r read_data, echo=F}
 ## select only the patients for which the gene is TSA
 data_completed_TSA_wide = TSTR_expr %>% subset(TPM > 0)
@@ -114,6 +113,7 @@ data_completed_TSA_wide = TSTR_expr %>% subset(TPM > 0)
 ## we compute the median of the patients that express the gene in a tumor-specific manner
 data_completed_TSA_median = data_completed_TSA_wide %>% group_by(gene_name,ctype) %>% mutate(medianTPM = median(TPM)) %>% ungroup()
 data_completed_TSA_median = merge(data_completed_TSA_median, annot, by=c("gene_id","transcript_id","gene_type","gene_name"))
+data_completed_TSA_median1TPM = data_completed_TSA_median %>% subset(medianTPM > 1)
 
 ## counting
 counting_genes = data_completed_TSA_median %>% select(gene_id, gene_type, ctype) %>% unique()
@@ -121,7 +121,6 @@ table(counting_genes$ctype, counting_genes$gene_type)
 ```
 
 ```{r median_heatmap, echo=F}
-
 ## select geneName and geneType
 gname_gtype = TSA_TestisGTEx_Translated %>% select(gene_name, gene_type) %>% unique()
 
@@ -272,6 +271,159 @@ ordered_labels_col_chrA = chrA_ph$tree_col$labels[col.order]
 row.order = chrA_ph$tree_row$order
 ordered_labels_row_chrA = chrA_ph$tree_row$labels[row.order]
 save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/pheatmap_medianTPM_chrA_TOv3x5percentlog2ratio3x.pdf"))
+```
+
+```{r median_heatmap_1TPM, echo=F}
+## select geneName and geneType
+gname_gtype = TSA_TestisGTEx_Translated %>% select(gene_name, gene_type) %>% unique()
+
+## row annotation
+row_annotation = annot %>% select(gene_name, gene_type, chr) %>% subset(gene_name %in% TSA_TestisGTEx_Translated$gene_name)
+rownames(row_annotation) = row_annotation$gene_name
+row_annotation = row_annotation %>% mutate(X_nonX = case_when(chr == "X" ~ "X",
+                                                            TRUE ~ "nonX"))
+row_annotation = row_annotation %>% select(gene_name, X_nonX, gene_type)
+rownames(row_annotation) = row_annotation$gene_name
+row_annotation = row_annotation %>% select(-c(gene_name))
+
+
+## col annotation
+col_annot = ctypes_data
+rownames(col_annot) = col_annot$ctype
+col_annot = col_annot %>% select(-c(ctype))
+# save.image(file=file.path(save_wd,"Q4.2_matrix.RData"))
+
+## keep expression data to plot
+df_expr = data_completed_TSA_median1TPM %>% select(gene_name, ctype, medianTPM) %>% unique() %>% pivot_wider(names_from = ctype, values_from = medianTPM) %>% unique() %>% subset(gene_name %in% rownames(row_annotation))
+df_expr = as.data.frame(df_expr)
+df_expr[is.na(df_expr)] = 0
+
+df_expr_values = mutate_all(df_expr[,-1], function(x) as.numeric(as.character(x)))
+## convert to log2medianTPM
+df_log = log2(df_expr_values+1)
+
+## convert to matrix
+matrix = data.matrix(df_log)
+rownames(matrix) = df_expr$gene_name
+matrix = na.omit(matrix)
+nozeros_matrix_log = matrix[,colSums(matrix) > 0]
+
+
+## heatmap_all_geneTypes
+ph = pheatmap(nozeros_matrix_log, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+       fontsize = 6,
+       main=paste0("Median logTPM of Testis/Tumor Specific genes (TOv3x)"))
+save_pheatmap_pdf(ph, paste0(heatmaps_wd,"/pheatmap_medianTPM1_all_TOv3x5percentlog2ratio3x.pdf"))
+
+lncRNA = data_completed_TSA_median1TPM %>% subset(gene_type != "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+CTA = data_completed_TSA_median1TPM %>% subset(gene_type == "protein_coding") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+  
+## CTA
+CTA_matrix = nozeros_matrix_log[CTA$gene_name, ]
+CTA_matrix_non_zero <- CTA_matrix[, apply(CTA_matrix, 2, function(x) any(x != 0))]
+
+cta_ph = pheatmap(CTA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | CTA")
+save_pheatmap_pdf(cta_ph, paste0(heatmaps_wd,"/pheatmap_medianTPM1_CTA_TOv3x5percentlog2ratio3x.pdf"))
+col.order = cta_ph$tree_col$order
+ordered_labels_col_CTA = cta_ph$tree_col$labels[col.order]
+
+row.order = cta_ph$tree_row$order
+ordered_labels_row_CTA = cta_ph$tree_row$labels[row.order]
+
+## lncRNA
+lncRNA_matrix = nozeros_matrix_log[lncRNA$gene_name, ]
+lncRNA_matrix_non_zero <- lncRNA_matrix[, apply(lncRNA_matrix, 2, function(x) any(x != 0))]
+
+lncRNA_ph = pheatmap(lncRNA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | lncRNA")
+col.order = lncRNA_ph$tree_col$order
+ordered_labels_col_lncRNA = lncRNA_ph$tree_col$labels[col.order]
+
+row.order = lncRNA_ph$tree_row$order
+ordered_labels_row_lncRNA = lncRNA_ph$tree_row$labels[row.order]
+save_pheatmap_pdf(lncRNA_ph, paste0(heatmaps_wd,"/pheatmap_medianTPM1_lncRNA_TOv3x5percentlog2ratio3x.pdf"))
+
+####### X / vs nonX
+chrX = data_completed_TSA_median1TPM %>% subset(chr == "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+nrow(chrX)
+chrA = data_completed_TSA_median1TPM %>% subset(chr != "X") %>% select(gene_name) %>% unique() %>% subset(gene_name %in% df_expr$gene_name)
+nrow(chrA)
+
+## chrX
+chrX_matrix = nozeros_matrix_log[chrX$gene_name, ]
+chrX_matrix_non_zero <- chrX_matrix[, apply(chrX_matrix, 2, function(x) any(x != 0))]
+
+chrX_ph = pheatmap(chrX_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | chrX")
+save_pheatmap_pdf(chrX_ph, paste0(heatmaps_wd,"/pheatmap_medianTPM1_chrX_TOv3x5percentlog2ratio3x.pdf"))
+col.order = chrX_ph$tree_col$order
+ordered_labels_col_chrX = chrX_ph$tree_col$labels[col.order]
+
+row.order = chrX_ph$tree_row$order
+ordered_labels_row_chrX = chrX_ph$tree_row$labels[row.order]
+
+## chrA
+chrA_matrix = nozeros_matrix_log[chrA$gene_name, ]
+chrA_matrix_non_zero <- chrA_matrix[, apply(chrA_matrix, 2, function(x) any(x != 0))]
+
+chrA_ph = pheatmap(chrA_matrix_non_zero, clustering_distance_cols = "correlation",clustering_distance_rows = "euclidean", clustering_method = "complete",
+       # treeheight_row = 0, treeheight_col = 0,
+       annotation_row = row_annotation,
+         annotation_col = col_annot,  # Annotation data frame
+       annotation_names_col = FALSE,
+       annotation_names_row = FALSE,
+       show_colnames = TRUE,
+       # cutree_cols = 3,
+       annotation_colors = mycolors,
+       color=colorRampPalette(c("lightyellow", "#de2d26"))(50),
+       fontsize = 6,
+       main="Median logTPM of Testis/Tumor Specific genes (TOv3x) | autosomes")
+col.order = chrA_ph$tree_col$order
+ordered_labels_col_chrA = chrA_ph$tree_col$labels[col.order]
+
+row.order = chrA_ph$tree_row$order
+ordered_labels_row_chrA = chrA_ph$tree_row$labels[row.order]
+save_pheatmap_pdf(chrA_ph, paste0(heatmaps_wd,"/pheatmap_medianTPM1_chrA_TOv3x5percentlog2ratio3x.pdf"))
 ```
 
 ## Correlation
